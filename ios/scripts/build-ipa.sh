@@ -87,7 +87,9 @@ fi
 echo "▸ Xcode: $(xcodebuild -version | head -1)"
 
 # ── H5 资源同步（web/ 是唯一真源，绝不能手工改 Resources/www） ──────────────
-"$SCRIPT_DIR/sync-web.sh"
+# 用 bash 显式调用，不依赖文件的可执行位：Windows 上 chmod 是空操作，
+# git 里提交的可执行位可能是 644，macOS runner 上直接执行会 Permission denied。
+bash "$SCRIPT_DIR/sync-web.sh"
 
 mkdir -p "$OUT_DIR"
 

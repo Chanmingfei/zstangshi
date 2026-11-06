@@ -33,7 +33,8 @@ workflows:
           node ios/scripts/test-bridge.mjs
 
       - name: 编译并打包 ipa
-        script: bash ios/scripts/build-ipa.sh --output "$CM_BUILD_DIR/out"
+        script: bash ios/scripts/build-ipa.sh --output out
 
     artifacts:
+      # 相对 clone 目录，与上面 --output out 对应
       - out/*.ipa

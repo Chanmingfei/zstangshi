@@ -92,6 +92,11 @@ echo "▸ Xcode: $(xcodebuild -version | head -1)"
 bash "$SCRIPT_DIR/sync-web.sh"
 
 mkdir -p "$OUT_DIR"
+# 产物目录转绝对路径：打包 ipa 要在 `(cd "$STAGE" && zip ...)` 的子 shell 里写产物，
+# 相对路径（CI 传的 --output out）在子 shell 里会指向 $STAGE/out 而失败，
+# zip 报 `Could not create output file`。
+OUT_DIR="$(cd "$OUT_DIR" && pwd)"
+echo "▸ 产物目录: $OUT_DIR"
 
 # ── 模拟器 ──────────────────────────────────────────────────────────────────
 if [[ "$MODE" == "simulator" ]]; then

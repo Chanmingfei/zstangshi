@@ -159,3 +159,18 @@ cd ios && xcodegen generate    # 读取 project.yml，覆盖生成 .xcodeproj
 
 `project.yml` 与手写工程等价；**当前仓库里提交的 `project.pbxproj` 才是权威**，
 改工程结构时请两边同步，或直接只用其中一种。
+
+---
+
+## 云端构建已打通（Codemagic）
+
+2026-11-06 首次跑通，产物 `ZhangShangTangShi-1.2.0-unsigned.ipa`（494 KB，arm64）。
+前三次失败都是**脚本层**问题，与 Swift 代码无关，记在这里免得下次重踩：
+
+| 报错 | 根因 | 修法 |
+|---|---|---|
+| `sync-web.sh: Permission denied` | Windows 上 `chmod +x` 是空操作，脚本进仓库是 644 | 脚本间调用改 `bash "$SCRIPT_DIR/xxx.sh"`，并把可执行位写进索引（100755） |
+| `WKHTTPCookieStore has no member 'deleteAllCookies'` | 那是 `WKWebsiteDataStore` 的 API | 改 `getAllCookies` + 逐条 `delete(_:completionHandler:)` |
+| `zip error: Could not create output file (out/...)` | 产物路径是相对目录，而 zip 在 `(cd "$STAGE" && ...)` 子 shell 里执行 | 参数解析后把 `OUT_DIR` 转绝对路径 |
+
+另外 `macos-14` 在 GitHub 上曾报 `configuration ... is not supported`，工作流已改用 `macos-15`。

@@ -14,11 +14,18 @@
 
 ## 拿到 iOS 安装包（不需要 Mac）
 
-`.ipa` 里的可执行文件是 arm64 Mach-O，只能由 Apple 的 iOS SDK 编译，而 SDK 只随 Xcode 发布、Xcode 只有 macOS 版。所以本仓库用 GitHub 的 macOS runner 代编译：
+`.ipa` 里的可执行文件是 arm64 Mach-O，只能由 Apple 的 iOS SDK 编译，而 SDK 只随 Xcode 发布、Xcode 只有 macOS 版。所以用云端 macOS 机器代编译。
 
-1. 仓库 → **Actions** → 左侧 **Build iOS IPA** → 右上 **Run workflow**
-2. 等 5–10 分钟，进入该次运行，页面底部 **Artifacts** 下载 `ZhangShangTangShi-unsigned-ipa`
-3. 解压得到 `ZhangShangTangShi-1.2.0-unsigned.ipa`
+**已在 Codemagic 上跑通**（2026-11-06，Build `6aedef2d`）：产出 `ZhangShangTangShi-1.2.0-unsigned.ipa`，494 KB，内含 84 个 H5 资源（与 `web/` 逐字节一致）+ arm64 Mach-O 可执行文件。
+
+用法：
+
+1. [codemagic.io](https://codemagic.io) → 用 GitHub 登录 → **Add application** → 选本仓库
+2. 它会自动识别根目录 `codemagic.yaml`（workflow `iOS 未签名 ipa`，`mac_mini_m2` 免费档 500 分钟/月）
+3. **Start new build** → 等排队（免费档共享机器，峰期 10–40 分钟）+ 编译约 2 分钟
+4. 构建页 **Artifacts** 下载 `ZhangShangTangShi-1.2.0-unsigned.ipa`
+
+> 也可以用 GitHub Actions（`.github/workflows/ios-ipa.yml`，`macos-15`），但本账号目前被计费锁挡住，见下。
 
 > **如果 Actions 起不来**，报 `The job was not started because your account is locked due to a billing issue`：
 > 这是 GitHub 账号的计费锁（连免费的 ubuntu runner 都会被拒），与本仓库无关。

@@ -27,3 +27,6 @@ out/
 # Codemagic 调试产物（本地用，不入库）
 cm_*.json
 cm_*.txt
+
+# 下载回来的 ipa（本地交付物，不入库）
+dist/

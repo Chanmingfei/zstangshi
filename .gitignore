@@ -23,3 +23,7 @@ Thumbs.db
 
 # 打包产物目录（build-ipa.sh --output out）
 out/
+
+# Codemagic 调试产物（本地用，不入库）
+cm_*.json
+cm_*.txt

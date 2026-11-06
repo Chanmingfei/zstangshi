@@ -72,9 +72,20 @@ enum CookieStore {
     }
 
     /// 退出登录：清空 WebView Cookie（对应 Android CookieJar.clear()）。
+    ///
+    /// 注意：WKHTTPCookieStore **没有** deleteAllCookies（那是 WKWebsiteDataStore 的 API），
+    /// 只能先全量取出再逐条 delete。也刻意不去 removeData(localStorage)：
+    /// Android 侧 clearSession 同样只清 Cookie + 凭据，主题与「记住学号」要留着。
     static func clear() async {
+        let cookies = await allCookies()
+        for cookie in cookies {
+            await delete(cookie)
+        }
+    }
+
+    static func delete(_ cookie: HTTPCookie) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            store.deleteAllCookies {
+            store.delete(cookie) {
                 continuation.resume()
             }
         }

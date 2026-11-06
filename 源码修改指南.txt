@@ -1,0 +1,39 @@
+掌上唐师 · 源码包说明（v1.2.0 / versionCode 5）
+================================================
+
+一、目录结构
+  web/            前端源码（零构建、零依赖的原生 HTML5 + ES Modules，源码即产物）
+    index.html    应用外壳（内联主题脚本，防刷新白闪）
+    core/         运行时：store / router / dom / animate / toast / storage / transport / theme
+    data/         数据层：jwxtClient（教务 HTTP）/ jwxt*（各模块解析）/ provider / customTerm（自定义学期）
+    pages/        12 个页面（login / home / timetable / grades / recommend / selection / calendar / mine ...）
+    components/   appBar / tabBar / sheet / card / charts ...
+    styles/       tokens（设计令牌，唯一可含色值的文件）/ base / components / pages*
+    data/school-calendar.json   内置校历快照
+  android/        安卓壳（WebView + NativeBridge）
+    app/src/main/java/com/tstc/zstangshi/   MainActivity / WebActivity / NativeBridge / CookieJar / SecurePrefs
+    app/src/main/res/                        图标、主题（values-v29 深色跟随）
+    build-manual.sh                          手工构建脚本（aapt2 + javac + d8 + zipalign + apksigner）
+  tools/          规则守卫 check-rules.mjs（行数≤400/零外链/对比度≥4.5）与回归测试（test-week / test-pages 等）
+  docs/           PRD、架构设计、教务接口实测记录（remote-api-map / diagnostics）、校历原文
+  server.js       本地静态预览服务（node server.js 后浏览器打开，改前端不用重装 APK）
+  reference/      教务参考页样本
+
+二、改完前端怎么打包 APK
+  前提：JDK 17+、Android SDK（build-tools 34+），android/local.properties 已按
+        local.properties.example 写好 sdk.dir。
+  步骤：cd android && bash build-manual.sh
+  产物：android/build/app-debug.apk（版本号在 build-manual.sh 的 --version-code/--version-name 处改）
+
+三、改前端时的硬约束（tools/check-rules.mjs 会查）
+  1. 单文件 ≤400 行；2. 颜色字面量只允许出现在 tokens.css / index.html；
+  3. 禁止任何外链资源（零 CDN/零图片外链）；4. 校历副本与 docs 原文保持一致；
+  5. 32 组文字/背景对比度 ≥4.5。
+  改完跑一遍：node tools/check-rules.mjs && node tools/test-week.mjs && node tools/test-pages.mjs
+
+四、常用修改位置速查
+  · 版本号        android/build-manual.sh（--version-code/--version-name）+ web/appState.js APP_VERSION
+  · 学期设置逻辑  web/data/customTerm.js + web/appActions.js（recomputeTerm / applyTermSettings）
+  · 教务接口      web/data/jwxtClient.js（端点表）/ docs/remote-api-map.md（实测口径）
+  · 主题色        web/styles/tokens.css
+  · 桌面图标      android/app/src/main/res/mipmap-*/ic_launcher.png

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>T06 验收 · 通用组件库</title>
+  <link rel="stylesheet" href="../styles/tokens.css" />
+  <link rel="stylesheet" href="../styles/base.css" />
+  <link rel="stylesheet" href="../styles/components.css" />
+  <link rel="stylesheet" href="../styles/componentsContent.css" />
+  <link rel="stylesheet" href="../styles/componentsVisual.css" />
+  <link rel="stylesheet" href="../styles/componentsItem.css" />
+  <link rel="stylesheet" href="../styles/componentsOverlay.css" />
+  <style>
+    /* 仅验收页使用的排版，颜色一律走 token */
+    html,
+    body {
+      height: auto;
+      overflow: auto;
+      background-color: var(--bg-page);
+    }
+    body {
+      padding: var(--space-16) var(--page-gutter) var(--space-40);
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .demo-head {
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+      margin-bottom: var(--space-8);
+    }
+    .demo-head h1 {
+      flex: 1 1 auto;
+      font-size: var(--fs-h1);
+      line-height: var(--lh-h1);
+      font-weight: var(--fw-h1);
+    }
+    .demo-note {
+      margin-bottom: var(--space-16);
+      font-size: var(--fs-caption);
+      line-height: var(--lh-caption);
+      color: var(--text-secondary);
+    }
+    .demo-block {
+      margin-bottom: var(--space-24);
+    }
+    .demo-readout {
+      margin-top: var(--space-8);
+      min-height: 22px;
+      font-size: var(--fs-caption);
+      line-height: var(--lh-caption);
+      color: var(--text-secondary);
+    }
+    .demo-readout b {
+      color: var(--brand-primary);
+    }
+    .demo-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-8);
+    }
+    .demo-scroll {
+      max-height: 220px;
+      overflow-y: auto;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border-subtle);
+    }
+    .demo-pad {
+      padding: var(--space-12) var(--page-gutter);
+      font-size: var(--fs-body);
+      color: var(--text-primary);
+    }
+    .demo-pad + .demo-pad {
+      border-top: 1px solid var(--border-subtle);
+    }
+    .demo-check {
+      font-size: var(--fs-caption);
+      line-height: var(--lh-caption);
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-head">
+    <h1>T06 通用组件库</h1>
+    <button class="c-btn c-btn--sm c-btn--ghost" type="button" id="theme-toggle">切深色</button>
+  </div>
+  <p class="demo-note">
+    本页是唯一保留的组件验收页：4 种图表 / 3 种骨架 / 4 种空态 / 底部弹层 / 下拉刷新。
+    页面底部有「可点热区 ≥44px」自动测量。
+  </p>
+
+  <section class="demo-block" aria-labelledby="demo-charts">
+    <h2 class="c-section__title" id="demo-charts">1 · 图表（点击折线点位看回调）</h2>
+    <div id="charts" class="u-col"></div>
+    <p class="demo-readout" id="chart-readout">未点击任何点位</p>
+  </section>
+
+  <section class="demo-block" aria-labelledby="demo-skel">
+    <h2 class="c-section__title" id="demo-skel">2 · 骨架屏三形态</h2>
+    <div id="skeletons" class="u-col"></div>
+  </section>
+
+  <section class="demo-block" aria-labelledby="demo-empty">
+    <h2 class="c-section__title" id="demo-empty">3 · 空态四态</h2>
+    <div id="empties" class="u-col"></div>
+  </section>
+
+  <section class="demo-block" aria-labelledby="demo-sheet">
+    <h2 class="c-section__title" id="demo-sheet">4 · 底部弹层（下滑超过 40% 关闭）</h2>
+    <div class="demo-grid">
+      <button class="c-btn" type="button" id="open-sheet">打开详情弹层</button>
+      <button class="c-btn c-btn--ghost" type="button" id="open-sheet-long">打开长内容弹层</button>
+    </div>
+    <p class="demo-readout" id="sheet-readout">弹层未打开</p>
+  </section>
+
+  <section class="demo-block" aria-labelledby="demo-pull">
+    <h2 class="c-section__title" id="demo-pull">5 · 下拉刷新（阈值 64px，阻尼 0.5）</h2>
+    <div id="pull-host" class="demo-scroll"></div>
+    <p class="demo-readout" id="pull-readout">在这个框里下拉试试</p>
+  </section>
+
+  <section class="demo-block" aria-labelledby="demo-rest">
+    <h2 class="c-section__title" id="demo-rest">6 · 卡片 / chip / 课程卡 / 成绩行</h2>
+    <div id="rest" class="u-col"></div>
+  </section>
+
+  <section class="demo-block" aria-labelledby="demo-check">
+    <h2 class="c-section__title" id="demo-check">7 · 热区自检</h2>
+    <button class="c-btn c-btn--ghost" type="button" id="run-check">测量全部可点元素</button>
+    <p class="demo-check" id="check-result" style="margin-top: var(--space-8)">尚未测量</p>
+  </section>
+
+  <script type="module">
+    import { card, kvList, progressBar, sectionTitle } from '../components/card.js';
+    import { createChipGroup } from '../components/chip.js';
+    import { skeletonCard, skeletonChart, skeletonList } from '../components/skeleton.js';
+    import { emptyState } from '../components/emptyState.js';
+    import { createSheet } from '../components/sheet.js';
+    import { createPullRefresh } from '../components/pullRefresh.js';
+    import { barChart, lineChart, ringProgress, stackedBar } from '../components/charts.js';
+    import { courseCardRow } from '../components/courseCard.js';
+    import { gradeRow } from '../components/gradeRow.js';
+
+    const $ = (id) => document.getElementById(id);
+
+    /* ── 1. 图表 ────────────────────────────────────────────────────────
+       注意：这里画的是「示例折线」，不是 GPA 趋势。教务「学生学业情况查询」只给累计
+       GPA 快照，没有逐学期 GPA，本产品不做本地加权（ARCHITECTURE 风险 R11）。 */
+    const termPoints = [
+      { label: '25-26-1', value: 21.5 },
+      { label: '25-26-2', value: 24 },
+      { label: '26-27-1', value: 27.5 },
+    ];
+    const readout = $('chart-readout');
+
+    $('charts').append(
+      card({ title: '示例折线（学分走势）', subtitle: '点击任意点位，回调给出 {label, value}' }, [
+        lineChart({
+          points: termPoints,
+          label: '示例折线',
+          onPointClick: ({ label, value, index }) => {
+            readout.textContent = `点位回调：label=${label} value=${value} index=${index}`;
+          },
+        }),
+        progressBar({ value: 3.16, max: 4, tone: 'accent', label: 'GPA 达成度' }),
+      ]),
+      card({ title: '成绩分布（柱状）' }, [
+        barChart({
+          items: [
+            { label: '90+', value: 9 },
+            { label: '80-89', value: 14 },
+            { label: '70-79', value: 8 },
+            { label: '60-69', value: 4 },
+            { label: '<60', value: 1 },
+          ],
+          label: '成绩分布',
+          onPointClick: ({ label, value }) => {
+            readout.textContent = `柱状回调：${label} → ${value} 门`;
+          },
+        }),
+      ]),
+      card({ title: '学分完成度（环形）' }, [
+        ringProgress({ value: 105, max: 160, text: '66%', caption: '已修 105 / 160', tone: 'accent' }),
+      ]),
+      card({ title: '学分构成（堆叠条）' }, [
+        stackedBar({
+          segments: [
+            { label: '必修', value: 123 },
+            { label: '限选', value: 5.5 },
+            { label: '任选', value: 10.5 },
+            { label: '素养', value: 16 },
+          ],
+          onPointClick: ({ label, value }) => {
+            readout.textContent = `堆叠条回调：${label} ${value} 学分`;
+          },
+        }),
+      ])
+    );
+
+    /* ── 2. 骨架 ──────────────────────────────────────────────────────── */
+    $('skeletons').append(
+      card({ title: '列表行骨架' }, skeletonList({ rows: 3, avatar: true })),
+      card({ title: '卡片骨架' }, skeletonCard({ lines: 3 })),
+      card({ title: '图表骨架（折线 / 环形）' }, [
+        skeletonChart({ type: 'line' }),
+        skeletonChart({ type: 'ring' }),
+      ])
+    );
+
+    /* ── 3. 空态 ──────────────────────────────────────────────────────── */
+    $('empties').append(
+      card({ title: 'empty · 空' }, emptyState({ kind: 'empty' })),
+      card(
+        { title: 'error · 错误' },
+        emptyState({ kind: 'error', actionLabel: '重试', onAction: () => { readout.textContent = '点了重试'; } })
+      ),
+      card(
+        { title: 'offline · 离线' },
+        emptyState({ kind: 'offline', actionLabel: '重新连接', secondaryLabel: '看缓存', onAction: () => {} })
+      ),
+      card(
+        { title: 'auth · 需登录' },
+        emptyState({ kind: 'auth', actionLabel: '去登录', onAction: () => {} })
+      )
+    );
+
+    /* ── 4. 弹层 ──────────────────────────────────────────────────────── */
+    const sheet = createSheet({
+      title: '高等数学 A(上)',
+      content: kvList([
+        ['课程号', '0831042'],
+        ['学分', '4.5', { mono: true }],
+        ['教师', '李国强'],
+        ['地点', '博学楼 A302'],
+        ['周次', '1-16 周'],
+      ]),
+      actions: [
+        Object.assign(document.createElement('button'), { className: 'c-btn c-btn--ghost', textContent: '取消' }),
+        Object.assign(document.createElement('button'), { className: 'c-btn', textContent: '查看详情' }),
+      ],
+      onClose: (reason) => {
+        $('sheet-readout').textContent = `弹层已关闭（reason=${reason}）`;
+      },
+    });
+    $('open-sheet').addEventListener('click', () => sheet.open());
+
+    const longSheet = createSheet({
+      title: '长内容弹层',
+      content: Array.from({ length: 12 }, (_, i) =>
+        Object.assign(document.createElement('p'), {
+          className: 'demo-pad',
+          textContent: `第 ${i + 1} 行：内容超过面板高度时应当可以滚动，且滚动后不再触发下滑关闭。`,
+        })
+      ),
+    });
+    $('open-sheet-long').addEventListener('click', () => longSheet.open());
+
+    /* ── 5. 下拉刷新 ──────────────────────────────────────────────────── */
+    const pull = createPullRefresh({
+      content: Array.from({ length: 6 }, (_, i) =>
+        Object.assign(document.createElement('p'), {
+          className: 'demo-pad',
+          textContent: `可下拉区域 ${i + 1}`,
+        })
+      ),
+      scrollRoot: $('pull-host'),
+      onRefresh: () =>
+        new Promise((resolve) => {
+          $('pull-readout').textContent = '刷新中…（800ms 后结束）';
+          window.setTimeout(() => {
+            $('pull-readout').textContent = `上次刷新 ${new Date().toLocaleTimeString()}`;
+            resolve(true);
+          }, 800);
+        }),
+    });
+    $('pull-host').appendChild(pull.el);
+
+    /* ── 6. 其余组件 ──────────────────────────────────────────────────── */
+    const chip = createChipGroup({
+      items: [
+        { id: 'all', label: '全部' },
+        { id: '2026-2027-1', label: '26-27 第一学期' },
+        { id: '2025-2026-2', label: '25-26 第二学期' },
+      ],
+      active: 'all',
+      onChange: (id) => {
+        readout.textContent = `chip 选中：${id}`;
+      },
+    });
+
+    $('rest').append(
+      card({ title: 'chip 选择器' }, chip.el),
+      card({ title: '课程卡（含冲突并排）' }, [
+        courseCardRow([
+          { id: 'c1', name: '高等数学 A(上)', location: '博学楼 A302', teacher: '李国强', sections: [1, 2], startTime: '08:00', endTime: '09:40', courseType: 'required' },
+        ]),
+        courseCardRow([
+          { id: 'c2', name: '中国现当代文学（三）', location: '文科楼 201', teacher: '王梅', sections: [3, 4], courseType: 'required' },
+          { id: 'c3', name: '教育哲学', location: '文科楼 305', teacher: '赵岩', sections: [3, 4], courseType: 'elective' },
+        ]),
+      ]),
+      card({ title: '成绩行（长按复制一行）' }, [
+        gradeRow({ id: 'g1', courseName: '中国古代文学（二）', credits: 5, score: 88, gradePoint: 3.7, courseType: 'required', assessment: 'exam' }),
+        gradeRow({ id: 'g2', courseName: '中国古典文献学', credits: 2, score: null, gradePoint: null, courseType: 'required', assessment: 'exam', remark: '缓考' }),
+        gradeRow({ id: 'g3', courseName: '中国传统文化概论', credits: 2, score: 95, scoreText: '优秀', gradePoint: 4, courseType: 'public', assessment: 'check' }),
+      ]),
+      sectionTitle('分区标题示例', { hint: '右侧可放操作' })
+    );
+
+    /* ── 7. 热区自检 ──────────────────────────────────────────────────── */
+    $('run-check').addEventListener('click', () => {
+      const nodes = [...document.querySelectorAll('button, a, [data-action]')];
+      const bad = nodes.filter((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width < 44 || rect.height < 44;
+      });
+      const result = $('check-result');
+      result.textContent = bad.length === 0
+        ? `全部 ${nodes.length} 个可点元素宽高均 ≥44px`
+        : `共 ${nodes.length} 个，其中 ${bad.length} 个不足 44px：\n` +
+          bad.map((el) => `· ${el.className || el.tagName} ${Math.round(el.getBoundingClientRect().width)}×${Math.round(el.getBoundingClientRect().height)}`).join('\n');
+    });
+
+    /* ── 主题切换（顺带验收深色下图表对比度） ──────────────────────────── */
+    const themeBtn = $('theme-toggle');
+    themeBtn.addEventListener('click', () => {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+      themeBtn.textContent = dark ? '切深色' : '切浅色';
+    });
+  </script>
+</body>
+</html>

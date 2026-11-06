@@ -1,0 +1,301 @@
+/* ============================================================================
+ * componentsVisual.css —— 可视化类组件
+ *  12. c-skel      骨架屏三形态（列表 / 卡片 / 图表·环）
+ *  13. c-chart     四个手写 SVG 图表的样式钩子（颜色全在这里，JS 只输出类名）
+ *
+ * 本文件只放「画出来的东西」。列表项在 componentsItem.css，浮层与手势在
+ * componentsOverlay.css —— 拆文件是为了守住 check-rules 守卫③ 单文件 ≤400 行。
+ *
+ * 图表配色一律复用「课程类型」这套分类色板（tokens.css 的 --course-*）：四类颜色在亮/暗
+ * 两套主题里都已按 4.5:1 校过，再新造一套系列色只会让深色模式多一份需要维护的对比度账。
+ *
+ * 规矩：颜色只用 var(--…)，本文件不出现任何色值字面量。
+ * ========================================================================== */
+
+/* ═══ 12. 骨架屏 c-skel ══════════════════════════════════════════════════
+ * 基线（底色 + 渐变 + 圆角）在 components.css 的 .c-skeleton；这里只定义三种形态的骨架比例。
+ * 微光由 core/animate.js 的 skeletonPulse() 用 WAAPI 驱动（1200ms linear），不写 keyframes。 */
+
+.c-skeleton--line {
+  display: block;
+  height: 14px;
+  border-radius: var(--r-xs);
+}
+
+.c-skeleton--sm {
+  height: 10px;
+}
+
+.c-skeleton--title {
+  display: block;
+  height: 20px;
+}
+
+.c-skeleton--avatar {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-full);
+}
+
+.c-skeleton--pill {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 28px;
+  border-radius: var(--r-full);
+}
+
+.c-skeleton--plot {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-sm);
+}
+
+.c-skeleton--bar {
+  flex: 1 1 0;
+  border-radius: var(--r-xs);
+}
+
+.c-skeleton--ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 96px;
+  height: 96px;
+  /* 定尺寸 + translate 居中：用 inset 百分比会拉成椭圆，一眼就看得出是「凑出来的骨架」 */
+  transform: translate(-50%, -50%);
+  border-radius: var(--r-full);
+}
+
+.c-skel {
+  width: 100%;
+}
+
+.c-skel--list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.c-skel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--card-padding);
+  min-height: 64px;
+}
+
+.c-skel-row__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.c-skel--card .c-skel-card__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--card-padding);
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+}
+
+.c-skel--chart {
+  position: relative;
+  height: 150px;
+  padding: var(--card-padding);
+}
+
+.c-skel-chart__bars {
+  position: absolute;
+  inset: var(--card-padding);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+}
+
+.c-skel--ring {
+  position: relative;
+  height: 168px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ═══ 13. 图表 c-chart ═══════════════════════════════════════════════════ */
+
+.c-chart {
+  margin: 0;
+  width: 100%;
+}
+
+.c-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* 点位与命中带会略微超出绘图区，裁掉会点不到最外侧的点 */
+  overflow: visible;
+}
+
+.c-chart__grid {
+  fill: none;
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.c-chart__axis {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.c-chart__area {
+  fill: var(--brand-primary-soft);
+  stroke: none;
+}
+
+.c-chart__line {
+  fill: none;
+  stroke: var(--brand-primary);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.c-chart__pt {
+  fill: var(--bg-surface);
+  stroke: var(--brand-primary);
+  stroke-width: 2;
+  transition: stroke-width var(--dur-press) var(--ease-standard),
+    fill var(--dur-press) var(--ease-standard);
+}
+
+/* 选中点位：实心 + 粗描边（比放大小圆点更稳，不会因为缩放糊掉） */
+.c-chart__pt[data-active='true'] {
+  fill: var(--brand-primary);
+  stroke-width: 3;
+}
+
+.c-chart__hit {
+  fill: transparent;
+  stroke: none;
+  cursor: pointer;
+}
+
+.c-chart__label {
+  fill: var(--text-secondary);
+  stroke: none;
+  font-family: var(--font-number);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.c-chart__label--center {
+  font-size: 10px;
+}
+
+.c-chart__value {
+  fill: var(--text-primary);
+  stroke: none;
+  font-family: var(--font-number);
+  font-size: 9px;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.c-chart__bar {
+  fill: var(--brand-primary);
+}
+
+.c-chart--bar.is-empty .c-chart__svg {
+  opacity: 0.9;
+}
+
+.c-chart__ring-track {
+  fill: none;
+  stroke: var(--bg-sunken);
+}
+
+.c-chart__ring-arc {
+  fill: none;
+  stroke: var(--brand-primary);
+  transition: stroke-dasharray var(--dur-enter) var(--ease-standard);
+}
+
+.c-chart__ring-arc--accent {
+  stroke: var(--brand-accent);
+}
+
+.c-chart__ring-arc--success {
+  stroke: var(--success);
+}
+
+.c-chart__ring-text {
+  fill: var(--text-primary);
+  stroke: none;
+  font-family: var(--font-number);
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 堆叠条：五档系列色（第 5 档回落提示蓝，覆盖「其他」类） */
+.c-chart__seg {
+  stroke: var(--bg-surface);
+  stroke-width: 1;
+}
+
+.c-chart__seg--1 { fill: var(--course-required); }
+
+.c-chart__seg--2 { fill: var(--course-elective); }
+
+.c-chart__seg--3 { fill: var(--course-public); }
+
+.c-chart__seg--4 { fill: var(--course-practice); }
+
+.c-chart__seg--5 { fill: var(--info); }
+
+.c-chart__value--lead {
+  font-size: 10px;
+}
+
+.c-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+  margin-top: var(--space-12);
+}
+
+.c-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+.c-chart__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background-color: var(--course-required);
+}
+
+.c-chart__dot[data-seg='2'] { background-color: var(--course-elective); }
+
+.c-chart__dot[data-seg='3'] { background-color: var(--course-public); }
+
+.c-chart__dot[data-seg='4'] { background-color: var(--course-practice); }
+
+.c-chart__dot[data-seg='5'] { background-color: var(--info); }
+
+.c-chart__legend-value {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}

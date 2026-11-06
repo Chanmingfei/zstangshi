@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    API 29+ 专用：主题跟随系统日夜模式（DayNight）。
+    这是「跟随系统」主题能生效的关键 —— WebView 的 prefers-color-scheme
+    反映的是 App 自身的 uiMode，壳主题固定 Light 时 JS 层永远读到亮色。
+    forceDarkAllowed=false：系统深色下关闭算法式强制变黑，深色完全由
+    我们自己的 CSS（data-theme="dark"）渲染，避免双重变黑脏色。
+-->
+<resources>
+    <style name="AppTheme" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:statusBarColor">@color/brand_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/bg_page</item>
+        <item name="android:windowBackground">@drawable/splash_bg</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+</resources>

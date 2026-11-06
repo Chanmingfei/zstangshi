@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+  />
+  <!-- 顶栏/状态栏配色；深色由下方内联脚本同步改写。
+       亮/暗两个取值只放在本文件里（check-rules 守卫① 只允许 index.html 出现色值字面量），
+       其它 JS 一律读这两个 meta，不再各自硬编码一份。
+       HIG 重设计后顶栏是浅色毛玻璃，亮色态状态栏跟随 --bg-page（#F2F2F7）。 -->
+  <meta name="theme-color" content="#F2F2F7" />
+  <meta name="theme-color-light" content="#F2F2F7" />
+  <meta name="theme-color-dark" content="#0F1520" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="description" content="掌上唐师 · 唐山师范学院校园助手" />
+  <title>掌上唐师</title>
+  <link rel="stylesheet" href="./styles/tokens.css" />
+  <link rel="stylesheet" href="./styles/base.css" />
+  <!-- 控件层（顶栏/底栏 + 毛玻璃材质）单独一个文件，先于其余组件加载 -->
+  <link rel="stylesheet" href="./styles/componentsChrome.css" />
+  <link rel="stylesheet" href="./styles/components.css" />
+  <!-- components.css 已有 390 行，受「单文件 ≤400 行」约束，后续组件样式按职责拆成
+       content（内容组织）/ visual（可视化）/ item（列表项）/ overlay（浮层与手势）四个文件。
+       选择器互不重叠，加载顺序无关。 -->
+  <link rel="stylesheet" href="./styles/componentsContent.css" />
+  <link rel="stylesheet" href="./styles/componentsVisual.css" />
+  <link rel="stylesheet" href="./styles/componentsItem.css" />
+  <link rel="stylesheet" href="./styles/componentsOverlay.css" />
+  <!-- 页面级样式（p-login / p-home），只放具体页面排版，不放组件 -->
+  <link rel="stylesheet" href="./styles/pages.css" />
+  <!-- 状态页样式（p-error / p-placeholder），拆出来守 400 行上限 -->
+  <link rel="stylesheet" href="./styles/pagesState.css" />
+  <!-- 我的课表（p-tt），拆出来守 400 行上限 -->
+  <link rel="stylesheet" href="./styles/pagesTimetable.css" />
+  <!-- 课表详情层（p-tt__pager 等），同上：主文件已接近 400 行 -->
+  <link rel="stylesheet" href="./styles/pagesTimetableSheet.css" />
+  <!-- 成绩列表与详情（p-grades / p-gd），拆出来守 400 行上限 -->
+  <link rel="stylesheet" href="./styles/pagesGrades.css" />
+  <!-- 推荐课表（p-tt--recommend）：只放来源说明条，网格复用课表样式 -->
+  <link rel="stylesheet" href="./styles/pagesRecommend.css" />
+  <!-- 学生学业情况查看（p-gpa）：只展示一个 GPA 数字 -->
+  <link rel="stylesheet" href="./styles/pagesGpa.css" />
+  <!-- 我的（p-mine）：数据源状态、主题、缓存、退出登录 -->
+  <link rel="stylesheet" href="./styles/pagesMine.css" />
+  <!-- 选课（p-sel）：轮次、课程池、余量与冲突 -->
+  <link rel="stylesheet" href="./styles/pagesSelection.css" />
+  <!-- 校历（p-cal）：月历网格与教学周 -->
+  <link rel="stylesheet" href="./styles/pagesCalendar.css" />
+  <script>
+    /* 防深色闪烁：必须在首次绘制前同步决定 data-theme，
+       否则 CSS 先按亮色画一帧再翻转，会看到明显白闪。 */
+    (function () {
+      try {
+        var saved = localStorage.getItem('zsts.theme');
+        var theme =
+          saved === 'dark' || saved === 'light'
+            ? saved
+            : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        var palette = document.querySelector('meta[name="theme-color-' + theme + '"]');
+        if (meta && palette) meta.setAttribute('content', palette.getAttribute('content'));
+      } catch (e) {
+        /* localStorage 不可用（隐私模式等）时保持默认亮色，不影响功能 */
+      }
+    })();
+  </script>
+</head>
+<body>
+  <!-- 应用外壳：顶栏（吸顶）+ 可滚动主区 + 底部 Tab -->
+  <div id="app">
+    <div id="app-bar" role="banner"></div>
+    <main id="app-main" tabindex="-1"></main>
+    <nav id="tabbar" role="tablist" aria-label="主导航"></nav>
+  </div>
+  <!-- 全局浮层挂载点 -->
+  <div id="toast-root" aria-live="polite" aria-atomic="true"></div>
+  <div id="sheet-root"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

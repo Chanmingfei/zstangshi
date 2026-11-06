@@ -1,0 +1,3383 @@
+
+
+
+
+
+
+
+
+
+
+
+<!doctype html>
+<html lang="zh-CN">
+
+
+
+<style type="text/css">
+	.jsqh {
+		float: left;
+	    height: 50px;
+	    padding: 15px 15px;
+	    font-size: 18px;
+	    line-height: 20px;
+	}
+
+	.top-input {
+	    margin: 0!important;
+
+	}
+
+	.inp-name {
+		display: inline-block;
+		height: 50px;
+		margin-right: 10px;
+		line-height: 50px;
+		color: #fff;
+		font-size: 16px;
+	}
+
+@media (max-width: 767px) {
+	.navbar-form {
+	border: 0!important
+	}
+	.role-inp {
+		display: inline-block!important;
+		width: 72%!important
+	}
+}
+
+
+/*表格向内滚动开始**/
+/* body{
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+}
+.bodyContainer{
+    flex: 1;
+    overflow: auto;
+}
+.yhgnPage{
+	height: 100%;
+}
+.innerContainer{
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+.ui-jqgrid{
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 300px;
+}
+.ui-jqgrid .ui-jqgrid-view{
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+}
+.ui-jqgrid-view,.ui-jqgrid-bdiv{
+	flex: 1;
+}
+.ui-jqgrid .ui-jqgrid-view{
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+.ui-jqgrid .ui-jqgrid-bdiv{
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+.ui-jqgrid-pager .ui-pager-control td{
+	width: auto!important;
+}
+.innerContainer>#div-data{
+	display: flex;
+    flex-direction: column;
+} */
+/*表格向内滚动结束**/
+
+</style>
+<head>
+	<title>&nbsp;</title>
+	
+
+
+
+
+
+
+
+
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="Copyright" content="zfsoft" />
+<link rel="icon" href="/logo/favicon.ico?t=1793963934611" type="image/x-icon" />
+<link rel="shortcut icon" href="/logo/favicon.ico?t=1793963934611" type="image/x-icon" />
+<style type="text/css">
+	.active{font-weight: bolder;}
+	#navbar-tabs li{ margin-top: 2px;}
+	#navbar-tabs li a{ border-top: 2px solid transparent;}
+	#navbar-tabs li.active a{border-top: 2px solid #0770cd;}
+</style>
+
+
+
+<!--jQuery核心框架库 -->
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/other_jquery/jquery.min.js?ver=29818781"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/jquery-migrate.min.js?ver=29818781"></script>
+<!--多选框CSS及js -->
+<link rel="stylesheet" type="text/css" href="/css/multiSelect/multiSelect.css"/>
+<script type="text/javascript" src="/js/plugins/multiSelect/multiSelect.js?ver=29818781"></script>
+<!--jQuery浏览器检测 -->
+<script type="text/javascript" src="/js/browse/browse-judge.js?ver=29818781"></script>
+<script type="text/javascript">
+	//浏览器版本验证
+	var broswer = broswer();
+	if(broswer.msie==true||broswer.safari==true||broswer.mozilla==true||broswer.chrome==true){
+		if(broswer.msie==true&&broswer.version<9){
+		   window.location.href = _path+"/xtgl/init_cxBrowser.html";
+		}
+	}else{
+		 window.location.href = _path+"/xtgl/init_cxBrowser.html";
+	}
+</script>
+<script type="text/javascript">
+var _path 				= "";
+var _systemPath 		= "";
+var _stylePath 			= "/zftal-ui-v5-1.0.2";
+var _reportPath 		= "https://jwxt.tstc.edu.cn/WebReport";
+var _refreshInterval	= "10";
+var _localeKey 			= "zh_CN";
+var _xtsfkfzts 			= "0";
+console.log(_xtsfkfzts,'_xtsfkfzts=')
+//主题色
+if(_xtsfkfzts=='1'){
+	$.post(_path + "/commonShow/show_cxMhpf.html",{},function(res){
+		if(res && res.data && res.data[0] && res.data[0].sz){
+			var ksZtsDom = $('#ksZts_id')
+			var $styleTag = ksZtsDom.length? ksZtsDom:$('<style id="ksZts_id" type="text/css"></style>');
+			if(!ksZtsDom.length){
+				$('html head').first().append($styleTag);
+			}
+			$styleTag.append('.top2{background:'+res.data[0].sz+'}')
+		}
+	});
+}
+
+</script>
+<!--
+jquery.ui 需要在bootstrap之前加载，解决冲突问题
+http://blog.csdn.net/remote_roamer/article/details/14105999
+-->
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/jquery-ui-custom.contact-1.0.0.js?ver=29818781"></script>
+<!--Bootstrap布局框架-->
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/plugins/bootstrap/css/bootstrap.min.css?ver=29818781" />
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/css/error.css?ver=29818781" />
+
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/css/zftal-ui.css?ver=29818781" />
+
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/bootstrap/js/bootstrap.min.js?ver=29818781" charset="utf-8"></script>
+<!--jQuery常用工具扩展库：基础工具,资源加载工具,元素尺寸相关工具 -->
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/zftal/jquery.utils.contact-min.js?ver=29818781" charset="utf-8"></script>
+<!--jQuery基础工具库：$.browser,$.cookie,$.actual等 -->
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/zftal/jquery.plugins.contact-min.js?ver=29818781" charset="utf-8"></script>
+<!--jQuery自定义event事件库 -->
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/zftal/jquery.events.contact-min.js?ver=29818781" charset="utf-8"></script>
+<!--JavaScript对象扩展库：Array,Date,Number,String -->
+
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/zftal/jquery.extends.contact-min.js?ver=29818781" charset="utf-8"></script>
+
+<!--Bootbox弹窗插件-->
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/plugins/bootbox/css/bootbox.css?ver=29818781" />
+<script src="/zftal-ui-v5-1.0.2/assets/plugins/bootbox/bootbox.concat-min.js?ver=29818781" type="text/javascript" charset="utf-8"></script>
+<script src="/zftal-ui-v5-1.0.2/assets/plugins/bootbox/lang/zh_CN.js?ver=29818781" type="text/javascript" charset="utf-8"></script>
+
+<!--jQuery模拟滚动条库-->
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/plugins/customscrollbar/css/jquery.mCustomScrollbar.min.css?ver=29818781" />
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/customscrollbar/js/jquery.mCustomScrollbar.min.js?ver=29818781" charset="utf-8"></script>
+<!--jQuery.chosen美化插件-->
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/plugins/chosen/css/chosen-min.css?ver=29818781" />
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/chosen/jquery.choosen.concat-min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/chosen/lang/zh_CN-min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/utils/jquery.utils.pinyin.min.js?ver=29818781" charset="utf-8"></script>
+<!--[if lt IE 9]>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/html5shiv.min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/respond.min.js?ver=29818781" charset="utf-8"></script>
+<![endif]-->
+<!--业务框架jQuery全局设置和通用函数库-->
+<script type="text/javascript" src="/js/jquery.zftal.contact-min.js?ver=29818781"></script>
+<!--国际化js库 -->
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/i18n/jquery.i18n-min.js?ver=29818781" charset="utf-8"></script>
+<!--全局国际化js. -->
+<script type="text/javascript" src="/js/globalweb/i18n-global_zh_CN.js?ver=29818781" charset="utf-8"></script>
+<!--业务框架前端脚本国际化库-->
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/zftal/lang/jquery.zftal_zh_CN-min.js?ver=29818781"></script>
+<!--密码强弱判断-->
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/js/utils/jquery.utils.strength.min.js?ver=29818781"></script>
+<!--jQuery浏览器检测 -->
+<script type="text/javascript" src="/js/globalweb/comp/xtgl/device.js?ver=29818781"></script>
+<!-- 调用第三方报表 api -->
+<script type="text/javascript" src="/js/globalweb/report/api.js?ver=29818781"></script>
+
+	
+
+
+
+
+
+
+
+<script type="text/javascript">
+
+	var _path 		= "";
+	var _systemPath = "";
+	var _stylePath  = "/zftal-ui-v5-1.0.2";
+	var _reportPath = "https://jwxt.tstc.edu.cn/WebReport";
+	var _localeKey 			= "zh_CN";
+
+	jQuery(function($){
+		window.sessionStorage.setItem('_path',_path)
+		$('[data-toggle*="validation"]').trigger("validation");
+		$('[data-toggle*="fixed"]').trigger("fixed");
+		$('[data-toggle*="tagTree"]').trigger("tagTree");
+		if($.fn.tooltip){
+			$('[data-toggle*="tooltip"]').tooltip({container:'body'});
+		}
+		if(window.parent !== window) {
+			// 教务作为别的页面的iframe 就多设置一个样式
+			var css = '.container {width: 100% !important;}'
+			var containerStyle = document.createElement('style')
+			containerStyle.type = 'text/css'
+			containerStyle.textContent = css
+			document.head.appendChild(containerStyle)
+		}
+	});
+
+</script>
+<style type="text/css">
+	.captcha_modal{
+		width: 380px;
+		height: 330px;
+		z-index: 9999;
+		top: 150px;
+		margin: auto;
+		position: absolute;
+		box-sizing: border-box;
+		border-radius: 2px;
+		background-color: #fff;
+		box-shadow: 0 0 10px rgba(0,0,0,.3);
+		left: 40%;
+	}
+	.ui-jqgrid-bdiv .item-list > li {position: static;}
+</style>
+<!-- 文件操作相关js -->
+<script type="text/javascript" src="/js/globalweb/comp/file/file.js?ver=29818781"></script>
+<!--教务系统通用业务js引用:比如学年，学期等公共的信息会放在这里-->
+<script type="text/javascript" src="/js/globalweb/comp/i18n/jwglxt-common_zh_CN.js?ver=29818781"></script>
+<!--业务模块的properties初始化-->
+<!--国际化js库 -->
+<script type="text/javascript" src="/js\globalweb\comp\i18n\N214505_zh_CN.js?ver=29818809" charset="utf-8"></script>
+
+<!--移动端审核-->
+<script type="text/javascript" src="/js/globalweb/comm/dynaForm/index.js?ver=29818781"></script>
+<link rel="stylesheet" type="text/css" href="/css/dynaForm/index.css?ver=29818781"/>
+<script type="text/javascript" src="/js/globalweb/comm/explan/index.js?ver=29818781"></script>
+<script type="text/javascript" src="/js/cascade.js?ver=29818781"></script>
+<script type="text/javascript" src="/js/plugins/multiSelect/pinyin-pro.js?ver=29818781"></script>
+<script type="text/javascript" src="/js/comp/jwglxt/common/export.js?ver=29818781"></script>
+
+
+<link rel="stylesheet" type="text/css" href="/css/multiSelect/multiSelect.css" />
+<script type="text/javascript" src="/js/plugins/multiSelect/multiSelect.js?ver=29818781"></script>
+
+
+</head>
+<body>
+<input type="hidden" id="pkey" name="pkey" value="" />
+<input type="hidden" id="kqhjs" name="kqhjs" value="0" />
+
+<input type="hidden" id="shyjsfbt" name="shyjsfbt" value="0" />
+<input type="hidden" id="plshyjsfbt" name="plshyjsfbt" value="" />
+<input type="hidden" id="localeKey" name="localeKey" value="zh_CN" />
+<input type="hidden" id="csrftoken" name="csrftoken" value="8f699eb5-745f-4e9d-b479-ae3ade6ff122,8f699eb5745f4e9db479ae3ade6ff122"/>
+<input type="hidden" id="cdTsxx" name="cdTsxx" value="-zfsplit-" />
+<input type="hidden" id="wjylSfkf" name="wjylSfkf" value="0" >
+<input type="hidden" id="dingdingbj" name="dingdingbj" value="" />
+<input type="hidden" id="pageNumber" name="pageNumber" value="15" />
+<input type="hidden" id="sfsygdgdt" name="sfsygdgdt" value="0" />
+<input type="hidden" id="jysqkkxyjys" name="jysqkkxyjys" value="0" />
+<input type="hidden" id="sfaxbgljg" name="sfaxbgljg" value="0" />
+<input type="hidden" id="sfasyglxs" name="sfasyglxs" value="0" />
+<input type="hidden" id="bbxtlx" name="bbxtlx" value="" />
+<input type="hidden" id="kkxydejmc" name="kkxydejmc" value="教研室" />
+<input type="hidden" id="jsdermc" name="jsdermc" value="教研室" />
+<input type="hidden" id="sfkfzts" name="sfkfzts" value="0" />
+<input type="hidden" id="sycdbjfs" name="sycdbjfs" value="1" />
+
+<div id="mobile-div" style="display:none">
+			<div class="container">
+			<div class="navbar-header">
+				<button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+					<span class="sr-only"> 班级课表查询</span> 
+					<span class="icon-bar"></span> 
+					<span class="icon-bar"></span> 
+					<span class="icon-bar"></span>
+				</button>
+				<a href="#" id="topButton" class="navbar-brand" onclick="onClickMenu('/kbdy/bjkbdy_cxBjkbdyIndex.html','N214505')">
+					班级课表查询
+				</a>
+				<script type="text/javascript">
+					document.title="班级课表查询";
+				</script>
+			</div>
+		</div>
+<!-- navbar-end  -->
+	<!-- 判断是否可切换角色 -->
+	
+</div>
+
+	<!-- 头部 开始 -->
+	<header class="navbar-inverse top2" id="show-head">
+		<div class="container" id="navbar_container">
+			<!-- 判断是否可切换角色 -->
+			
+					<div class="container">
+			<div class="navbar-header">
+				<button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+					<span class="sr-only"> 班级课表查询</span> 
+					<span class="icon-bar"></span> 
+					<span class="icon-bar"></span> 
+					<span class="icon-bar"></span>
+				</button>
+				<a href="#" id="topButton" class="navbar-brand" onclick="onClickMenu('/kbdy/bjkbdy_cxBjkbdyIndex.html','N214505')">
+					班级课表查询
+				</a>
+				<script type="text/javascript">
+					document.title="班级课表查询";
+				</script>
+			</div>
+		</div>
+<!-- navbar-end  -->
+		</div>
+	</header>
+	<script>
+		if(window.self !== window.top){
+			 $('body').css({
+				"background": "#fff"
+			})
+			$('body').find('.navbar-inverse').hide();
+		}
+	</script>
+	
+	<!--头部 结束 -->
+	<div style="width: 100%; padding: 0px; margin: 0px;" id="bodyContainer" class="bodyContainer">
+		<!-- requestMap中的参数为系统级别控制参数，请勿删除 -->
+		<form id="requestMap">
+			 <input type="hidden" id="sessionUserKey" value="231400000678" />
+			 
+			 	<input type="hidden" id="gnmkdmKey" value="N214505" />
+			 
+			 
+			 <input type="hidden" id="hidxxdm" name="hidxxdm" value="10099" />
+		</form>
+		<div class="container container-func sl_all_bg yhgnPage" id="yhgnPage">
+			<div id="innerContainer" class="innerContainer">
+				<!-- 放置页面显示内容 -->
+				<div class="all-mask" style="position: fixed; top: 0; left: 0; z-index: 99; background: #f7f7f7;"></div>
+				
+	<div class="row sl_add_btn">
+		
+	</div>
+	<input type="hidden" id="dcclbh" name="dcclbh" value="JW_N214505_TJKBDY" />
+	<input type="hidden" name="xxdm" value="10099" id="xxdm"/>
+	<input type="hidden" name="jsdm" value="xs" id="jsdm"/>
+	<input type="hidden" name="exceltopdf" value="0" id="exceltopdf"/>
+	<input type="hidden" name="sfkqkbsjqzms" value="0" id="sfkqkbsjqzms"/>
+	        
+<form id="ajaxForm" name="form" onsubmit="return false;" action="/kbdy/bjkbdy_cxBjkbdyIndex.html" method="post" class="form-horizontal sl_all_form sl_all_bg" data-toggle="validation" role="form">
+		<div class="row">
+			<div class="col-md-3 col-sm-6">
+				<div class="form-group">
+					<label for="" class="col-sm-4 control-label">
+						<span style="color: red;">*</span>
+						学年
+					</label>
+					<div class="col-sm-8">
+						<select name="xnm" id="xnm" class="form-control chosen-select" validate="{required:true}">
+    <option value="2031">2031-2032</option>
+    <option value="2030">2030-2031</option>
+    <option value="2029">2029-2030</option>
+    <option value="2028">2028-2029</option>
+    <option value="2027">2027-2028</option>
+    <option value="2026" selected="selected">2026-2027</option>
+    <option value="2025">2025-2026</option>
+    <option value="2024">2024-2025</option>
+    <option value="2023">2023-2024</option>
+    <option value="2022">2022-2023</option>
+    <option value="2021">2021-2022</option>
+    <option value="2020">2020-2021</option>
+    <option value="2019">2019-2020</option>
+    <option value="2018">2018-2019</option>
+    <option value="2017">2017-2018</option>
+    <option value="2016">2016-2017</option>
+    <option value="2015">2015-2016</option>
+    <option value="2014">2014-2015</option>
+    <option value="2013">2013-2014</option>
+    <option value="2012">2012-2013</option>
+    <option value="2011">2011-2012</option>
+    <option value="2010">2010-2011</option>
+    <option value="2009">2009-2010</option>
+    <option value="2008">2008-2009</option>
+    <option value="2007">2007-2008</option>
+    <option value="2006">2006-2007</option>
+    <option value="2005">2005-2006</option>
+
+
+</select>
+
+
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3 col-sm-6">
+				<div class="form-group">
+					<label for="" class="col-sm-4 control-label">
+						<span style="color: red;">*</span>
+						学期
+					</label>
+					<div class="col-sm-8">
+						<select name="xqm" id="xqm" class="form-control chosen-select" validate="{required:true}">
+    <option value="3" selected="selected">1</option>
+    <option value="12">2</option>
+    <option value="16">3</option>
+
+
+</select>
+
+
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3 col-sm-6">
+				<div class="form-group">
+					<label for="" class="col-sm-4 control-label">
+						校区
+					</label>
+					<div class="col-sm-8">
+						<select name="xqh_id" id="xqh_id" class="form-control chosen-select">
+    <option value=""
+    >全部</option>
+    <option value="1">大学道南校区</option>
+    <option value="348516D5BCAB2A49E065000000000001">西南交大合作办学</option>
+    <option value="2" selected="selected">大学道北校区</option>
+    <option value="7">学院路校区</option>
+
+
+</select>
+
+
+						<script type="text/javascript">
+							$("#xqh_id").find("option:eq(0)").text("" + $.i18n.get("qb") + "");
+							jQuery('#xqh_id').trigger("chosen");
+						</script>
+					</div>
+				</div>
+			</div>
+			
+			
+				<div class="col-md-3 col-sm-6">
+					<div class="form-group">
+						<label for="" class="col-sm-4 control-label">年级</label>
+						<div class="col-sm-8">
+							<select name="njdm_id" id="njdm_id" class="form-control chosen-select">
+    <option value=""
+    >全部</option>
+    <option value="2029">2029</option>
+    <option value="2028">2028</option>
+    <option value="2027">2027</option>
+    <option value="2026">2026</option>
+    <option value="2025">2025</option>
+    <option value="2024">2024</option>
+    <option value="2023" selected="selected">2023</option>
+    <option value="2022">2022</option>
+    <option value="2021">2021</option>
+    <option value="2020">2020</option>
+    <option value="2019">2019</option>
+    <option value="2018">2018</option>
+    <option value="2017">2017</option>
+    <option value="2016">2016</option>
+    <option value="2015">2015</option>
+    <option value="2014">2014</option>
+    <option value="2013">2013</option>
+    <option value="2012">2012</option>
+    <option value="2011">2011</option>
+    <option value="2010">2010</option>
+    <option value="2009">2009</option>
+    <option value="2008">2008</option>
+    <option value="2007">2007</option>
+    <option value="2006">2006</option>
+    <option value="2005">2005</option>
+    <option value="2004">2004</option>
+    <option value="2003">2003</option>
+    <option value="2002">2002</option>
+    <option value="2001">2001</option>
+
+
+</select>
+
+
+							<script type="text/javascript">
+								$("#njdm_id").find("option:eq(0)").text("" + $.i18n.get("qb") + "");
+								jQuery('#njdm_id').trigger("chosen");
+							</script>
+						</div>
+					</div>
+				</div>
+			
+			
+			
+			
+				<div class="col-md-3 col-sm-6">
+					<div class="form-group">
+						<label for="" class="col-sm-4 control-label">
+							学院
+						</label>
+						<div class="col-sm-8">
+							
+							
+								<select name="jg_id" id="jg_id" class="form-control chosen-select">
+    <option value=""
+    >全部</option>
+    <option value="313">海洋学院</option>
+    <option value="305">化学系</option>
+    <option value="312">计算机科学技术系</option>
+    <option value="211">教务处</option>
+    <option value="301">教育学院</option>
+    <option value="213">科研处</option>
+    <option value="302">历史文化与法学系</option>
+    <option value="314">马克思主义学院</option>
+    <option value="309">美术学院</option>
+    <option value="306">生命科学系</option>
+    <option value="303">数学与计算科学学院</option>
+    <option value="315">体育系</option>
+    <option value="401">图书馆</option>
+    <option value="307">外国语学院</option>
+    <option value="310" selected="selected">文学院</option>
+    <option value="304">物理科学与技术学院</option>
+    <option value="3080EF5B93A8932CE065000000000001">西南交大合作办学</option>
+    <option value="404">现代教育技术中心</option>
+    <option value="403">信息技术中心</option>
+    <option value="402">学报编辑部</option>
+    <option value="207">学生处</option>
+    <option value="308">音乐系</option>
+    <option value="212">招生就业处</option>
+    <option value="311">资源管理系</option>
+
+
+</select>
+
+
+								<script type="text/javascript">
+									$("#jg_id").find("option:eq(0)").text("" + $.i18n.get("qb") + "");
+									jQuery('#jg_id').trigger("chosen");
+								</script>
+							
+						</div>
+					</div>
+				</div>
+			
+			
+			
+			
+				<div class="col-md-3 col-sm-6">
+					<div class="form-group">
+						<label for="" class="col-sm-4 control-label">
+							专业
+						</label>
+						<div class="col-sm-8">
+							<select name="zyh_id" id="zyh_id" class="form-control chosen-select">
+    <option value=""
+    >全部</option>
+    <option value="2312">保险学(2312)</option>
+    <option value="6E17439E59440EE4E0533FC851D3C466">本科模板(8001)</option>
+    <option value="1907">材料化学(1907)</option>
+    <option value="1007">初等教育(综合文科)(专科)(1007)</option>
+    <option value="1403">德语(1403)</option>
+    <option value="2101">地理科学(2101)</option>
+    <option value="2103">地理科学(专接本)(2103)</option>
+    <option value="2100">地理科学类(2100)</option>
+    <option value="2104">地理信息科学(2104)</option>
+    <option value="E2076FAFA15C8BCEE055000000000001">电子商务(2316)</option>
+    <option value="1802">电子信息科学与技术(1802)</option>
+    <option value="5342A04227043E6AE065000000000001">电子信息科学与技术(1812)</option>
+    <option value="E20534DFFBBE89DBE055000000000001">电子信息科学与技术(ISEC)(1810)</option>
+    <option value="1616">动漫设计与制作(专科)(1616)</option>
+    <option value="33455F0FDEDD0931E05326C851D3BE02">动漫制作技术(专科)(1605)</option>
+    <option value="1308">对外汉语(1308)</option>
+    <option value="1012">法律文秘(专科)(1012)</option>
+    <option value="1001">法学(1001)</option>
+    <option value="1004">法学(专接本)(1004)</option>
+    <option value="1000">法学类(1000)</option>
+    <option value="5378C81515E486BFE065000000000001">光电信息科学与工程(1811)</option>
+    <option value="1310">广播电视新闻学(1310)</option>
+    <option value="1315">广播电视学(1315)</option>
+    <option value="1316">广播电视学(专接本)(1316)</option>
+    <option value="FC916B3684559215E055000000000001">海洋科学(2319)</option>
+    <option value="1313">汉语国际教育(1313)</option>
+    <option value="1301" selected="selected">汉语言文学(1301)</option>
+    <option value="1302">汉语言文学(高级涉外文秘方向)(1302)</option>
+    <option value="1311">汉语言文学(高级涉外文秘方向)(专接本)(1311)</option>
+    <option value="1303">汉语言文学(专接本)(1303)</option>
+    <option value="1901">化学(1901)</option>
+    <option value="1903">化学(专接本)(1903)</option>
+    <option value="1906">化学教育(专科)(1906)</option>
+    <option value="1900">化学类(1900)</option>
+    <option value="1618">环境设计(1618)</option>
+    <option value="337E8682B89641B3E05326C851D32CBA">环境设计(专接本)(1612)</option>
+    <option value="1614">环境艺术设计(专科)(1614)</option>
+    <option value="2201">计算机科学与技术(2201)</option>
+    <option value="537841B3A3D28592E065000000000001">计算机科学与技术(合作培养)(2221)</option>
+    <option value="2202">计算机科学与技术(专接本)(2202)</option>
+    <option value="2214">计算机类(2214)</option>
+    <option value="2210">计算机网络技术(专科)(2210)</option>
+    <option value="1803">教育技术学(1803)</option>
+    <option value="1805">教育技术学(专接本)(1805)</option>
+    <option value="1111">教育学(1111)</option>
+    <option value="1104">教育学(特殊教育方向)(1104)</option>
+    <option value="1100">教育学类(1100)</option>
+    <option value="FC916B36844C9215E055000000000001">经济学(2318)</option>
+    <option value="2110">酒店管理(专科)(2110)</option>
+    <option value="FC8F39C7EF1E8FE1E055000000000001">科学教育(2009)</option>
+    <option value="1002">历史学(1002)</option>
+    <option value="1005">历史学(专接本)(1005)</option>
+    <option value="2108">旅游管理(2108)</option>
+    <option value="2106">旅游管理(导游方向)(专科)(2106)</option>
+    <option value="2109">旅游管理(专接本)(2109)</option>
+    <option value="2102">旅游管理(专科)(2102)</option>
+    <option value="2112">旅游管理类(专科)(2112)</option>
+    <option value="2113">旅游类(专科)(2113)</option>
+    <option value="1908">煤化工生产技术(专科)(1908)</option>
+    <option value="1601">美术学(1601)</option>
+    <option value="1603">美术学(专接本)(1603)</option>
+    <option value="1314">秘书学(1314)</option>
+    <option value="1905">能源化学工程(1905)</option>
+    <option value="1809">汽车电子技术(专科)(1809)</option>
+    <option value="FC8F39C7EF3F8FE1E055000000000001">人工智能(2220)</option>
+    <option value="537841B3A4248592E065000000000001">人工智能(合作培养)(2222)</option>
+    <option value="2111">人文地理与城乡规划(2111)</option>
+    <option value="1402">日语(1402)</option>
+    <option value="2219">软件技术(专科)(2219)</option>
+    <option value="2209">软件开发与项目管理(专科)(2209)</option>
+    <option value="1904">商检技术(专科)(1904)</option>
+    <option value="1405">商务英语(1405)</option>
+    <option value="1406">商务英语(专科)(1406)</option>
+    <option value="1203">社会体育指导与管理(1203)</option>
+    <option value="2002">生物技术(2002)</option>
+    <option value="E206A76991608B01E055000000000001">生物技术(海洋生物）(2008)</option>
+    <option value="2001">生物科学(2001)</option>
+    <option value="2003">生物科学(专接本)(2003)</option>
+    <option value="2000">生物科学类(2000)</option>
+    <option value="33455F0FDEE20931E05326C851D3BE02">视觉传播设计与制作(专科)(1606)</option>
+    <option value="1617">视觉传达设计(1617)</option>
+    <option value="337E8682B89B41B3E05326C851D32CBA">视觉传达设计(专接本)(1613)</option>
+    <option value="1615">视觉传达艺术设计(专科)(1615)</option>
+    <option value="1AD4435405A83EC7E065000000000001">数据计算及应用(1708)</option>
+    <option value="1700">数学类(1700)</option>
+    <option value="1701">数学与应用数学(1701)</option>
+    <option value="1703">数学与应用数学(专接本)(1703)</option>
+    <option value="2217">数字媒体技术(2217)</option>
+    <option value="1619">数字媒体艺术(1619)</option>
+    <option value="2701">思想政治教育(2701)</option>
+    <option value="1003">思想政治教育(政)(1003)</option>
+    <option value="2702">思想政治教育(专接本)(2702)</option>
+    <option value="1006">思想政治教育(专接本)(政)(1006)</option>
+    <option value="2703">思想政治教育(专科)(2703)</option>
+    <option value="1112">特殊教育(1112)</option>
+    <option value="1201">体育教育(1201)</option>
+    <option value="1707">统计学(1707)</option>
+    <option value="1400">外国语言文学类(1400)</option>
+    <option value="2212">网络工程(2212)</option>
+    <option value="33455F0FDEF10931E05326C851D3BE02">网络营销(专科)(2309)</option>
+    <option value="1011">文化产业管理(1011)</option>
+    <option value="1304">文秘(涉外文秘方向)(专科)(1304)</option>
+    <option value="1507">舞蹈表演(1507)</option>
+    <option value="1503">舞蹈表演(专科)(1503)</option>
+    <option value="1506">舞蹈学(1506)</option>
+    <option value="1801">物理学(1801)</option>
+    <option value="1804">物理学(专接本)(1804)</option>
+    <option value="1800">物理学类(1800)</option>
+    <option value="2215">物联网工程(2215)</option>
+    <option value="2305">物流管理(2305)</option>
+    <option value="E206A76991D98B01E055000000000001">物流管理(ISEC)(2317)</option>
+    <option value="537862301DC785BBE065000000000001">物流管理(合作培养)(2320)</option>
+    <option value="2311">物流管理(专接本)(2311)</option>
+    <option value="2314">物业管理(2314)</option>
+    <option value="1101">小学教育(1101)</option>
+    <option value="1105">小学教育(专接本)(1105)</option>
+    <option value="1113">小学教育(综合文科教育方向)(专科)(1113)</option>
+    <option value="33455F0FDED80931E05326C851D3BE02">小学教育(综合文科教育方向)(专科)(1008)</option>
+    <option value="1309">新闻采编与制作(专科)(1309)</option>
+    <option value="1108">心理咨询(专科)(1108)</option>
+    <option value="5378B3477F3F8692E065000000000001">信息安全(2223)</option>
+    <option value="2211">信息安全技术(专科)(2211)</option>
+    <option value="2218">信息安全与管理(专科)(2218)</option>
+    <option value="1706">信息管理与信息系统(1706)</option>
+    <option value="1702">信息与计算科学(1702)</option>
+    <option value="1704">信息与计算科学(专接本)(1704)</option>
+    <option value="1102">学前教育(1102)</option>
+    <option value="2501">学前教育(五年制大专)(2501)</option>
+    <option value="2507">学前教育(幼儿艺术方向)(专科)(2507)</option>
+    <option value="1106">学前教育(专接本)(1106)</option>
+    <option value="1109">学前教育(专科)(1109)</option>
+    <option value="2506">学前教育(专科)-1(2506)</option>
+    <option value="1602">艺术设计(1602)</option>
+    <option value="1609">艺术设计(动漫艺术设计)(专科)(1609)</option>
+    <option value="1608">艺术设计(环境艺术设计)(专科)(1608)</option>
+    <option value="1610">艺术设计(视觉传达艺术设计)(专科)(1610)</option>
+    <option value="1611">艺术设计(专接本)(1611)</option>
+    <option value="1604">艺术设计(专科)(1604)</option>
+    <option value="1607">艺术设计学(1607)</option>
+    <option value="1501">音乐学(1501)</option>
+    <option value="1502">音乐学(专接本)(1502)</option>
+    <option value="1401">英语(1401)</option>
+    <option value="1408">英语(国际商务方向)(1408)</option>
+    <option value="1404">英语(专接本)(1404)</option>
+    <option value="1902">应用化学(1902)</option>
+    <option value="53B9D174125DD287E065000000000001">应用化学(ISEC)(1910)</option>
+    <option value="1808">应用物理学(1808)</option>
+    <option value="1103">应用心理学(1103)</option>
+    <option value="1107">应用心理学(专接本)(1107)</option>
+    <option value="1110">应用心理学(专科)(1110)</option>
+    <option value="1807">影视多媒体技术(专科)(1807)</option>
+    <option value="2007">园艺(2007)</option>
+    <option value="2004">园艺技术(专科)(2004)</option>
+    <option value="37332DA7B264FB18E065000000000001">运动训练(1204)</option>
+    <option value="2704">政治学与行政学(2704)</option>
+    <option value="1300">中国语言文学类(1300)</option>
+    <option value="6E17439E594A0EE4E0533FC851D3C466">专接本模板(8003)</option>
+    <option value="6E17439E59470EE4E0533FC851D3C466">专科模板(8002)</option>
+    <option value="C3978F68973071E4E055000000000001">资产评估(2315)</option>
+    <option value="2107">资源环境与城乡规划管理(2107)</option>
+
+
+</select>
+
+
+							<script type="text/javascript">
+								$("#zyh_id").find("option:eq(0)").text("" + $.i18n.get("qb") + "");
+								jQuery('#zyh_id').trigger("chosen");
+							</script>
+						</div>
+					</div>
+				</div>
+			
+			
+				<div class="col-md-3 col-sm-6">
+					<div class="form-group">
+						<label for="" class="col-sm-4 control-label">
+							专业方向
+						</label>
+						<div class="col-sm-8">
+							<select class="form-control chosen-select" id="zyfx_id" name="zyfx_id"></select>
+							<script type="text/javascript">
+								$("#zyfx_id").find("option:eq(0)").text("" + $.i18n.get("qb") + "");
+								jQuery('#zyfx_id').trigger("chosen");
+							</script>
+						</div>
+					</div>
+				</div>
+				
+			
+				<div class="col-md-3 col-sm-6">
+					<div class="form-group">
+						<label for="" class="col-sm-4 control-label">
+							班级
+						</label>
+						<div class="col-sm-8">
+							<select name="bh_id" id="bh_id" class="form-control chosen-select">
+    <option value=""
+    >全部</option>
+    <option value="10231041">10保险本科班</option>
+    <option value="10230621">10保险实务专科班</option>
+    <option value="10190741">10材料化学本科班</option>
+    <option value="10180241">10电子本科1班</option>
+    <option value="10180242">10电子本科2班</option>
+    <option value="10130841">10对外汉语本科班</option>
+    <option value="10100141">10法学本科班</option>
+    <option value="10100421">10法学专接本</option>
+    <option value="10160146">10国画本科班</option>
+    <option value="10130141">10汉语言文学本科1班</option>
+    <option value="10130142">10汉语言文学本科2班</option>
+    <option value="10130143">10汉语言文学本科3班</option>
+    <option value="10130144">10汉语言文学本科4班</option>
+    <option value="10130321">10汉语言专接本班</option>
+    <option value="10190141">10化学本科班</option>
+    <option value="10190041">10化学类本科班</option>
+    <option value="10161431">10环境艺术专科1班</option>
+    <option value="10161432">10环境艺术专科2班</option>
+    <option value="10220221">10级计算机专接本班</option>
+    <option value="10140421">10级英语专接本1班</option>
+    <option value="10140422">10级英语专接本2班</option>
+    <option value="10220141">10计算机本科班</option>
+    <option value="10180341">10教育技术学本科班</option>
+    <option value="10110441">10教育学本科班</option>
+    <option value="10100241">10历史本科班</option>
+    <option value="10100521">10历史专接本</option>
+    <option value="10190831">10煤化工专科班</option>
+    <option value="10160141">10美术学1班</option>
+    <option value="10160142">10美术学2班</option>
+    <option value="10160143">10美术学3班</option>
+    <option value="10140241">10日语本科班</option>
+    <option value="10220931">10软件专科班</option>
+    <option value="10190431">10商检专科班</option>
+    <option value="10230231">10商务管理专科1班</option>
+    <option value="10230232">10商务管理专科2班</option>
+    <option value="10230441">10社会工作本科班</option>
+    <option value="10161531">10视觉传达专科1班</option>
+    <option value="10161532">10视觉传达专科2班</option>
+    <option value="10170141">10数学本科1班</option>
+    <option value="10170142">10数学本科2班</option>
+    <option value="10170321">10数学与应用数学专接本</option>
+    <option value="10100341">10思想政治教育本科班</option>
+    <option value="10120141">10体育教育本科1班</option>
+    <option value="10120142">10体育教育本科2班</option>
+    <option value="10120143">10体育教育本科3班</option>
+    <option value="10120144">10体育教育本科4班</option>
+    <option value="10220421">10图形图像专科班</option>
+    <option value="10220521">10网络专科班</option>
+    <option value="10130241">10文秘本科班</option>
+    <option value="10131121">10文秘专接本班</option>
+    <option value="10130421">10文秘专科1班</option>
+    <option value="10130422">10文秘专科2班</option>
+    <option value="10130423">10文秘专科3班</option>
+    <option value="10150321">10舞蹈专科1班</option>
+    <option value="10150322">10舞蹈专科2班</option>
+    <option value="10150323">10舞蹈专科3班</option>
+    <option value="10180141">10物理本科1班</option>
+    <option value="10180142">10物理本科2班</option>
+    <option value="10230541">10物流管理本科班</option>
+    <option value="10230131">10物流管理专科班</option>
+    <option value="10110141">10小学教育本科班</option>
+    <option value="10131041">10新闻本科班</option>
+    <option value="10130921">10新闻专科1班</option>
+    <option value="10130922">10新闻专科2班</option>
+    <option value="10110831">10心理咨询专科班</option>
+    <option value="10170641">10信管本科班</option>
+    <option value="10170241">10信计本科班</option>
+    <option value="10220621">10信息安全专科班</option>
+    <option value="10110241">10学前教育本科班</option>
+    <option value="10110621">10学前教育专接本</option>
+    <option value="10250631">10学前教育专科1班</option>
+    <option value="10250632">10学前教育专科2班</option>
+    <option value="10160241">10艺术设计本科1班</option>
+    <option value="10160244">10艺术设计本科1班(动漫)</option>
+    <option value="10160242">10艺术设计本科2班</option>
+    <option value="10160245">10艺术设计本科2班(环艺)</option>
+    <option value="10160243">10艺术设计本科3班</option>
+    <option value="10160246">10艺术设计本科3班(视觉)</option>
+    <option value="10161121">10艺术设计专接本</option>
+    <option value="10160431">10艺术设计专科班</option>
+    <option value="10150141">10音乐学本科1班</option>
+    <option value="10150142">10音乐学本科2班</option>
+    <option value="10150143">10音乐学本科3班</option>
+    <option value="10150221">10音乐专接本班</option>
+    <option value="10140141">10英语本科1班</option>
+    <option value="10140142">10英语本科2班</option>
+    <option value="10140841">10英语本科3班</option>
+    <option value="10140842">10英语本科4班</option>
+    <option value="10190241">10应用化学本科班</option>
+    <option value="10180841">10应用物理本科班</option>
+    <option value="10110341">10应用心理学本科班</option>
+    <option value="10110721">10应用心理专接本</option>
+    <option value="10180731">10影视多媒体技术专科</option>
+    <option value="10160144">10油画本科1班</option>
+    <option value="10160145">10油画本科2班</option>
+    <option value="10100621">10政教专接本</option>
+    <option value="11231041">11保险本科班</option>
+    <option value="11230621">11保险实务专科</option>
+    <option value="11190741">11材料化学本科班</option>
+    <option value="11140341">11德语本科班</option>
+    <option value="11180241">11电子本</option>
+    <option value="11161631">11动漫设计与制作专科班</option>
+    <option value="11130841">11对外汉语本科班</option>
+    <option value="11100141">11法学本科班</option>
+    <option value="11131041">11广电本科班</option>
+    <option value="11160144">11国画本科1班</option>
+    <option value="11160145">11国画本科2班</option>
+    <option value="11190141">11化学本科班</option>
+    <option value="11161431">11环境艺术设计专科1班</option>
+    <option value="11161432">11环境艺术设计专科2班</option>
+    <option value="11110441">11级教育学本科班</option>
+    <option value="11220141">11计算机本科班</option>
+    <option value="11221031">11计算机网络技术专科班</option>
+    <option value="11220321">11计算机应用技术专科班</option>
+    <option value="11220221">11计算机专接本班</option>
+    <option value="11180341">11教育技术本</option>
+    <option value="11110041">11教育学本科班</option>
+    <option value="11100241">11历史本科班</option>
+    <option value="11190831">11煤化工专科班</option>
+    <option value="11160141">11美术学本科1班</option>
+    <option value="11160142">11美术学本科2班</option>
+    <option value="11160143">11美术学本科3班</option>
+    <option value="11160321">11美术学专接本1班</option>
+    <option value="11160322">11美术学专接本2班</option>
+    <option value="11140241">11日语本科班</option>
+    <option value="11220931">11软件专科班</option>
+    <option value="11190431">11商检专科班</option>
+    <option value="11230231">11商务管理专科</option>
+    <option value="11230441">11社会工作本科</option>
+    <option value="11161531">11视觉传达专科1班</option>
+    <option value="11161532">11视觉传达专科2班</option>
+    <option value="11170141">11数本1班</option>
+    <option value="11170142">11数本2班</option>
+    <option value="11270141">11思想政治教育本科班</option>
+    <option value="11120141">11体育教育本科1班</option>
+    <option value="11120142">11体育教育本科2班</option>
+    <option value="11120143">11体育教育本科3班</option>
+    <option value="11120144">11体育教育本科4班</option>
+    <option value="11170741">11统计学本科班</option>
+    <option value="11220421">11图形图像制作专科</option>
+    <option value="11130241">11文秘本科班</option>
+    <option value="11131121">11文秘专接本班</option>
+    <option value="11130421">11文秘专科1班</option>
+    <option value="11130422">11文秘专科2班</option>
+    <option value="11150641">11舞蹈学本科1班</option>
+    <option value="11150642">11舞蹈学本科2班</option>
+    <option value="11150321">11舞蹈专科1班</option>
+    <option value="11150322">11舞蹈专科2班</option>
+    <option value="11180141">11物理本</option>
+    <option value="11230541">11物流管理本科</option>
+    <option value="11231121">11物流管理专接本</option>
+    <option value="11230131">11物流管理专科</option>
+    <option value="11110141">11小学教育本科班</option>
+    <option value="11130921">11新闻采编专科1班</option>
+    <option value="11130922">11新闻采编专科2班</option>
+    <option value="11110831">11心理咨询专科班</option>
+    <option value="11170641">11信管本科班</option>
+    <option value="11170241">11信计本科班</option>
+    <option value="11110241">11学前教育本科1班</option>
+    <option value="11110242">11学前教育本科2班</option>
+    <option value="11110621">11学前教育专接本</option>
+    <option value="11250731">11学前教育专科1班</option>
+    <option value="11250732">11学前教育专科2班</option>
+    <option value="11250733">11学前教育专科3班</option>
+    <option value="11250734">11学前教育专科4班</option>
+    <option value="11250735">11学前教育专科5班</option>
+    <option value="11250736">11学前教育专科6班</option>
+    <option value="11250737">11学前教育专科7班</option>
+    <option value="11160244">11艺术设计(动漫)本科班</option>
+    <option value="11160245">11艺术设计(环艺)本科班</option>
+    <option value="11160246">11艺术设计(视传)本科班</option>
+    <option value="11160241">11艺术设计本科1班</option>
+    <option value="11160242">11艺术设计本科2班</option>
+    <option value="11160243">11艺术设计本科3班</option>
+    <option value="11161121">11艺术设计专接本</option>
+    <option value="11150141">11音乐学本科1班</option>
+    <option value="11150142">11音乐学本科2班</option>
+    <option value="11150143">11音乐学本科3班</option>
+    <option value="11150144">11音乐学本科4班</option>
+    <option value="11150221">11音乐专接本班</option>
+    <option value="11140141">11英语本科1班</option>
+    <option value="11140142">11英语本科2班</option>
+    <option value="11140143">11英语本科3班</option>
+    <option value="11140144">11英语本科4班</option>
+    <option value="11140845">11英语本科5班</option>
+    <option value="11140421">11英语专接本1班</option>
+    <option value="11140422">11英语专接本2班</option>
+    <option value="11190241">11应用化学本科班</option>
+    <option value="11180841">11应用物理本</option>
+    <option value="11110341">11应用心理学本科班</option>
+    <option value="11110721">11应用心理专接本</option>
+    <option value="11180731">11影视多媒体专</option>
+    <option value="11160146">11油画本科班</option>
+    <option value="11130141">11中文本科1班</option>
+    <option value="11130142">11中文本科2班</option>
+    <option value="11130321">11中文专接本班</option>
+    <option value="12231041">12保险本科班</option>
+    <option value="12230621">12保险实务专科</option>
+    <option value="12190741">12材料化学本科班</option>
+    <option value="12140341">12德语本科班</option>
+    <option value="12210141">12地理本科班</option>
+    <option value="12180241">12电子本</option>
+    <option value="12161631">12动漫设计与制作专科班</option>
+    <option value="12130841">12对外汉语本科班</option>
+    <option value="12100141">12法学本科班</option>
+    <option value="12131041">12广电本科班</option>
+    <option value="12210741">12规划本科班</option>
+    <option value="12160146">12国画本科班</option>
+    <option value="12190141">12化学本科班</option>
+    <option value="12161431">12环境艺术设计专科班</option>
+    <option value="12110441">12级教育学本科班</option>
+    <option value="12220141">12计算机本科班</option>
+    <option value="12221031">12计算机网络技术专科班</option>
+    <option value="12220321">12计算机应用技术专科班</option>
+    <option value="12220221">12计算机专接本班</option>
+    <option value="12180341">12教育技术本</option>
+    <option value="12110041">12教育学本科班</option>
+    <option value="12211021">12酒店管理专科1班</option>
+    <option value="12211022">12酒店管理专科2班</option>
+    <option value="12211023">12酒店管理专科3班</option>
+    <option value="12100241">12历史本科班</option>
+    <option value="12210841">12旅游管理本科班</option>
+    <option value="12210221">12旅游管理专科班</option>
+    <option value="12210921">12旅游专接本</option>
+    <option value="12190831">12煤化工专科班</option>
+    <option value="12160141">12美术学本科1班</option>
+    <option value="12160142">12美术学本科2班</option>
+    <option value="12160143">12美术学本科3班</option>
+    <option value="12160321">12美术学专接本1班</option>
+    <option value="12160322">12美术学专接本2班</option>
+    <option value="12140241">12日语本科班</option>
+    <option value="12220931">12软件专科班</option>
+    <option value="12190431">12商检专科班</option>
+    <option value="12230231">12商务管理专科</option>
+    <option value="12230441">12社会工作本科</option>
+    <option value="12200241">12生物技术本科班</option>
+    <option value="12200141">12生物科学本科班</option>
+    <option value="12161531">12视觉传达专科班</option>
+    <option value="12170141">12数本1班</option>
+    <option value="12170142">12数本2班</option>
+    <option value="12170321">12数学专接本班</option>
+    <option value="12270141">12思想政治教育本科班</option>
+    <option value="12270221">12思想政治教育专接本班</option>
+    <option value="12120141">12体育教育本科1班</option>
+    <option value="12120142">12体育教育本科2班</option>
+    <option value="12120143">12体育教育本科3班</option>
+    <option value="12120144">12体育教育本科4班</option>
+    <option value="12170741">12统计学本科班</option>
+    <option value="12220421">12图形图像制作专科</option>
+    <option value="12221241">12网络工程本科班</option>
+    <option value="12101141">12文化产业管理本科班</option>
+    <option value="12130241">12文秘本科班</option>
+    <option value="12131121">12文秘专接本班</option>
+    <option value="12130421">12文秘专科1班</option>
+    <option value="12130422">12文秘专科2班</option>
+    <option value="12150641">12舞蹈学本科1班</option>
+    <option value="12150642">12舞蹈学本科2班</option>
+    <option value="12150321">12舞蹈专科1班</option>
+    <option value="12150322">12舞蹈专科2班</option>
+    <option value="12180141">12物理本</option>
+    <option value="12230541">12物流管理本科</option>
+    <option value="12231121">12物流管理专接本</option>
+    <option value="12230131">12物流管理专科</option>
+    <option value="12110141">12小学教育本科班</option>
+    <option value="12130921">12新闻采编专科1班</option>
+    <option value="12130922">12新闻采编专科2班</option>
+    <option value="12110831">12心理咨询专科班</option>
+    <option value="12170641">12信管本科班</option>
+    <option value="12170241">12信计本科班</option>
+    <option value="12221131">12信息安全技术专科班</option>
+    <option value="12110241">12学前教育本科1班</option>
+    <option value="12110242">12学前教育本科2班</option>
+    <option value="12110621">12学前教育专接本1班</option>
+    <option value="12110622">12学前教育专接本2班</option>
+    <option value="12110623">12学前教育专接本3班</option>
+    <option value="12250631">12学前教育专科1班</option>
+    <option value="12250632">12学前教育专科2班</option>
+    <option value="12250633">12学前教育专科3班</option>
+    <option value="12250634">12学前教育专科4班</option>
+    <option value="12250635">12学前教育专科5班</option>
+    <option value="12250636">12学前教育专科6班</option>
+    <option value="12250637">12学前教育专科7班</option>
+    <option value="12160244">12艺术设计(动漫)本科班</option>
+    <option value="12160245">12艺术设计(环艺)本科班</option>
+    <option value="12160246">12艺术设计(视传)本科班</option>
+    <option value="12160241">12艺术设计本科1班</option>
+    <option value="12160242">12艺术设计本科2班</option>
+    <option value="12160243">12艺术设计本科3班</option>
+    <option value="12161121">12艺术设计专接本</option>
+    <option value="12150141">12音乐学本科1班</option>
+    <option value="12150142">12音乐学本科2班</option>
+    <option value="12150143">12音乐学本科3班</option>
+    <option value="12150221">12音乐专接本班</option>
+    <option value="12140141">12英语本科1班</option>
+    <option value="12140142">12英语本科2班</option>
+    <option value="12140143">12英语本科3班</option>
+    <option value="12140845">12英语本科4班</option>
+    <option value="12140421">12英语专接本1班</option>
+    <option value="12140422">12英语专接本2班</option>
+    <option value="12190241">12应用化学本科班</option>
+    <option value="12180841">12应用物理本</option>
+    <option value="12110341">12应用心理学本科班</option>
+    <option value="12180731">12影视多媒体专</option>
+    <option value="12160144">12油画本科1班</option>
+    <option value="12160145">12油画本科2班</option>
+    <option value="12200741">12园艺本科班</option>
+    <option value="12200431">12园艺技术专科班</option>
+    <option value="12130141">12中文本科1班</option>
+    <option value="12130142">12中文本科2班</option>
+    <option value="12130321">12中文专接本班</option>
+    <option value="13230621">13保险实务专科</option>
+    <option value="13231241">13保险学本科班</option>
+    <option value="13190741">13材料化学本科班</option>
+    <option value="13140341">13德语本科班</option>
+    <option value="13210141">13地理本科班</option>
+    <option value="13180241">13电子本</option>
+    <option value="13161631">13动漫设计与制作专科</option>
+    <option value="13101221">13法律文秘专科班</option>
+    <option value="13100141">13法学本科班</option>
+    <option value="13100421">13法学专接本班</option>
+    <option value="13131541">13广电本科班</option>
+    <option value="13160145">13国画本科1班</option>
+    <option value="13160146">13国画本科2班</option>
+    <option value="13131341">13汉语国际教育本科班</option>
+    <option value="13190141">13化学本科班</option>
+    <option value="13190041">13化学类本科1班</option>
+    <option value="13190042">13化学类本科2班</option>
+    <option value="13161742">13环境设计本科班</option>
+    <option value="13161431">13环境艺术设计专科班</option>
+    <option value="13220141">13计算机本科1班</option>
+    <option value="13220142">13计算机本科2班</option>
+    <option value="13220140">13计算机本科班</option>
+    <option value="13221031">13计算机网络技术专科班</option>
+    <option value="13220321">13计算机应用技术专科班</option>
+    <option value="13220221">13计算机专接本班</option>
+    <option value="13220031">13计算机专科1班</option>
+    <option value="13220032">13计算机专科2班</option>
+    <option value="13180341">13教育技术本</option>
+    <option value="13110041">13教育学本科1班</option>
+    <option value="13110042">13教育学本科2班</option>
+    <option value="13211021">13酒店管理专科1班</option>
+    <option value="13211022">13酒店管理专科2班</option>
+    <option value="13100241">13历史本科班</option>
+    <option value="13210841">13旅游管理本科班</option>
+    <option value="13210221">13旅游管理专科1班</option>
+    <option value="13210222">13旅游管理专科2班</option>
+    <option value="13210921">13旅游专接本</option>
+    <option value="13190831">13煤化工专科班</option>
+    <option value="13160141">13美术学本科1班</option>
+    <option value="13160142">13美术学本科2班</option>
+    <option value="13160143">13美术学本科3班</option>
+    <option value="13160321">13美术学专接本1班</option>
+    <option value="13160322">13美术学专接本2班</option>
+    <option value="13131441">13秘书学本科班</option>
+    <option value="13211141">13人文地理与城乡规划本科</option>
+    <option value="13140241">13日语本科班</option>
+    <option value="13220931">13软件专科班</option>
+    <option value="13190431">13商检专科班</option>
+    <option value="13230231">13商务管理专科</option>
+    <option value="13140541">13商务英语本科1班</option>
+    <option value="13140542">13商务英语本科2班</option>
+    <option value="13230441">13社会工作本科</option>
+    <option value="13200241">13生物技术本科班</option>
+    <option value="13200141">13生物科学本科1班</option>
+    <option value="13200142">13生物科学本科2班</option>
+    <option value="13200143">13生物科学本科3班</option>
+    <option value="13200144">13生物科学本科4班</option>
+    <option value="13161741">13视觉传达设计本科班</option>
+    <option value="13161531">13视觉传达专科班</option>
+    <option value="13170141">13数本1班</option>
+    <option value="13170142">13数本2班</option>
+    <option value="13170321">13数学专接本班</option>
+    <option value="13270141">13思想政治教育本科班</option>
+    <option value="13270221">13思想政治教育专接本班</option>
+    <option value="13270321">13思想政治教育专科班</option>
+    <option value="13111241">13特殊教育本科班</option>
+    <option value="13120141">13体育教育本科1班</option>
+    <option value="13120142">13体育教育本科2班</option>
+    <option value="13120143">13体育教育本科3班</option>
+    <option value="13120144">13体育教育本科4班</option>
+    <option value="13170741">13统计学本科班</option>
+    <option value="13220421">13图形图像制作专科</option>
+    <option value="13221241">13网络工程本科班</option>
+    <option value="13101141">13文化产业管理本科班</option>
+    <option value="13131121">13文秘专接本班</option>
+    <option value="13130421">13文秘专科1班</option>
+    <option value="13130422">13文秘专科2班</option>
+    <option value="13150641">13舞蹈学本科1班</option>
+    <option value="13150642">13舞蹈学本科2班</option>
+    <option value="13150321">13舞蹈专科1班</option>
+    <option value="13150322">13舞蹈专科2班</option>
+    <option value="13180141">13物理本科1班</option>
+    <option value="13180142">13物理本科2班</option>
+    <option value="13180143">13物理学本科班</option>
+    <option value="13230541">13物流管理本科</option>
+    <option value="13231121">13物流管理专接本</option>
+    <option value="13230131">13物流管理专科</option>
+    <option value="13110140">13小学教育本科班</option>
+    <option value="13130921">13新闻采编专科1班</option>
+    <option value="13130922">13新闻采编专科2班</option>
+    <option value="13110831">13心理咨询专科班</option>
+    <option value="13170641">13信管本科班</option>
+    <option value="13170241">13信计本科班</option>
+    <option value="13221131">13信息安全技术专科班</option>
+    <option value="13110241">13学前教育本科1班</option>
+    <option value="13110242">13学前教育本科2班</option>
+    <option value="13110621">13学前教育专接本1班</option>
+    <option value="13110622">13学前教育专接本2班</option>
+    <option value="13250631">13学前教育专科1班</option>
+    <option value="13250632">13学前教育专科2班</option>
+    <option value="13250633">13学前教育专科3班</option>
+    <option value="13250634">13学前教育专科4班</option>
+    <option value="13250635">13学前教育专科5班</option>
+    <option value="13250636">13学前教育专科6班</option>
+    <option value="13250637">13学前教育专科7班</option>
+    <option value="13161121">13艺术设计专接本</option>
+    <option value="13150141">13音乐学本科1班</option>
+    <option value="13150142">13音乐学本科2班</option>
+    <option value="13150143">13音乐学本科3班</option>
+    <option value="13150221">13音乐专接本班</option>
+    <option value="13140141">13英语本科1班</option>
+    <option value="13140142">13英语本科2班</option>
+    <option value="13140143">13英语本科3班</option>
+    <option value="13140144">13英语本科4班</option>
+    <option value="13140421">13英语专接本1班</option>
+    <option value="13140422">13英语专接本2班</option>
+    <option value="13190241">13应用化学本科班</option>
+    <option value="13180841">13应用物理学本科班</option>
+    <option value="13110341">13应用心理学本科班</option>
+    <option value="13110721">13应用心理学专接本</option>
+    <option value="13180731">13影视多媒体专</option>
+    <option value="131601444">13油画本科班</option>
+    <option value="13200741">13园艺本科1班</option>
+    <option value="13200742">13园艺本科2班</option>
+    <option value="13200431">13园艺技术专科班</option>
+    <option value="13130141">13中文本科1班</option>
+    <option value="13130142">13中文本科2班</option>
+    <option value="13130321">13中文专接本班</option>
+    <option value="14230621">14保险实务专科</option>
+    <option value="14231241">14保险学本科班</option>
+    <option value="14190741">14材料化学本科班</option>
+    <option value="14100721">14初等教育专科</option>
+    <option value="14140341">14德语本科班</option>
+    <option value="14210141">14地理本科班</option>
+    <option value="14210041">14地理科学类本科班</option>
+    <option value="14180241">14电子本</option>
+    <option value="14161631">14动漫设计与制作专科</option>
+    <option value="14101221">14法律文秘专科班</option>
+    <option value="14100141">14法学本科班</option>
+    <option value="14100421">14法学专接本班</option>
+    <option value="14231331">14工商管理类专科1班</option>
+    <option value="14231332">14工商管理类专科2班</option>
+    <option value="14131541">14广电本科班</option>
+    <option value="14131641">14广电专接本班</option>
+    <option value="341B7A1C014863CAE05326C851D3B3B7">14国画本科班</option>
+    <option value="14131341">14汉语国际教育本科班</option>
+    <option value="14190141">14化学本科班</option>
+    <option value="14190041">14化学类本科1班</option>
+    <option value="14190042">14化学类本科2班</option>
+    <option value="14161841">14环境设计本科班</option>
+    <option value="14161431">14环境艺术设计专科班</option>
+    <option value="14220140">14计算机本科班</option>
+    <option value="14221441">14计算机类本科1班</option>
+    <option value="14221442">14计算机类本科2班</option>
+    <option value="14220031">14计算机类专科1班</option>
+    <option value="14220032">14计算机类专科2班</option>
+    <option value="14221031">14计算机网络技术专科班</option>
+    <option value="14220321">14计算机应用技术专科班</option>
+    <option value="14220221">14计算机专接本班</option>
+    <option value="14180341">14教育技术本</option>
+    <option value="14111141">14教育学本科班</option>
+    <option value="14110041">14教育学类本科1班</option>
+    <option value="14110042">14教育学类本科2班</option>
+    <option value="14110043">14教育学类本科3班</option>
+    <option value="14211021">14酒店管理专科1班</option>
+    <option value="14211022">14酒店管理专科2班</option>
+    <option value="14211023">14酒店管理专科3班</option>
+    <option value="14100241">14历史本科班</option>
+    <option value="14210841">14旅游管理本科班</option>
+    <option value="14211221">14旅游管理类专科1班</option>
+    <option value="14211222">14旅游管理类专科2班</option>
+    <option value="14211223">14旅游管理类专科3班</option>
+    <option value="14211224">14旅游管理类专科4班</option>
+    <option value="14211225">14旅游管理类专科5班</option>
+    <option value="14211226">14旅游管理类专科6班</option>
+    <option value="14210221">14旅游管理专科1班</option>
+    <option value="14210222">14旅游管理专科2班</option>
+    <option value="14210223">14旅游交通专科班</option>
+    <option value="14210921">14旅游专接本</option>
+    <option value="14190831">14煤化工专科班</option>
+    <option value="14160141">14美术学本科1班</option>
+    <option value="14160142">14美术学本科2班</option>
+    <option value="14160143">14美术学本科3班</option>
+    <option value="14160321">14美术学专接本1班</option>
+    <option value="14160322">14美术学专接本2班</option>
+    <option value="14131441">14秘书学本科班</option>
+    <option value="14180931">14汽车电子技术专</option>
+    <option value="14211141">14人文地理与城乡规划本科</option>
+    <option value="14140241">14日语本科班</option>
+    <option value="14220931">14软件专科班</option>
+    <option value="14190431">14商检专科班</option>
+    <option value="14230231">14商务管理专科</option>
+    <option value="14140541">14商务英语本科班</option>
+    <option value="14230441">14社会工作本科</option>
+    <option value="14200241">14生物技术本科班</option>
+    <option value="14200141">14生物科学本科班</option>
+    <option value="14200041">14生物科学类本科1班</option>
+    <option value="14200042">14生物科学类本科2班</option>
+    <option value="14200043">14生物科学类本科3班</option>
+    <option value="14200044">14生物科学类本科4班</option>
+    <option value="14200045">14生物科学类本科5班</option>
+    <option value="14161741">14视觉传达设计本科班</option>
+    <option value="14161531">14视觉传达专科班</option>
+    <option value="14170141">14数本1班</option>
+    <option value="14170142">14数本2班</option>
+    <option value="14170041">14数学类本科1班</option>
+    <option value="14170042">14数学类本科2班</option>
+    <option value="14170043">14数学类本科3班</option>
+    <option value="14170321">14数学专接本班</option>
+    <option value="14161941">14数字媒体艺术本科班</option>
+    <option value="14270141">14思想政治教育本科班</option>
+    <option value="14270221">14思想政治教育专接本班</option>
+    <option value="14270321">14思想政治教育专科班</option>
+    <option value="14111241">14特殊教育本科班</option>
+    <option value="14120141">14体育教育本科1班</option>
+    <option value="14120142">14体育教育本科2班</option>
+    <option value="14120143">14体育教育本科3班</option>
+    <option value="14120144">14体育教育本科4班</option>
+    <option value="14170741">14统计学本科班</option>
+    <option value="14220421">14图形图像制作专科</option>
+    <option value="14140041">14外国语言文学类本科1班</option>
+    <option value="14140042">14外国语言文学类本科2班</option>
+    <option value="14140043">14外国语言文学类本科3班</option>
+    <option value="14140044">14外国语言文学类本科4班</option>
+    <option value="14221241">14网络工程本科班</option>
+    <option value="14221321">14网络工程专接本班</option>
+    <option value="14101141">14文化产业管理本科班</option>
+    <option value="14131121">14文秘专接本班</option>
+    <option value="14130421">14文秘专科1班</option>
+    <option value="14130422">14文秘专科2班</option>
+    <option value="14150741">14舞蹈表演本科班</option>
+    <option value="14150641">14舞蹈学本科1班</option>
+    <option value="14150642">14舞蹈学本科2班</option>
+    <option value="14150321">14舞蹈专科1班</option>
+    <option value="14150322">14舞蹈专科2班</option>
+    <option value="14180141">14物理学本科班</option>
+    <option value="14180041">14物理学类本科1班</option>
+    <option value="14180042">14物理学类本科2班</option>
+    <option value="14230541">14物流管理本科</option>
+    <option value="14231121">14物流管理专接本</option>
+    <option value="14230131">14物流管理专科</option>
+    <option value="14110141">14小学教育本科班</option>
+    <option value="14130921">14新闻采编专科1班</option>
+    <option value="14130922">14新闻采编专科2班</option>
+    <option value="14110831">14心理咨询专科班</option>
+    <option value="14170641">14信管本科班</option>
+    <option value="14170241">14信计本科班</option>
+    <option value="14221131">14信息安全技术专科班</option>
+    <option value="14110241">14学前教育本科1班</option>
+    <option value="14110242">14学前教育本科2班</option>
+    <option value="14110621">14学前教育专接本1班</option>
+    <option value="14110622">14学前教育专接本2班</option>
+    <option value="14110931">14学前教育专科1班</option>
+    <option value="14110932">14学前教育专科2班</option>
+    <option value="14110933">14学前教育专科3班</option>
+    <option value="14110934">14学前教育专科4班</option>
+    <option value="14110935">14学前教育专科5班</option>
+    <option value="14110936">14学前教育专科6班</option>
+    <option value="14161121">14艺术设计专接本</option>
+    <option value="14150141">14音乐学本科1班</option>
+    <option value="14150142">14音乐学本科2班</option>
+    <option value="14150143">14音乐学本科3班</option>
+    <option value="14150221">14音乐专接本班</option>
+    <option value="14140141">14英语本科1班</option>
+    <option value="14140142">14英语本科2班</option>
+    <option value="14140143">14英语本科3班</option>
+    <option value="14140421">14英语专接本1班</option>
+    <option value="14140422">14英语专接本2班</option>
+    <option value="14190241">14应用化学本科班</option>
+    <option value="14180841">14应用物理学本科班</option>
+    <option value="14110341">14应用心理学本科班</option>
+    <option value="14110721">14应用心理学专接本</option>
+    <option value="14180731">14影视多媒体专</option>
+    <option value="341B7A1C013863CAE05326C851D3B3B7">14油画本科1班</option>
+    <option value="341B7A1C014363CAE05326C851D3B3B7">14油画本科2班</option>
+    <option value="14200741">14园艺本科班</option>
+    <option value="14200431">14园艺技术专科班</option>
+    <option value="14270441">14政治学与行政学本科班</option>
+    <option value="14130141">14中文本科1班</option>
+    <option value="14130142">14中文本科2班</option>
+    <option value="14130041">14中文类本科1班</option>
+    <option value="14130042">14中文类本科2班</option>
+    <option value="14130321">14中文专接本班</option>
+    <option value="15230621">15保险实务专科</option>
+    <option value="15231241">15保险学本科班</option>
+    <option value="15190741">15材料化学本科班</option>
+    <option value="15100721">15初等教育专科</option>
+    <option value="15140341">15德语本科班</option>
+    <option value="15210141">15地理本科班</option>
+    <option value="15210041">15地理科学类本科班</option>
+    <option value="15210441">15地理信息科学本科班</option>
+    <option value="15180241">15电子本</option>
+    <option value="15161631">15动漫设计与制作专科</option>
+    <option value="15101221">15法律文秘专科班</option>
+    <option value="15100141">15法学本科班</option>
+    <option value="15100421">15法学专接本班</option>
+    <option value="15231331">15工商管理类专科1班</option>
+    <option value="15231332">15工商管理类专科2班</option>
+    <option value="15231333">15工商管理类专科3班</option>
+    <option value="15231334">15工商管理类专科4班</option>
+    <option value="15131541">15广电本科班</option>
+    <option value="15131641">15广电专接本班</option>
+    <option value="15160145">15国画本科1班</option>
+    <option value="15160146">15国画本科2班</option>
+    <option value="15131341">15汉语国际教育本科班</option>
+    <option value="15190141">15化学本科班</option>
+    <option value="15190041">15化学类本科1班</option>
+    <option value="15190042">15化学类本科2班</option>
+    <option value="15190043">15化学类本科3班</option>
+    <option value="15161841">15环境设计本科班</option>
+    <option value="15161431">15环境艺术设计专科班</option>
+    <option value="70B17027A5FC0D58E0533FC851D3CF3C">15计算机（软件工程方向）本科班</option>
+    <option value="70B106F224550C97E0533FC851D3952B">15计算机（信息安全方向）本科班</option>
+    <option value="15220140">15计算机本科班</option>
+    <option value="15221441">15计算机类本科1班</option>
+    <option value="15221442">15计算机类本科2班</option>
+    <option value="15220031">15计算机类专科1班</option>
+    <option value="15220032">15计算机类专科2班</option>
+    <option value="15221031">15计算机网络技术专科班</option>
+    <option value="15220321">15计算机应用技术专科班</option>
+    <option value="15220221">15计算机专接本班</option>
+    <option value="15180341">15教育技术本</option>
+    <option value="15111141">15教育学本科班</option>
+    <option value="15110041">15教育学类本科1班</option>
+    <option value="15110042">15教育学类本科2班</option>
+    <option value="15110043">15教育学类本科3班</option>
+    <option value="15211021">15酒店管理专科1班</option>
+    <option value="15211022">15酒店管理专科2班</option>
+    <option value="15100241">15历史本科班</option>
+    <option value="15100521">15历史学专接本班</option>
+    <option value="15210841">15旅游管理本科班</option>
+    <option value="15211221">15旅游管理类专科1班</option>
+    <option value="15211222">15旅游管理类专科2班</option>
+    <option value="15211223">15旅游管理类专科3班</option>
+    <option value="15211224">15旅游管理类专科4班</option>
+    <option value="15211225">15旅游管理类专科5班</option>
+    <option value="15211226">15旅游管理类专科6班</option>
+    <option value="15210221">15旅游管理专科1班</option>
+    <option value="15210222">15旅游管理专科2班</option>
+    <option value="15210223">15旅游管理专科3班</option>
+    <option value="15211023">15旅游管理专科4班</option>
+    <option value="15210921">15旅游专接本</option>
+    <option value="15160141">15美术学本科1班</option>
+    <option value="15160142">15美术学本科2班</option>
+    <option value="15160143">15美术学本科3班</option>
+    <option value="15160321">15美术学专接本1班</option>
+    <option value="15160322">15美术学专接本2班</option>
+    <option value="15160323">15美术学专接本3班</option>
+    <option value="15131441">15秘书学本科班</option>
+    <option value="15190541">15能源化学工程本科班</option>
+    <option value="15180931">15汽车电子技术专</option>
+    <option value="15211141">15人文地理与城乡规划本科</option>
+    <option value="15140241">15日语本科班</option>
+    <option value="15220931">15软件专科班</option>
+    <option value="15190431">15商检专科班</option>
+    <option value="15230231">15商务管理专科</option>
+    <option value="15140541">15商务英语本科班</option>
+    <option value="15140621">15商务英语专科班</option>
+    <option value="15230441">15社会工作本科</option>
+    <option value="15200241">15生物技术本科班</option>
+    <option value="15200141">15生物科学本科1班</option>
+    <option value="15200142">15生物科学本科2班</option>
+    <option value="15200143">15生物科学本科3班</option>
+    <option value="15200144">15生物科学本科4班</option>
+    <option value="15200041">15生物科学类本科1班</option>
+    <option value="15200042">15生物科学类本科2班</option>
+    <option value="15200043">15生物科学类本科3班</option>
+    <option value="15200044">15生物科学类本科4班</option>
+    <option value="15200045">15生物科学类本科5班</option>
+    <option value="15161741">15视觉传达设计本科班</option>
+    <option value="15161531">15视觉传达专科班</option>
+    <option value="15170141">15数本1班</option>
+    <option value="15170142">15数本2班</option>
+    <option value="15170041">15数学类本科1班</option>
+    <option value="15170042">15数学类本科2班</option>
+    <option value="15170043">15数学类本科3班</option>
+    <option value="15170321">15数学专接本班</option>
+    <option value="15161941">15数字媒体艺术本科班</option>
+    <option value="15270141">15思想政治教育本科班</option>
+    <option value="15270221">15思想政治教育专接本班</option>
+    <option value="15270321">15思想政治教育专科班</option>
+    <option value="15111241">15特殊教育本科班</option>
+    <option value="15120141">15体育教育本科1班</option>
+    <option value="15120142">15体育教育本科2班</option>
+    <option value="15120143">15体育教育本科3班</option>
+    <option value="15120144">15体育教育本科4班</option>
+    <option value="15170741">15统计学本科班</option>
+    <option value="15220421">15图形图像制作专科</option>
+    <option value="15140041">15外国语言文学类本科1班</option>
+    <option value="15140042">15外国语言文学类本科2班</option>
+    <option value="15140043">15外国语言文学类本科3班</option>
+    <option value="15140044">15外国语言文学类本科4班</option>
+    <option value="15221241">15网络工程本科班</option>
+    <option value="15101141">15文化产业管理本科班</option>
+    <option value="15131121">15文秘专接本班</option>
+    <option value="15130421">15文秘专科1班</option>
+    <option value="15130422">15文秘专科2班</option>
+    <option value="15150741">15舞蹈表演本科班</option>
+    <option value="15150641">15舞蹈学本科班</option>
+    <option value="15150321">15舞蹈专科1班</option>
+    <option value="15150322">15舞蹈专科2班</option>
+    <option value="15150323">15舞蹈专科3班</option>
+    <option value="15180141">15物理学本科班</option>
+    <option value="15180041">15物理学类本科1班</option>
+    <option value="15180042">15物理学类本科2班</option>
+    <option value="15221541">15物联网工程本科班</option>
+    <option value="15230541">15物流管理本科</option>
+    <option value="15231121">15物流管理专接本</option>
+    <option value="15230131">15物流管理专科</option>
+    <option value="15110141">15小学教育本科班</option>
+    <option value="15130921">15新闻采编专科1班</option>
+    <option value="15130922">15新闻采编专科2班</option>
+    <option value="15110831">15心理咨询专科班</option>
+    <option value="15170641">15信管本科班</option>
+    <option value="15170241">15信计本科班</option>
+    <option value="15221131">15信息安全技术专科班</option>
+    <option value="15110241">15学前教育本科班</option>
+    <option value="15110621">15学前教育专接本1班</option>
+    <option value="15110622">15学前教育专接本2班</option>
+    <option value="15110931">15学前教育专科1班</option>
+    <option value="15110932">15学前教育专科2班</option>
+    <option value="15110933">15学前教育专科3班</option>
+    <option value="15110934">15学前教育专科4班</option>
+    <option value="15110935">15学前教育专科5班</option>
+    <option value="15110936">15学前教育专科6班</option>
+    <option value="15110937">15学前教育专科7班</option>
+    <option value="15161121">15艺术设计专接本</option>
+    <option value="15150141">15音乐学本科1班</option>
+    <option value="15150142">15音乐学本科2班</option>
+    <option value="15150143">15音乐学本科3班</option>
+    <option value="15150221">15音乐专接本班</option>
+    <option value="15140141">15英语本科1班</option>
+    <option value="15140142">15英语本科2班</option>
+    <option value="15140143">15英语本科3班</option>
+    <option value="15140421">15英语专接本1班</option>
+    <option value="15140422">15英语专接本2班</option>
+    <option value="15190241">15应用化学本科班</option>
+    <option value="15180841">15应用物理学本科班</option>
+    <option value="15110341">15应用心理学本科班</option>
+    <option value="15110721">15应用心理学专接本</option>
+    <option value="15180731">15影视多媒体专</option>
+    <option value="15160144">15油画本科班</option>
+    <option value="15200741">15园艺本科班</option>
+    <option value="15200431">15园艺技术专科班</option>
+    <option value="15270441">15政治学与行政学本科班</option>
+    <option value="15130141">15中文本科1班</option>
+    <option value="15130142">15中文本科2班</option>
+    <option value="15130041">15中文类本科1班</option>
+    <option value="15130042">15中文类本科2班</option>
+    <option value="15130321">15中文专接本班</option>
+    <option value="16231241">16保险学本科班</option>
+    <option value="16230721">16保险专科班</option>
+    <option value="16190741">16材料化学本科班</option>
+    <option value="16140341">16德语本科班</option>
+    <option value="16210141">16地理科学本科班</option>
+    <option value="16210041">16地理科学类本科1班</option>
+    <option value="16210042">16地理科学类本科2班</option>
+    <option value="16210441">16地理信息科学本科班</option>
+    <option value="16180241">16电子本</option>
+    <option value="16160531">16动漫制作技术专科班</option>
+    <option value="16101221">16法律文秘专科班</option>
+    <option value="16100141">16法学本科班</option>
+    <option value="16100421">16法学专接本班</option>
+    <option value="16231331">16工商管理类专科1班</option>
+    <option value="16231332">16工商管理类专科2班</option>
+    <option value="16231333">16工商管理类专科3班</option>
+    <option value="16131541">16广电本科1班</option>
+    <option value="16131542">16广电本科2班</option>
+    <option value="16131641">16广电专接本班</option>
+    <option value="6FB079046A186210E0533FC851D32998">16国画本科班</option>
+    <option value="16190141">16化学本科1班</option>
+    <option value="16190142">16化学本科2班</option>
+    <option value="16190041">16化学类本科1班</option>
+    <option value="16190042">16化学类本科2班</option>
+    <option value="16190043">16化学类本科3班</option>
+    <option value="16161841">16环境设计本科班</option>
+    <option value="16161221">16环境设计专接本</option>
+    <option value="16161431">16环境艺术设计专科班</option>
+    <option value="16230831">16会计专科班</option>
+    <option value="70C56C2B18C92424E0533FC851D38414">16计算机（软件工程方向）本科班</option>
+    <option value="70C56C2B18C22424E0533FC851D38414">16计算机（信息安全方向）本科班</option>
+    <option value="16220140">16计算机本科班</option>
+    <option value="16221441">16计算机类本科1班</option>
+    <option value="16221442">16计算机类本科2班</option>
+    <option value="16220031">16计算机类专科1班</option>
+    <option value="16220032">16计算机类专科2班</option>
+    <option value="16221031">16计算机网络技术专科班</option>
+    <option value="16220321">16计算机应用技术专科班</option>
+    <option value="16220221">16计算机专接本班</option>
+    <option value="16180341">16教育技术本</option>
+    <option value="16111141">16教育学本科班</option>
+    <option value="16110041">16教育学类本科1班</option>
+    <option value="16110042">16教育学类本科2班</option>
+    <option value="16110043">16教育学类本科3班</option>
+    <option value="16110044">16教育学类本科4班</option>
+    <option value="16110045">16教育学类本科5班</option>
+    <option value="16110046">16教育学类本科6班</option>
+    <option value="16211021">16酒店管理专科1班</option>
+    <option value="16211022">16酒店管理专科2班</option>
+    <option value="16100241">16历史本科班</option>
+    <option value="16100521">16历史学专接本班</option>
+    <option value="16210841">16旅游管理本科班</option>
+    <option value="16210221">16旅游管理专科1班</option>
+    <option value="16210222">16旅游管理专科2班</option>
+    <option value="16210223">16旅游管理专科3班</option>
+    <option value="16211023">16旅游管理专科4班</option>
+    <option value="16211321">16旅游类专科1班</option>
+    <option value="16211322">16旅游类专科2班</option>
+    <option value="16211323">16旅游类专科3班</option>
+    <option value="16211324">16旅游类专科4班</option>
+    <option value="16210921">16旅游专接本</option>
+    <option value="16160141">16美术学本科1班</option>
+    <option value="16160142">16美术学本科2班</option>
+    <option value="16160143">16美术学本科3班</option>
+    <option value="16160321">16美术学专接本1班</option>
+    <option value="16160322">16美术学专接本2班</option>
+    <option value="16160323">16美术学专接本3班</option>
+    <option value="16131441">16秘书学本科1班</option>
+    <option value="16131442">16秘书学本科2班</option>
+    <option value="16190541">16能源化学工程本科班</option>
+    <option value="16180931">16汽车电子技术专</option>
+    <option value="16211141">16人文地理与城乡规划本科班</option>
+    <option value="16140241">16日语本科班</option>
+    <option value="16220931">16软件专科班</option>
+    <option value="16190431">16商检专科班</option>
+    <option value="16230231">16商务管理专科</option>
+    <option value="16140541">16商务英语本科班</option>
+    <option value="16140621">16商务英语专科班</option>
+    <option value="16230441">16社会工作本科</option>
+    <option value="16200241">16生物技术本科班</option>
+    <option value="16200141">16生物科学本科班</option>
+    <option value="16200041">16生物科学类本科1班</option>
+    <option value="16200042">16生物科学类本科2班</option>
+    <option value="16200043">16生物科学类本科3班</option>
+    <option value="16200044">16生物科学类本科4班</option>
+    <option value="16200045">16生物科学类本科5班</option>
+    <option value="16160631">16视觉传播设计与制作专科班</option>
+    <option value="16161741">16视觉传达设计本科班</option>
+    <option value="16161321">16视觉传达设计专接本</option>
+    <option value="16170141">16数本1班</option>
+    <option value="16170142">16数本2班</option>
+    <option value="16170143">16数本3班</option>
+    <option value="16170041">16数学类本科1班</option>
+    <option value="16170042">16数学类本科2班</option>
+    <option value="16170043">16数学类本科3班</option>
+    <option value="16170321">16数学专接本班</option>
+    <option value="16161941">16数字媒体艺术本科班</option>
+    <option value="16221621">16数字媒体应用技术专科</option>
+    <option value="16270141">16思想政治教育本科班</option>
+    <option value="16270221">16思想政治教育专接本班</option>
+    <option value="16270321">16思想政治教育专科班</option>
+    <option value="16111241">16特殊教育本科班</option>
+    <option value="16120141">16体育教育本科1班</option>
+    <option value="16120142">16体育教育本科2班</option>
+    <option value="16120143">16体育教育本科3班</option>
+    <option value="16120144">16体育教育本科4班</option>
+    <option value="16170741">16统计学本科班</option>
+    <option value="16140041">16外国语言文学类本科1班</option>
+    <option value="16140042">16外国语言文学类本科2班</option>
+    <option value="16140043">16外国语言文学类本科3班</option>
+    <option value="16140044">16外国语言文学类本科4班</option>
+    <option value="16221241">16网络工程本科班</option>
+    <option value="16230931">16网络营销专科班</option>
+    <option value="16101141">16文化产业管理本科班</option>
+    <option value="16131121">16文秘专接本班</option>
+    <option value="16130421">16文秘专科班</option>
+    <option value="16150741">16舞蹈表演本科班</option>
+    <option value="16150641">16舞蹈学本科班</option>
+    <option value="16150321">16舞蹈专科1班</option>
+    <option value="16150322">16舞蹈专科2班</option>
+    <option value="16180141">16物理学本科班</option>
+    <option value="16180041">16物理学类本科1班</option>
+    <option value="16180042">16物理学类本科2班</option>
+    <option value="16221541">16物联网工程本科班</option>
+    <option value="16230541">16物流管理本科</option>
+    <option value="16231121">16物流管理专接本</option>
+    <option value="16230131">16物流管理专科</option>
+    <option value="16110141">16小学教育本科1班</option>
+    <option value="16110142">16小学教育本科2班</option>
+    <option value="16110143">16小学教育本科3班</option>
+    <option value="16110144">16小学教育本科4班</option>
+    <option value="16130921">16新闻采编专科班</option>
+    <option value="16110831">16心理咨询专科班</option>
+    <option value="16170641">16信管本科班</option>
+    <option value="16170241">16信计本科班</option>
+    <option value="16221831">16信息安全与管理专科班</option>
+    <option value="16110241">16学前教育本科班</option>
+    <option value="16110621">16学前教育专接本1班</option>
+    <option value="16110622">16学前教育专接本2班</option>
+    <option value="16110623">16学前教育专接本3班</option>
+    <option value="16110931">16学前教育专科1班</option>
+    <option value="16110932">16学前教育专科2班</option>
+    <option value="16110933">16学前教育专科3班</option>
+    <option value="16110934">16学前教育专科4班</option>
+    <option value="16110935">16学前教育专科5班</option>
+    <option value="16150141">16音乐学本科1班</option>
+    <option value="16150142">16音乐学本科2班</option>
+    <option value="16150143">16音乐学本科3班</option>
+    <option value="16150221">16音乐专接本班</option>
+    <option value="16140141">16英语本科1班</option>
+    <option value="16140142">16英语本科2班</option>
+    <option value="16140143">16英语本科3班</option>
+    <option value="16140421">16英语专接本1班</option>
+    <option value="16140422">16英语专接本2班</option>
+    <option value="16190241">16应用化学本科班</option>
+    <option value="16180841">16应用物理学本科班</option>
+    <option value="16110341">16应用心理学本科班</option>
+    <option value="16110721">16应用心理学专接本</option>
+    <option value="16180731">16影视多媒体专</option>
+    <option value="6FB079046A0E6210E0533FC851D32998">16油画本科1班</option>
+    <option value="6FB079046A116210E0533FC851D32998">16油画本科2班</option>
+    <option value="16200741">16园艺本科1班</option>
+    <option value="16200742">16园艺本科2班</option>
+    <option value="16200431">16园艺技术专科班</option>
+    <option value="16270441">16政治学与行政学本科班</option>
+    <option value="16130141">16中文本科1班</option>
+    <option value="16130142">16中文本科2班</option>
+    <option value="16130143">16中文本科3班</option>
+    <option value="16130144">16中文本科4班</option>
+    <option value="16130041">16中文类本科1班</option>
+    <option value="16130042">16中文类本科2班</option>
+    <option value="4AEB394C4E872E51E05326C851D34B0E">16中文类本科3班</option>
+    <option value="16130321">16中文专接本班</option>
+    <option value="16100821">16综合文科专科班</option>
+    <option value="17231241">17保险学本科班</option>
+    <option value="75CB4BCF2E705A17E0533FC851D378F0">17保险专科</option>
+    <option value="17190741">17材料化学本科班</option>
+    <option value="17140341">17德语本科班</option>
+    <option value="17210141">17地理科学本科班1班</option>
+    <option value="17210142">17地理科学本科班2班</option>
+    <option value="17210041">17地理科学类本科1班</option>
+    <option value="17210042">17地理科学类本科2班</option>
+    <option value="17210441">17地理信息科学本科班</option>
+    <option value="17180241">17电子本科班</option>
+    <option value="17160531">17动漫制作技术专科班</option>
+    <option value="17101221">17法律文秘专科班</option>
+    <option value="17100141">17法学本科班</option>
+    <option value="17100421">17法学专接本班</option>
+    <option value="17131541">17广电本科班</option>
+    <option value="17131621">17广电专接本班</option>
+    <option value="8CD7A108AF052D44E0533FC851D39D17">17国画本科1班</option>
+    <option value="8CD7748FFBA22D04E0533FC851D33DBB">17国画本科2班</option>
+    <option value="17131341">17汉语国际教育本科班</option>
+    <option value="17190141">17化学本科1班</option>
+    <option value="17190142">17化学本科2班</option>
+    <option value="17190041">17化学类本科1班</option>
+    <option value="17190042">17化学类本科2班</option>
+    <option value="17161841">17环境设计本科班</option>
+    <option value="17161221">17环境设计专接本</option>
+    <option value="17161431">17环境艺术设计专科班</option>
+    <option value="17230831">17会计专科班</option>
+    <option value="7E1F2E3B30730C25E0533FC851D31F38">17计算机（软件工程方向）本科班</option>
+    <option value="7E1D810D31B709D6E0533FC851D3B288">17计算机（信息安全方向）本科班</option>
+    <option value="7001F0A8A5543CE0E0533FC851D322F7">17计算机本科班</option>
+    <option value="17220221">17计算机科学与技术专接本</option>
+    <option value="17221441">17计算机类本科1班</option>
+    <option value="17221442">17计算机类本科2班</option>
+    <option value="17220031">17计算机类专科1班</option>
+    <option value="17220032">17计算机类专科2班</option>
+    <option value="17220321">17计算机应用技术专科班</option>
+    <option value="17180341">17教育技术本</option>
+    <option value="7E1EF2C5C7C20BEEE0533FC851D3FD02">17教育学本科班</option>
+    <option value="17110041">17教育学类本科1班</option>
+    <option value="17110042">17教育学类本科2班</option>
+    <option value="17110043">17教育学类本科3班</option>
+    <option value="17110044">17教育学类本科4班</option>
+    <option value="17211021">17酒店管理专科班</option>
+    <option value="17100241">17历史本科班</option>
+    <option value="17100521">17历史学专接本班</option>
+    <option value="17210841">17旅游管理本科1班</option>
+    <option value="17210842">17旅游管理本科2班</option>
+    <option value="17211221">17旅游管理类专科1班</option>
+    <option value="17211222">17旅游管理类专科2班</option>
+    <option value="17211223">17旅游管理类专科3班</option>
+    <option value="17211224">17旅游管理类专科4班</option>
+    <option value="17210221">17旅游管理专科1班</option>
+    <option value="17210222">17旅游管理专科2班</option>
+    <option value="17210921">17旅游专接本</option>
+    <option value="17160141">17美术学本科1班</option>
+    <option value="17160142">17美术学本科2班</option>
+    <option value="17160143">17美术学本科3班</option>
+    <option value="17160321">17美术学专接本1班</option>
+    <option value="17160322">17美术学专接本2班</option>
+    <option value="17160323">17美术学专接本3班</option>
+    <option value="17131441">17秘书学本科班</option>
+    <option value="17190541">17能源化学工程本科班</option>
+    <option value="17180931">17汽车电子技术专</option>
+    <option value="17211141">17人文地理与城乡规划本科班</option>
+    <option value="17140241">17日语本科班</option>
+    <option value="6FFA76232EA033ADE0533FC851D3DC43">17软件专科班</option>
+    <option value="17190431">17商检专科班</option>
+    <option value="17230231">17商务管理专科班</option>
+    <option value="7088FCB2E25057F1E0533FC851D3D37A">17商务英语本科班</option>
+    <option value="17140621">17商务英语专科班</option>
+    <option value="17230441">17社会工作本科</option>
+    <option value="17120341">17社会体育指导与管理本科1班</option>
+    <option value="17120342">17社会体育指导与管理本科2班</option>
+    <option value="17200241">17生物技术本科班</option>
+    <option value="17200141">17生物科学本科1班</option>
+    <option value="17200142">17生物科学本科2班</option>
+    <option value="17200143">17生物科学本科3班</option>
+    <option value="17200144">17生物科学本科4班</option>
+    <option value="17200041">17生物科学类本科1班</option>
+    <option value="17200042">17生物科学类本科2班</option>
+    <option value="17200043">17生物科学类本科3班</option>
+    <option value="17200044">17生物科学类本科4班</option>
+    <option value="17200045">17生物科学类本科5班</option>
+    <option value="17160631">17视觉传播设计与制作专科班</option>
+    <option value="17161741">17视觉传达设计本科班</option>
+    <option value="17161321">17视觉传达设计专接本</option>
+    <option value="17170141">17数本1班</option>
+    <option value="17170142">17数本2班</option>
+    <option value="17170143">17数本3班</option>
+    <option value="17170041">17数学类本科1班</option>
+    <option value="17170042">17数学类本科2班</option>
+    <option value="17170043">17数学类本科3班</option>
+    <option value="17170321">17数学专接本班</option>
+    <option value="17221741">17数字媒体技术本科班</option>
+    <option value="17161941">17数字媒体艺术本科班</option>
+    <option value="17221721">17数字媒体应用技术专科</option>
+    <option value="17270141">17思想政治教育本科班</option>
+    <option value="17270221">17思想政治教育专接本班</option>
+    <option value="17270321">17思想政治教育专科班</option>
+    <option value="7E17D536701B0349E0533FC851D3CC0C">17特殊教育本科班</option>
+    <option value="17120141">17体育教育本科1班</option>
+    <option value="17120142">17体育教育本科2班</option>
+    <option value="17120143">17体育教育本科3班</option>
+    <option value="17120144">17体育教育本科4班</option>
+    <option value="17170741">17统计学本科班</option>
+    <option value="17140041">17外国语言文学类本科1班</option>
+    <option value="17140042">17外国语言文学类本科2班</option>
+    <option value="17140043">17外国语言文学类本科3班</option>
+    <option value="17140044">17外国语言文学类本科4班</option>
+    <option value="6FFA76935C6333AFE0533FC851D37809">17网络工程本科班</option>
+    <option value="91B76A78A5B329D9E0533FC851D36A9F">17网络技术专科班</option>
+    <option value="17230931">17网络营销专科班</option>
+    <option value="17101141">17文化产业管理本科班</option>
+    <option value="17131121">17文秘专接本班</option>
+    <option value="17130421">17文秘专科班</option>
+    <option value="17150741">17舞蹈表演本科班</option>
+    <option value="17150641">17舞蹈学本科班</option>
+    <option value="17150321">17舞蹈专科班</option>
+    <option value="17180141">17物理学本科班</option>
+    <option value="17180041">17物理学类本科1班</option>
+    <option value="17180042">17物理学类本科2班</option>
+    <option value="17221541">17物联网工程本科班</option>
+    <option value="17230541">17物流管理本科</option>
+    <option value="17231121">17物流管理专接本</option>
+    <option value="17230132">17物流管理专科班</option>
+    <option value="17231441">17物业管理本科</option>
+    <option value="7E173167A0E40292E0533FC851D35F37">17小学教育本科1班</option>
+    <option value="7E1EF2C5C7E30BEEE0533FC851D3FD02">17小学教育本科2班</option>
+    <option value="7E1EF2C5C7F50BEEE0533FC851D3FD02">17小学教育本科3班</option>
+    <option value="7E173167A0F90292E0533FC851D35F37">17小学教育本科4班</option>
+    <option value="17111321">17小学教育专科</option>
+    <option value="17130921">17新闻采编专科班</option>
+    <option value="17110831">17心理咨询专科班</option>
+    <option value="17170641">17信管本科班</option>
+    <option value="17170241">17信计本科班</option>
+    <option value="6FFFCF241BAC3A2EE0533FC851D37F7E">17信息安全与管理专科</option>
+    <option value="17110241">17学前教育本科1班</option>
+    <option value="17110242">17学前教育本科2班</option>
+    <option value="17110621">17学前教育专接本1班</option>
+    <option value="17110622">17学前教育专接本2班</option>
+    <option value="17110623">17学前教育专接本3班</option>
+    <option value="17110931">17学前教育专科1班</option>
+    <option value="17110932">17学前教育专科2班</option>
+    <option value="17110933">17学前教育专科3班</option>
+    <option value="17110934">17学前教育专科4班</option>
+    <option value="17110935">17学前教育专科5班</option>
+    <option value="17150141">17音乐学本科1班</option>
+    <option value="17150142">17音乐学本科2班</option>
+    <option value="17150143">17音乐学本科3班</option>
+    <option value="17150221">17音乐专接本班</option>
+    <option value="7088FCB2E25857F1E0533FC851D3D37A">17英语本科1班</option>
+    <option value="7088FCB2E26457F1E0533FC851D3D37A">17英语本科2班</option>
+    <option value="70879A43C3A7553DE0533FC851D3B5A5">17英语本科3班</option>
+    <option value="17140421">17英语专接本1班</option>
+    <option value="17140422">17英语专接本2班</option>
+    <option value="17180841">17应用物理学本科班</option>
+    <option value="17110341">17应用心理学本科班</option>
+    <option value="17110721">17应用心理学专接本</option>
+    <option value="17180731">17影视多媒体专</option>
+    <option value="8CD5F41568102AF3E0533FC851D3ED7B">17油画本科班</option>
+    <option value="8CD7A04913502D40E0533FC851D35E91">17油画本科班</option>
+    <option value="17200741">17园艺本科1班</option>
+    <option value="17270441">17政治学与行政学本科班</option>
+    <option value="17130141">17中文本科1班</option>
+    <option value="17130142">17中文本科2班</option>
+    <option value="17130321">17中文专接本班</option>
+    <option value="18231241">18保险学本科班</option>
+    <option value="18190741">18材料化学本科班</option>
+    <option value="18140341">18德语本科班</option>
+    <option value="18210141">18地理科学本科班1班</option>
+    <option value="18210142">18地理科学本科班2班</option>
+    <option value="18210441">18地理信息科学本科班</option>
+    <option value="18180241">18电子本科班</option>
+    <option value="91BDCFC2B074312AE0533FC851D3C310">18法律文秘专科班</option>
+    <option value="18100141">18法学本科班</option>
+    <option value="18100421">18法学专接本班</option>
+    <option value="18131541">18广电本科班</option>
+    <option value="18131621">18广电专接本班</option>
+    <option value="A8BE069DFC985479E0533FC851D3A17D">18国画本科班</option>
+    <option value="18131341">18汉语国际教育本科班</option>
+    <option value="18190141">18化学本科班</option>
+    <option value="18161841">18环境设计本科1班</option>
+    <option value="18161842">18环境设计本科2班</option>
+    <option value="18230831">18会计专科班</option>
+    <option value="99514127E31A6861E0533FC851D38F2D">18计算机（软件工程方向）本科班</option>
+    <option value="99514127E3176861E0533FC851D38F2D">18计算机（信息安全方向）本科班</option>
+    <option value="18220140">18计算机本科班</option>
+    <option value="18220221">18计算机科学与技术专接本</option>
+    <option value="91B8682DDF6D2B16E0533FC851D3099D">18计算机应用专科班</option>
+    <option value="18221031">18计网络专科班</option>
+    <option value="18180341">18教育技术本科班</option>
+    <option value="18210221">18酒店管理专科班</option>
+    <option value="18100241">18历史本科班</option>
+    <option value="18100521">18历史学专接本班</option>
+    <option value="18210841">18旅游管理本科1班</option>
+    <option value="18210842">18旅游管理本科2班</option>
+    <option value="91CAAA34B60C3FB0E0533FC851D34821">18旅游管理专科班</option>
+    <option value="18210921">18旅游专接本</option>
+    <option value="18160141">18美术学本科1班</option>
+    <option value="18160142">18美术学本科2班</option>
+    <option value="18160321">18美术学专接本1班</option>
+    <option value="18160322">18美术学专接本2班</option>
+    <option value="18160323">18美术学专接本3班</option>
+    <option value="18131441">18秘书学本科班1班</option>
+    <option value="18131442">18秘书学本科班2班</option>
+    <option value="18190541">18能源化学工程本科班</option>
+    <option value="18180931">18汽车电子技术专</option>
+    <option value="18211141">18人文地理与城乡规划本科班</option>
+    <option value="18140241">18日语本科班</option>
+    <option value="18220931">18软件专科班</option>
+    <option value="18230231">18商务管理专科班</option>
+    <option value="18140541">18商务英语本科1班</option>
+    <option value="18140542">18商务英语本科2班</option>
+    <option value="18230441">18社会工作本科</option>
+    <option value="18120341">18社会体育指导与管理本科1班</option>
+    <option value="18120342">18社会体育指导与管理本科2班</option>
+    <option value="18200241">18生物技术本科班</option>
+    <option value="18200141">18生物科学本科班</option>
+    <option value="18161741">18视觉传达设计本科1班</option>
+    <option value="18161742">18视觉传达设计本科2班</option>
+    <option value="18161321">18视觉传达设计专接本</option>
+    <option value="18170141">18数本1班</option>
+    <option value="18170142">18数本2班</option>
+    <option value="18170321">18数学专接本班</option>
+    <option value="18221841">18数字媒体技术本科班</option>
+    <option value="18161941">18数字媒体艺术本科1班</option>
+    <option value="18161942">18数字媒体艺术本科2班</option>
+    <option value="18270141">18思想政治教育本科班</option>
+    <option value="18270221">18思想政治教育专接本班</option>
+    <option value="18111241">18特殊教育本科1班</option>
+    <option value="18111242">18特殊教育本科2班</option>
+    <option value="18120141">18体育教育本科1班</option>
+    <option value="18120142">18体育教育本科2班</option>
+    <option value="18120143">18体育教育本科3班</option>
+    <option value="18120144">18体育教育本科4班</option>
+    <option value="18170741">18统计学本科班</option>
+    <option value="18221241">18网络工程本科班</option>
+    <option value="18230931">18网络营销专科班</option>
+    <option value="18101141">18文化产业管理本科班</option>
+    <option value="18131121">18文秘专接本班</option>
+    <option value="18150741">18舞蹈表演本科1班</option>
+    <option value="18150742">18舞蹈表演本科2班</option>
+    <option value="18150641">18舞蹈学本科班</option>
+    <option value="18180141">18物理学本科班</option>
+    <option value="18221541">18物联网工程本科班</option>
+    <option value="18230541">18物流管理本科</option>
+    <option value="18231121">18物流管理专接本</option>
+    <option value="18231441">18物业管理本科</option>
+    <option value="18110141">18小学教育本科1班</option>
+    <option value="18110142">18小学教育本科2班</option>
+    <option value="18110143">18小学教育本科3班</option>
+    <option value="18110831">18心理咨询专科班</option>
+    <option value="18170641">18信管本科班</option>
+    <option value="18170241">18信计本科班</option>
+    <option value="18110241">18学前教育本科1班</option>
+    <option value="18110242">18学前教育本科2班</option>
+    <option value="18110243">18学前教育本科3班</option>
+    <option value="18110621">18学前教育专接本1班</option>
+    <option value="18110622">18学前教育专接本2班</option>
+    <option value="18110623">18学前教育专接本3班</option>
+    <option value="18110931">18学前教育专科1班</option>
+    <option value="18110932">18学前教育专科2班</option>
+    <option value="18110933">18学前教育专科3班</option>
+    <option value="18150141">18音乐学本科1班</option>
+    <option value="18150142">18音乐学本科2班</option>
+    <option value="18150143">18音乐学本科3班</option>
+    <option value="18150144">18音乐学本科4班</option>
+    <option value="18150221">18音乐专接本班</option>
+    <option value="18140141">18英语本科1班</option>
+    <option value="18140142">18英语本科2班</option>
+    <option value="18140421">18英语专接本1班</option>
+    <option value="18140422">18英语专接本2班</option>
+    <option value="18190241">18应用化学本科班</option>
+    <option value="18180841">18应用物理学本科班</option>
+    <option value="18110341">18应用心理学本科班</option>
+    <option value="18110721">18应用心理学专接本</option>
+    <option value="A8BEC5A6E2215569E0533FC851D33734">18油画本科班</option>
+    <option value="18200741">18园艺本科班</option>
+    <option value="18270441">18政治学与行政学本科班</option>
+    <option value="18130141">18中文本科1班</option>
+    <option value="18130142">18中文本科2班</option>
+    <option value="18130321">18中文专接本班</option>
+    <option value="19231241">19保险学本科1班</option>
+    <option value="19231242">19保险学本科2班</option>
+    <option value="19190741">19材料化学本科班</option>
+    <option value="19140341">19德语本科班</option>
+    <option value="19210141">19地理科学本科班1班</option>
+    <option value="19210142">19地理科学本科班2班</option>
+    <option value="19210441">19地理信息科学本科班</option>
+    <option value="19180241">19电子本科班</option>
+    <option value="19100141">19法学本科班</option>
+    <option value="19100421">19法学专接本班</option>
+    <option value="19131541">19广电本科班</option>
+    <option value="19131621">19广电专接本班</option>
+    <option value="C5F40D02E75D0EB3E055000000000001">19国画本科1班</option>
+    <option value="C5F6CE4FFA30116FE055000000000001">19国画本科2班</option>
+    <option value="19131341">19汉语国际教育本科班</option>
+    <option value="19190141">19化学本科1班</option>
+    <option value="19190142">19化学本科2班</option>
+    <option value="19161841">19环境设计本科1班</option>
+    <option value="19161842">19环境设计本科2班</option>
+    <option value="CE0BD628167A9A3EE055000000000001">19环境艺术设计专科班</option>
+    <option value="B6F0B45CBDC369DCE0533FC851D36EE5">19计算机（软件工程方向）本科班</option>
+    <option value="B6EE31FDAACC6645E0533FC851D32EB1">19计算机（信息安全方向）本科班</option>
+    <option value="19220140">19计算机本科1班</option>
+    <option value="19220141">19计算机本科2班</option>
+    <option value="19220221">19计算机科学与技术专接本</option>
+    <option value="C4D2191018B855A9E055000000000001">19计算计网络专科班</option>
+    <option value="19180341">19教育技术本科班</option>
+    <option value="19100241">19历史本科班</option>
+    <option value="19100521">19历史学专接本班</option>
+    <option value="19210841">19旅游管理本科1班</option>
+    <option value="19210842">19旅游管理本科2班</option>
+    <option value="19210921">19旅游专接本</option>
+    <option value="19160141">19美术学本科1班</option>
+    <option value="19160142">19美术学本科2班</option>
+    <option value="19160143">19美术学本科3班</option>
+    <option value="19160321">19美术学专接本1班</option>
+    <option value="19160322">19美术学专接本2班</option>
+    <option value="19160323">19美术学专接本3班</option>
+    <option value="19131441">19秘书学本科班1班</option>
+    <option value="19131442">19秘书学本科班2班</option>
+    <option value="AED92111CE50638CE0533FC851D35BEE">19汽车电子技术专</option>
+    <option value="19211141">19人文地理与城乡规划本科班</option>
+    <option value="19140241">19日语本科班</option>
+    <option value="ADD90C91518528ADE0533FC851D30719">19商检专科班</option>
+    <option value="ADD90C91518228ADE0533FC851D30719">19商检专科班</option>
+    <option value="ADD95AC458622908E0533FC851D38B1E">19商检专科班</option>
+    <option value="19140541">19商务英语本科1班</option>
+    <option value="19140542">19商务英语本科2班</option>
+    <option value="19120341">19社会体育指导与管理本科1班</option>
+    <option value="19120342">19社会体育指导与管理本科2班</option>
+    <option value="19200241">19生物技术本科班</option>
+    <option value="19200141">19生物科学本科班</option>
+    <option value="19161741">19视觉传达设计本科1班</option>
+    <option value="19161742">19视觉传达设计本科2班</option>
+    <option value="19161743">19视觉传达设计本科3班</option>
+    <option value="19161321">19视觉传达设计专接本</option>
+    <option value="19170141">19数本1班</option>
+    <option value="19170142">19数本2班</option>
+    <option value="19170143">19数本3班</option>
+    <option value="19170321">19数学专接本班</option>
+    <option value="19221841">19数字媒体技术本科班</option>
+    <option value="19270141">19思想政治教育本科班</option>
+    <option value="19270221">19思想政治教育专接本班</option>
+    <option value="19111241">19特殊教育本科1班</option>
+    <option value="19111242">19特殊教育本科2班</option>
+    <option value="19120141">19体育教育本科1班</option>
+    <option value="19120142">19体育教育本科2班</option>
+    <option value="19120143">19体育教育本科3班</option>
+    <option value="19120144">19体育教育本科4班</option>
+    <option value="19170741">19统计学本科班</option>
+    <option value="19221241">19网络工程本科班</option>
+    <option value="9216041287D81C56E0533FC851D36620">19网络营销专科</option>
+    <option value="92154051C2B01ACCE0533FC851D38A16">19网络营销专科</option>
+    <option value="19101141">19文化产业管理本科班</option>
+    <option value="19131121">19文秘专接本班</option>
+    <option value="19150641">19舞蹈学本科1班</option>
+    <option value="19150642">19舞蹈学本科2班</option>
+    <option value="19150643">19舞蹈学本科3班</option>
+    <option value="19180141">19物理学本科1班</option>
+    <option value="8C5761C272DD1122E0533FC851D3C882">19物理学本科2班</option>
+    <option value="19221541">19物联网工程本科班</option>
+    <option value="19230541">19物流管理本科1班</option>
+    <option value="19230542">19物流管理本科2班</option>
+    <option value="19231121">19物流管理专接本</option>
+    <option value="AFDC9C88FBA31C5CE0533FC851D35128">19物流管理专科班</option>
+    <option value="19231441">19物业管理本科</option>
+    <option value="19110141">19小学教育本科1班</option>
+    <option value="19110142">19小学教育本科2班</option>
+    <option value="19110143">19小学教育本科3班</option>
+    <option value="CF28315C33CC6BA4E055000000000001">19心理咨询专科班</option>
+    <option value="19170641">19信管本科班</option>
+    <option value="19170241">19信计本科班</option>
+    <option value="AEF0762AF24E7E87E0533FC851D31820">19信息安全与管理专科</option>
+    <option value="19110241">19学前教育本科1班</option>
+    <option value="19110242">19学前教育本科2班</option>
+    <option value="19110243">19学前教育本科3班</option>
+    <option value="19110621">19学前教育专接本1班</option>
+    <option value="19110622">19学前教育专接本2班</option>
+    <option value="19110623">19学前教育专接本3班</option>
+    <option value="19110931">19学前教育专科1班</option>
+    <option value="19110932">19学前教育专科2班</option>
+    <option value="19110933">19学前教育专科3班</option>
+    <option value="19110934">19学前教育专科4班</option>
+    <option value="19150141">19音乐学本科1班</option>
+    <option value="19150142">19音乐学本科2班</option>
+    <option value="19150143">19音乐学本科3班</option>
+    <option value="19150144">19音乐学本科4班</option>
+    <option value="19150221">19音乐专接本班</option>
+    <option value="19140141">19英语本科1班</option>
+    <option value="19140142">19英语本科2班</option>
+    <option value="19140143">19英语本科3班</option>
+    <option value="19140421">19英语专接本1班</option>
+    <option value="19140422">19英语专接本2班</option>
+    <option value="19190241">19应用化学本科班</option>
+    <option value="19180841">19应用物理学本科班</option>
+    <option value="19110341">19应用心理学本科班</option>
+    <option value="19110721">19应用心理学专接本</option>
+    <option value="CE107A8354CC9D5BE055000000000001">19影视多媒体专</option>
+    <option value="C5F7B9A3F0361243E055000000000001">19油画本科班</option>
+    <option value="19200741">19园艺本科班</option>
+    <option value="19270441">19政治学与行政学本科班</option>
+    <option value="19130141">19中文本科1班</option>
+    <option value="19130142">19中文本科2班</option>
+    <option value="19130143">19中文本科3班</option>
+    <option value="19130144">19中文本科4班</option>
+    <option value="19130321">19中文专接本班</option>
+    <option value="24231641">2024级电子商务本科1班</option>
+    <option value="24231642">2024级电子商务本科2班</option>
+    <option value="24231941">2024级海洋科学本科1班</option>
+    <option value="24231942">2024级海洋科学本科2班</option>
+    <option value="24231841">2024级经济学本科1班</option>
+    <option value="24231842">2024级经济学本科2班</option>
+    <option value="24230541">2024级物流管理本科1班</option>
+    <option value="24230542">2024级物流管理本科2班</option>
+    <option value="24231541">2024级资产评估本科1班</option>
+    <option value="24231542">2024级资产评估本科2班</option>
+    <option value="20231241">20保险学本科1班</option>
+    <option value="20231242">20保险学本科2班</option>
+    <option value="20190741">20材料化学本科1班</option>
+    <option value="20190742">20材料化学本科2班</option>
+    <option value="20140341">20德语本科班</option>
+    <option value="20210141">20地理科学本科班1班</option>
+    <option value="20210142">20地理科学本科班2班</option>
+    <option value="20210441">20地理信息科学本科班</option>
+    <option value="20180241">20电子本科1班</option>
+    <option value="20180242">20电子本科2班</option>
+    <option value="CD83EE3CCCDB3804E055000000000001">20动漫设计与制作专科班</option>
+    <option value="20100141">20法学本科班</option>
+    <option value="20100421">20法学专接本班</option>
+    <option value="20131621">20广电专接本班</option>
+    <option value="E4EC7B76C2065EF5E055000000000001">20国画本科1班</option>
+    <option value="E4EC7B76C2095EF5E055000000000001">20国画本科2班</option>
+    <option value="20131341">20汉语国际教育本科班</option>
+    <option value="20190141">20化学本科1班</option>
+    <option value="20190142">20化学本科2班</option>
+    <option value="20190143">20化学本科3班</option>
+    <option value="A9217BC505594EEBE0533FC851D39EEC">20环境设计本科1班</option>
+    <option value="A925E1C8C88B5442E0533FC851D35464">20环境设计本科2班</option>
+    <option value="20220141">20计算机本科1班</option>
+    <option value="20220142">20计算机本科2班</option>
+    <option value="20220143">20计算机本科3班</option>
+    <option value="D2EE0E17A8604CAAE055000000000001">20计算机本科班(软件工程方向)</option>
+    <option value="D2EE7D1E3A624D26E055000000000001">20计算机本科班(信息安全方向)</option>
+    <option value="20220221">20计算机科学与技术专接本</option>
+    <option value="B3462BCDF7DB19DFE0533FC851D3ADEC">20计算机网络专科班</option>
+    <option value="20180341">20教育技术本科1班</option>
+    <option value="20180342">20教育技术本科2班</option>
+    <option value="20100241">20历史本科1班</option>
+    <option value="D2B59990B6D217C2E055000000000001">20历史本科2班(公费师范)</option>
+    <option value="20100521">20历史学专接本班</option>
+    <option value="A9454A4EA52F7A9FE0533FC851D385C4">20旅游管理本科3班</option>
+    <option value="20210842">20旅游管理规划班</option>
+    <option value="20210841">20旅游管理企管班</option>
+    <option value="20210921">20旅游专接本</option>
+    <option value="A8BE069DFCB05479E0533FC851D3A17D">20美术学本科1班</option>
+    <option value="A9588F99E033137BE0533FC851D3BEB5">20美术学本科2班</option>
+    <option value="A9217BC505544EEBE0533FC851D39EEC">20美术学本科3班</option>
+    <option value="A921C323A1D94F22E0533FC851D3A2A4">20美术学专接本1班</option>
+    <option value="A9234DADF4AA5140E0533FC851D3E311">20美术学专接本2班</option>
+    <option value="A926AD95DD5B553CE0533FC851D33675">20美术学专接本3班</option>
+    <option value="20131441">20秘书学本科班1班</option>
+    <option value="20131442">20秘书学本科班2班</option>
+    <option value="20131443">20秘书学本科班3班</option>
+    <option value="B3462BCDF7DE19DFE0533FC851D3ADEC">20能源化学工程本科班</option>
+    <option value="20211141">20人文地理与城乡规划本科班</option>
+    <option value="20140241">20日语本科班</option>
+    <option value="E93F68676AA70916E055000000000001">20软件专科班</option>
+    <option value="20140541">20商务英语本科1班</option>
+    <option value="20140542">20商务英语本科2班</option>
+    <option value="20120341">20社会体育指导与管理本科1班</option>
+    <option value="20120342">20社会体育指导与管理本科2班</option>
+    <option value="20120343">20社会体育指导与管理本科3班</option>
+    <option value="20200241">20生物技术本科班</option>
+    <option value="20200141">20生物科学本科班</option>
+    <option value="A920DD9134B24E03E0533FC851D3CDFF">20视觉传达设计本科1班</option>
+    <option value="A9263A9F55ED548DE0533FC851D3646F">20视觉传达设计本科2班</option>
+    <option value="A926E6B1AA095576E0533FC851D31A3F">20视觉传达设计本科3班</option>
+    <option value="A9240B6B86D6521AE0533FC851D39D1A">20视觉传达设计专接本</option>
+    <option value="20170141">20数本1班</option>
+    <option value="20170142">20数本2班</option>
+    <option value="20170143">20数本3班</option>
+    <option value="20170321">20数学专接本班</option>
+    <option value="20221841">20数字媒体技术本科班</option>
+    <option value="A9458919E7487B08E0533FC851D3CE1B">20思想政治教育本科1班</option>
+    <option value="A9458919E74B7B08E0533FC851D3CE1B">20思想政治教育本科2班</option>
+    <option value="A9458919E74E7B08E0533FC851D3CE1B">20思想政治教育本科3班</option>
+    <option value="A9458919E7517B08E0533FC851D3CE1B">20思想政治教育专接本班</option>
+    <option value="20111241">20特殊教育本科1班</option>
+    <option value="20111242">20特殊教育本科2班</option>
+    <option value="20120141">20体育教育本科1班</option>
+    <option value="20120142">20体育教育本科2班</option>
+    <option value="20120143">20体育教育本科3班</option>
+    <option value="20120144">20体育教育本科4班</option>
+    <option value="20170741">20统计学本科班</option>
+    <option value="20221241">20网络工程本科班</option>
+    <option value="20101141">20文化产业管理本科班</option>
+    <option value="E9DDB520ACD0780AE055000000000001">20舞蹈表演本科班</option>
+    <option value="20150641">20舞蹈学本科1班</option>
+    <option value="20150642">20舞蹈学本科2班</option>
+    <option value="20150643">20舞蹈学本科3班</option>
+    <option value="20180141">20物理学本科1班</option>
+    <option value="20180142">20物理学本科2班</option>
+    <option value="AEC26FBBE1EC4906E0533FC851D32102">20物理学本科3班</option>
+    <option value="20221541">20物联网工程本科班</option>
+    <option value="20230541">20物流管理本科1班</option>
+    <option value="20230542">20物流管理本科2班</option>
+    <option value="20231121">20物流管理专接本</option>
+    <option value="20231441">20物业管理本科</option>
+    <option value="20110141">20小学教育本科1班</option>
+    <option value="20110142">20小学教育本科2班</option>
+    <option value="20110143">20小学教育本科3班</option>
+    <option value="20170641">20信管本科班</option>
+    <option value="20170241">20信计本科班</option>
+    <option value="20110241">20学前教育本科1班</option>
+    <option value="20110242">20学前教育本科2班</option>
+    <option value="20110243">20学前教育本科3班</option>
+    <option value="20110244">20学前教育本科4班</option>
+    <option value="20110621">20学前教育专接本1班</option>
+    <option value="20110622">20学前教育专接本2班</option>
+    <option value="20110623">20学前教育专接本3班</option>
+    <option value="20110624">20学前教育专接本4班</option>
+    <option value="20110625">20学前教育专接本5班</option>
+    <option value="20110626">20学前教育专接本6班</option>
+    <option value="20110627">20学前教育专接本7班</option>
+    <option value="20110628">20学前教育专接本8班</option>
+    <option value="20150141">20音乐学本科1班</option>
+    <option value="20150142">20音乐学本科2班</option>
+    <option value="20150143">20音乐学本科3班</option>
+    <option value="20150144">20音乐学本科4班</option>
+    <option value="20150221">20音乐专接本班</option>
+    <option value="20140141">20英语本科1班</option>
+    <option value="20140142">20英语本科2班</option>
+    <option value="20140143">20英语本科3班</option>
+    <option value="20140421">20英语专接本1班</option>
+    <option value="20140422">20英语专接本2班</option>
+    <option value="20190241">20应用化学本科1班</option>
+    <option value="20190242">20应用化学本科2班</option>
+    <option value="20180841">20应用物理学本科1班</option>
+    <option value="20180842">20应用物理学本科2班</option>
+    <option value="20110341">20应用心理学本科班</option>
+    <option value="20110721">20应用心理学专接本</option>
+    <option value="E4EF0A662E806067E055000000000001">20油画本科班</option>
+    <option value="20200741">20园艺本科班</option>
+    <option value="CE8DD88477790476E055000000000001">20园艺技术专科班</option>
+    <option value="20130141">20中文本科1班</option>
+    <option value="20130142">20中文本科2班</option>
+    <option value="20130143">20中文本科3班</option>
+    <option value="20130144">20中文本科4班</option>
+    <option value="20130321">20中文专接本班</option>
+    <option value="21231241">21保险学本科1班</option>
+    <option value="21231242">21保险学本科2班</option>
+    <option value="C565A9385E18C0C1E055000000000001">21保险学本科3班</option>
+    <option value="21190741">21材料化学本科班</option>
+    <option value="21140341">21德语本科班</option>
+    <option value="21210141">21地理科学本科班1班</option>
+    <option value="21210142">21地理科学本科班2班</option>
+    <option value="21210143">21地理科学本科班3班</option>
+    <option value="21210441">21地理信息科学本科班</option>
+    <option value="21180241">21电子本科1班</option>
+    <option value="21180242">21电子本科2班</option>
+    <option value="21100141">21法学本科1班</option>
+    <option value="21100142">21法学本科2班</option>
+    <option value="21160141">21国画1班</option>
+    <option value="21160142">21国画2班</option>
+    <option value="21160143">21国画3班</option>
+    <option value="E3D206B6FD53BD81E055000000000001">21国画4班</option>
+    <option value="21131341">21汉语国际教育本科班</option>
+    <option value="21190141">21化学本科1班</option>
+    <option value="21190142">21化学本科2班</option>
+    <option value="21190143">21化学本科3班</option>
+    <option value="21190144">21化学本科4班</option>
+    <option value="21161841">21环境设计本科1班</option>
+    <option value="21161842">21环境设计本科2班</option>
+    <option value="21220221">21计算机专接本1班</option>
+    <option value="21220222">21计算机专接本2班</option>
+    <option value="21180341">21教育技术本科1班</option>
+    <option value="21180342">21教育技术本科2班</option>
+    <option value="35B57648315F4F74E065000000000001">21教育技术学2班</option>
+    <option value="21100241">21历史本科1班</option>
+    <option value="21100242">21历史本科2班</option>
+    <option value="D2B4F63917F116FEE055000000000001">21历史本科3班(公费师范)</option>
+    <option value="21100521">21历史学专接本班</option>
+    <option value="21210841">21旅游管理本科1班</option>
+    <option value="21210842">21旅游管理本科2班</option>
+    <option value="F87A0C357BE30ADBE055000000000001">21美术学专接本班</option>
+    <option value="21131441">21秘书学本科班1班</option>
+    <option value="21131442">21秘书学本科班2班</option>
+    <option value="21211141">21人文地理与城乡规划本科1班</option>
+    <option value="21211142">21人文地理与城乡规划本科2班</option>
+    <option value="21140241">21日语本科班</option>
+    <option value="21220141">21软件工程1班</option>
+    <option value="21220142">21软件工程2班</option>
+    <option value="21140541">21商务英语本科1班</option>
+    <option value="21140542">21商务英语本科2班</option>
+    <option value="21120341">21社会体育指导与管理本科1班</option>
+    <option value="21120342">21社会体育指导与管理本科2班</option>
+    <option value="21120343">21社会体育指导与管理本科3班</option>
+    <option value="21120344">21社会体育指导与管理本科4班</option>
+    <option value="21200241">21生物技术本科班</option>
+    <option value="21200141">21生物科学本科1班</option>
+    <option value="21200142">21生物科学本科2班</option>
+    <option value="21161741">21视觉传达设计本科1班</option>
+    <option value="21161742">21视觉传达设计本科2班</option>
+    <option value="21161743">21视觉传达设计本科3班</option>
+    <option value="21170141">21数本1班</option>
+    <option value="21170142">21数本2班</option>
+    <option value="21170143">21数本3班</option>
+    <option value="21221841">21数字媒体技术本科班</option>
+    <option value="21270141">21思想政治教育本科1班</option>
+    <option value="21270142">21思想政治教育本科2班</option>
+    <option value="21270143">21思想政治教育本科3班</option>
+    <option value="21270144">21思想政治教育本科4班</option>
+    <option value="21111241">21特殊教育本科班</option>
+    <option value="21120141">21体育教育本科1班</option>
+    <option value="21120142">21体育教育本科2班</option>
+    <option value="21120143">21体育教育本科3班</option>
+    <option value="21120144">21体育教育本科4班</option>
+    <option value="21170741">21统计学本科班</option>
+    <option value="21221241">21网络工程本科班</option>
+    <option value="21101141">21文化产业管理本科班</option>
+    <option value="21150641">21舞蹈学本科1班</option>
+    <option value="21150642">21舞蹈学本科2班</option>
+    <option value="21150643">21舞蹈学本科3班</option>
+    <option value="21180141">21物理学本科1班</option>
+    <option value="21180142">21物理学本科2班</option>
+    <option value="21180143">21物理学本科3班</option>
+    <option value="21221541">21物联网工程本科班</option>
+    <option value="21230541">21物流管理本科1班</option>
+    <option value="21230542">21物流管理本科2班</option>
+    <option value="C56B6EB7893BC461E055000000000001">21物流管理本科3班</option>
+    <option value="21231121">21物流管理专接本1班</option>
+    <option value="C566E2960551C171E055000000000001">21物流管理专接本2班</option>
+    <option value="EE1F305BC9F6156FE055000000000001">21物业管理本科</option>
+    <option value="21110141">21小学教育本科1班</option>
+    <option value="21110142">21小学教育本科2班</option>
+    <option value="21110143">21小学教育本科3班</option>
+    <option value="21170641">21信管本科班</option>
+    <option value="21170241">21信计本科班</option>
+    <option value="21220143">21信息安全班</option>
+    <option value="21110241">21学前教育本科1班</option>
+    <option value="21110242">21学前教育本科2班</option>
+    <option value="21110243">21学前教育本科3班</option>
+    <option value="21110621">21学前教育专接本1班</option>
+    <option value="21110622">21学前教育专接本2班</option>
+    <option value="F828C4D0020BD8BCE055000000000001">21学前教育专科</option>
+    <option value="21150141">21音乐学本科1班</option>
+    <option value="21150142">21音乐学本科2班</option>
+    <option value="21150143">21音乐学本科3班</option>
+    <option value="21150144">21音乐学本科4班</option>
+    <option value="D272921681B1EEC0E055000000000001">21音乐学本科5班</option>
+    <option value="21140141">21英语本科1班</option>
+    <option value="21140142">21英语本科2班</option>
+    <option value="21140143">21英语本科3班</option>
+    <option value="21140144">21英语本科4班</option>
+    <option value="21190241">21应用化学本科班</option>
+    <option value="21180841">21应用物理学本科1班</option>
+    <option value="21180842">21应用物理学本科2班</option>
+    <option value="21110341">21应用心理学本科班</option>
+    <option value="21160144">21油画1班</option>
+    <option value="21160145">21油画2班</option>
+    <option value="21160146">21油画3班</option>
+    <option value="21200741">21园艺本科班</option>
+    <option value="21130141">21中文本科1班</option>
+    <option value="21130142">21中文本科2班</option>
+    <option value="21130143">21中文本科3班</option>
+    <option value="21130144">21中文本科4班</option>
+    <option value="21130321">21中文专接本1班</option>
+    <option value="21130322">21中文专接本2班</option>
+    <option value="21231541">21资产评估本科1班</option>
+    <option value="C566E296053AC171E055000000000001">21资产评估本科2班</option>
+    <option value="22231241">22保险学本科班</option>
+    <option value="22190741">22材料化学本科班</option>
+    <option value="22140341">22德语本科班</option>
+    <option value="22210141">22地理科学本科班1班(公费师范)</option>
+    <option value="22210142">22地理科学本科班2班</option>
+    <option value="22210143">22地理科学本科班3班</option>
+    <option value="22210441">22地理信息科学本科班</option>
+    <option value="22180241">22电子本科班</option>
+    <option value="22181041">22电子科学与技术1班(ISEC)</option>
+    <option value="E3C0B7128801B260E055000000000001">22电子科学与技术2班(ISEC)</option>
+    <option value="22231641">22电子商务本科1班</option>
+    <option value="22231642">22电子商务本科2班</option>
+    <option value="22100141">22法学本科1班</option>
+    <option value="22100142">22法学本科2班</option>
+    <option value="E9C66F9869DA66CDE055000000000001">22法学专接本班</option>
+    <option value="22160142">22国画1班</option>
+    <option value="22160143">22国画2班</option>
+    <option value="22160144">22国画3班</option>
+    <option value="22131341">22汉语国际教育本科班</option>
+    <option value="22190141">22化学本科1班</option>
+    <option value="22190142">22化学本科2班</option>
+    <option value="22190143">22化学本科3班</option>
+    <option value="22161841">22环境设计本科1班</option>
+    <option value="22161842">22环境设计本科2班</option>
+    <option value="22220141">22计算机本科1班</option>
+    <option value="22220142">22计算机本科2班</option>
+    <option value="22220143">22计算机本科3班</option>
+    <option value="0520AE511D8D9A92E065000000000001">22计算机科学与技术专接本</option>
+    <option value="22180341">22教育技术本科1班</option>
+    <option value="22180342">22教育技术本科2班(公费师范)</option>
+    <option value="22100241">22历史本科1班</option>
+    <option value="22100242">22历史本科2班</option>
+    <option value="22100243">22历史本科3班(公费师范)</option>
+    <option value="22210841">22旅游管理本科1班</option>
+    <option value="22210842">22旅游管理本科2班</option>
+    <option value="22160141">22美术学本科1班(公费师范)</option>
+    <option value="E8B705C91DF5C1DBE055000000000001">22美术学专接本班</option>
+    <option value="22131441">22秘书学本科班1班</option>
+    <option value="22131442">22秘书学本科班2班</option>
+    <option value="22190541">22能源化学工程本科班</option>
+    <option value="22221141">22人文地理与城乡规划本科1班</option>
+    <option value="22221142">22人文地理与城乡规划本科2班</option>
+    <option value="22140241">22日语本科班</option>
+    <option value="22140541">22商务英语本科班</option>
+    <option value="22120341">22社会体育指导与管理本科1班</option>
+    <option value="22120342">22社会体育指导与管理本科2班</option>
+    <option value="22120343">22社会体育指导与管理本科3班</option>
+    <option value="22120344">22社会体育指导与管理本科4班</option>
+    <option value="E27DB104BD7FE982E055000000000001">22生物技术班(海洋生物)</option>
+    <option value="22200241">22生物技术本科班</option>
+    <option value="22200141">22生物科学本科1班(公费师范)</option>
+    <option value="22200142">22生物科学本科2班</option>
+    <option value="FEED29DE3537C77CE055000000000001">22视觉传达设计(数媒)</option>
+    <option value="22161741">22视觉传达设计本科1班(数媒)</option>
+    <option value="22161742">22视觉传达设计本科2班</option>
+    <option value="22161743">22视觉传达设计本科3班</option>
+    <option value="22170141">22数本1班(公费师范)</option>
+    <option value="22170142">22数本2班</option>
+    <option value="22170143">22数本3班</option>
+    <option value="22221841">22数字媒体技术本科班</option>
+    <option value="FEED4704965BC6F5E055000000000001">22数字媒体艺术本科班</option>
+    <option value="22270141">22思想政治教育本科1班</option>
+    <option value="22270142">22思想政治教育本科2班</option>
+    <option value="22270143">22思想政治教育本科3班</option>
+    <option value="22111241">22特殊教育本科班</option>
+    <option value="22120141">22体育教育本科1班(公费师范)</option>
+    <option value="22120142">22体育教育本科2班</option>
+    <option value="22120143">22体育教育本科3班</option>
+    <option value="22120144">22体育教育本科4班</option>
+    <option value="22170741">22统计学本科班</option>
+    <option value="22222241">22网络工程本科班</option>
+    <option value="22101141">22文化产业管理本科班</option>
+    <option value="21200B54DDF8F4F6E065000000000001">22舞蹈表演本科班</option>
+    <option value="22150641">22舞蹈学本科1班</option>
+    <option value="22150642">22舞蹈学本科2班</option>
+    <option value="22150643">22舞蹈学本科3班</option>
+    <option value="22180141">22物理学本科1班</option>
+    <option value="22180143">22物理学本科2班(公费师范)</option>
+    <option value="22221541">22物联网工程本科班</option>
+    <option value="22231741">22物流管理1班(ISEC)</option>
+    <option value="22231742">22物流管理2班(ISEC)</option>
+    <option value="22230541">22物流管理本科1班</option>
+    <option value="22230542">22物流管理本科2班</option>
+    <option value="22110141">22小学教育本科1班</option>
+    <option value="22110142">22小学教育本科2班</option>
+    <option value="22110143">22小学教育本科3班(公费师范)</option>
+    <option value="07900546088EA569E065000000000001">22新闻采编专科班</option>
+    <option value="22170641">22信管本科班</option>
+    <option value="22170241">22信计本科班</option>
+    <option value="22110241">22学前教育本科1班</option>
+    <option value="22110242">22学前教育本科2班</option>
+    <option value="22110243">22学前教育本科3班(公费师范)</option>
+    <option value="22110621">22学前教育专接本班</option>
+    <option value="22150141">22音乐学本科1班</option>
+    <option value="22150142">22音乐学本科2班</option>
+    <option value="22150143">22音乐学本科3班</option>
+    <option value="22150144">22音乐学本科4班(公费师范)</option>
+    <option value="22140141">22英语本科1班(公费师范)</option>
+    <option value="22140142">22英语本科2班</option>
+    <option value="22140143">22英语本科3班</option>
+    <option value="22140144">22英语本科4班</option>
+    <option value="22190241">22应用化学本科班</option>
+    <option value="E27DB104BD96E982E055000000000001">22应用化学本科班(海洋化学方向)</option>
+    <option value="22180841">22应用物理学本科班</option>
+    <option value="22110341">22应用心理学本科班</option>
+    <option value="22160145">22油画1班</option>
+    <option value="22160146">22油画2班</option>
+    <option value="22200741">22园艺本科班</option>
+    <option value="22130141">22中文本科1班</option>
+    <option value="22130142">22中文本科2班</option>
+    <option value="22130143">22中文本科3班</option>
+    <option value="22130144">22中文本科4班(公费师范)</option>
+    <option value="22130321">22中文专接本班</option>
+    <option value="22231541">22资产评估本科1班</option>
+    <option value="22231542">22资产评估本科2班</option>
+    <option value="23190741">23材料化学本科班</option>
+    <option value="23140341">23德语本科班</option>
+    <option value="23210141">23地理科学本科班1班(公费师范)</option>
+    <option value="23210142">23地理科学本科班2班</option>
+    <option value="23210143">23地理科学本科班3班</option>
+    <option value="23210441">23地理信息科学本科班</option>
+    <option value="23180241">23电子本科班</option>
+    <option value="23181041">23电子科学与技术1班(ISEC)</option>
+    <option value="23181042">23电子科学与技术2班(ISEC)</option>
+    <option value="23231641">23电子商务本科1班</option>
+    <option value="23231642">23电子商务本科2班</option>
+    <option value="23100141">23法学本科1班</option>
+    <option value="23100142">23法学本科2班</option>
+    <option value="FC96E1093B94972FE055000000000001">23法学专接本班</option>
+    <option value="23160142">23国画1班</option>
+    <option value="23160143">23国画2班</option>
+    <option value="23160144">23国画3班</option>
+    <option value="23231941">23海洋科学1班</option>
+    <option value="23231942">23海洋科学2班</option>
+    <option value="23131341">23汉语国际教育本科班</option>
+    <option value="23190141">23化学本科1班</option>
+    <option value="23190142">23化学本科2班</option>
+    <option value="23190143">23化学本科3班</option>
+    <option value="23161841">23环境设计本科1班</option>
+    <option value="23161842">23环境设计本科2班</option>
+    <option value="23161843">23环境设计本科3班</option>
+    <option value="23220141">23计算机本科1班</option>
+    <option value="23220142">23计算机本科2班</option>
+    <option value="23220143">23计算机本科3班</option>
+    <option value="FC94F47659539587E055000000000001">23计算机科学与技术专接本班</option>
+    <option value="23180341">23教育技术本科1班</option>
+    <option value="23180342">23教育技术本科2班(公费师范)</option>
+    <option value="23231841">23经济学1班</option>
+    <option value="23231842">23经济学2班</option>
+    <option value="23200941">23科学教育本科班</option>
+    <option value="23100241">23历史本科1班</option>
+    <option value="23100242">23历史本科2班</option>
+    <option value="23100243">23历史本科3班(公费师范)</option>
+    <option value="23210841">23旅游管理本科1班</option>
+    <option value="23210842">23旅游管理本科2班</option>
+    <option value="23160141">23美术学本科1班(公费师范)</option>
+    <option value="23131441">23秘书学本科班1班</option>
+    <option value="23131442">23秘书学本科班2班</option>
+    <option value="23190541">23能源化学工程本科班</option>
+    <option value="23222041">23人工智能本科班</option>
+    <option value="23211141">23人文地理与城乡规划本科1班</option>
+    <option value="23211142">23人文地理与城乡规划本科2班</option>
+    <option value="23140241">23日语本科班</option>
+    <option value="23140541">23商务英语本科班</option>
+    <option value="23120341">23社会体育指导与管理本科1班</option>
+    <option value="23120342">23社会体育指导与管理本科2班</option>
+    <option value="23120343">23社会体育指导与管理本科3班</option>
+    <option value="23120344">23社会体育指导与管理本科4班</option>
+    <option value="23200241">23生物技术本科班</option>
+    <option value="23200141">23生物科学本科1班(公费师范)</option>
+    <option value="23200142">23生物科学本科2班</option>
+    <option value="23161741">23视觉传达设计本科1班(数媒)</option>
+    <option value="23161742">23视觉传达设计本科2班(数媒)</option>
+    <option value="23161743">23视觉传达设计本科3班</option>
+    <option value="23170141">23数本1班(公费师范)</option>
+    <option value="23170142">23数本2班</option>
+    <option value="23170143">23数本3班</option>
+    <option value="23270141">23思想政治教育本科1班</option>
+    <option value="23270142">23思想政治教育本科2班</option>
+    <option value="23270143">23思想政治教育本科3班</option>
+    <option value="23111241">23特殊教育本科班</option>
+    <option value="23120141">23体育教育本科1班(公费师范)</option>
+    <option value="23120142">23体育教育本科2班</option>
+    <option value="23120143">23体育教育本科3班</option>
+    <option value="23120144">23体育教育本科4班</option>
+    <option value="FD216C9330840442E055000000000001">23体育教育本科5班</option>
+    <option value="23170741">23统计学本科班</option>
+    <option value="23221241">23网络工程本科班</option>
+    <option value="4D330872EC81D872E065000000000001">23网络营销专科班</option>
+    <option value="23101141">23文化产业管理本科班</option>
+    <option value="23150641">23舞蹈学本科1班</option>
+    <option value="23150642">23舞蹈学本科2班</option>
+    <option value="23150643">23舞蹈学本科3班</option>
+    <option value="23180141">23物理学本科1班</option>
+    <option value="23180143">23物理学本科2班(公费师范)</option>
+    <option value="23221541">23物联网工程本科班</option>
+    <option value="23231741">23物流管理(ISEC)</option>
+    <option value="23230541">23物流管理本科1班</option>
+    <option value="23230542">23物流管理本科2班</option>
+    <option value="23110141">23小学教育本科1班</option>
+    <option value="23110142">23小学教育本科2班</option>
+    <option value="23110143">23小学教育本科3班</option>
+    <option value="FC9680E840A096F2E055000000000001">23小学教育本科4班(公费师范)</option>
+    <option value="0524C202BEC99F09E065000000000001">23新闻采编专科班</option>
+    <option value="23170641">23信管本科班</option>
+    <option value="23170241">23信计本科班</option>
+    <option value="23110241">23学前教育本科1班</option>
+    <option value="23110242">23学前教育本科2班</option>
+    <option value="23110243">23学前教育本科3班</option>
+    <option value="FC94F47659809587E055000000000001">23学前教育本科4班(公费师范）</option>
+    <option value="FC9680E840A996F2E055000000000001">23学前教育专接本1班</option>
+    <option value="FC9680E840B896F2E055000000000001">23学前教育专接本2班</option>
+    <option value="23150141">23音乐学本科1班</option>
+    <option value="23150142">23音乐学本科2班</option>
+    <option value="23150143">23音乐学本科3班</option>
+    <option value="23150144">23音乐学本科4班</option>
+    <option value="FEED4B4B17BFC73AE055000000000001">23音乐学本科5班(公费师范)</option>
+    <option value="23140141">23英语本科1班(公费师范)</option>
+    <option value="23140142">23英语本科2班</option>
+    <option value="23140143">23英语本科3班</option>
+    <option value="23140144">23英语本科4班</option>
+    <option value="FC9560081B4995EBE055000000000001">23英语本科5班</option>
+    <option value="23190241">23应用化学本科班</option>
+    <option value="23180841">23应用物理学本科班</option>
+    <option value="23110341">23应用心理学本科班</option>
+    <option value="23160145">23油画1班</option>
+    <option value="23160146">23油画2班</option>
+    <option value="23200741">23园艺本科班</option>
+    <option value="23130141">23中文本科1班</option>
+    <option value="23130142">23中文本科2班</option>
+    <option value="23130143">23中文本科3班</option>
+    <option value="23130144" selected="selected">23中文本科4班(公费师范)</option>
+    <option value="FC94F47659659587E055000000000001">23中文专接本</option>
+    <option value="23231541">23资产评估本科1班</option>
+    <option value="23231542">23资产评估本科2班</option>
+    <option value="24190741">24材料化学本科班</option>
+    <option value="24140341">24德语本科班</option>
+    <option value="24210141">24地理科学本科1班</option>
+    <option value="24210142">24地理科学本科2班</option>
+    <option value="24210143">24地理科学本科3班</option>
+    <option value="24210441">24地理信息科学本科班</option>
+    <option value="532966B037521B28E065000000000001">24电子本科2班</option>
+    <option value="86563A9586874D569FDFDCD07DB160EA">24电子科学与技术班(增)</option>
+    <option value="24181041">24电子信息科学与技术(ISEC)1班</option>
+    <option value="24181042">24电子信息科学与技术(ISEC)2班</option>
+    <option value="24180241">24电子信息科学与技术本科班</option>
+    <option value="24100141">24法学本科</option>
+    <option value="24100421">24法学专接本</option>
+    <option value="24160141">24国画1班</option>
+    <option value="24160142">24国画2班</option>
+    <option value="24160143">24国画3班</option>
+    <option value="24131341">24汉语国际教育本科班</option>
+    <option value="24190141">24化学本科1班</option>
+    <option value="24190142">24化学本科2班</option>
+    <option value="24161841">24环境设计1班</option>
+    <option value="24161842">24环境设计2班</option>
+    <option value="24220141">24计算机科学与技术本科1班</option>
+    <option value="24220142">24计算机科学与技术本科2班</option>
+    <option value="24220221">24计算机科学与技术专接本班</option>
+    <option value="24180341">24教育技术学本科班</option>
+    <option value="24200941">24科学教育本科班</option>
+    <option value="24100241">24历史学1班</option>
+    <option value="24100242">24历史学2班</option>
+    <option value="24210841">24旅游管理本科1班</option>
+    <option value="24210842">24旅游管理本科2班</option>
+    <option value="24131441">24秘书学本科1班</option>
+    <option value="24131442">24秘书学本科2班</option>
+    <option value="24190541">24能源化学工程本科班</option>
+    <option value="24222042">24人工智能本科1班</option>
+    <option value="24222043">24人工智能本科2班</option>
+    <option value="24222041">24人工智能本科班</option>
+    <option value="24211141">24人文地理与城乡规划本科1班</option>
+    <option value="24211142">24人文地理与城乡规划本科2班</option>
+    <option value="24140241">24日语本科班</option>
+    <option value="24120341">24社会体育指导与管理本科1班</option>
+    <option value="24120342">24社会体育指导与管理本科2班</option>
+    <option value="24120343">24社会体育指导与管理本科3班</option>
+    <option value="24120344">24社会体育指导与管理本科4班</option>
+    <option value="24200241">24生物技术本科班</option>
+    <option value="24200141">24生物科学本科1班</option>
+    <option value="24200142">24生物科学本科2班</option>
+    <option value="24161741">24视觉传达设计1班(数媒)</option>
+    <option value="24161742">24视觉传达设计2班</option>
+    <option value="24161743">24视觉传达设计3班</option>
+    <option value="24170841">24数据计算及应用本科班</option>
+    <option value="24170141">24数学与应用数学1班(公费师范)</option>
+    <option value="24170142">24数学与应用数学2班</option>
+    <option value="24170143">24数学与应用数学3班</option>
+    <option value="24170144">24数学与应用数学4班</option>
+    <option value="24270141">24思想政治教育本科1班</option>
+    <option value="24270142">24思想政治教育本科2班</option>
+    <option value="24270143">24思想政治教育本科3班</option>
+    <option value="24270144">24思想政治教育本科4班</option>
+    <option value="24111241">24特殊教育本科班</option>
+    <option value="24120141">24体育教育本科1班</option>
+    <option value="24120142">24体育教育本科2班</option>
+    <option value="24120143">24体育教育本科3班</option>
+    <option value="24120144">24体育教育本科4班</option>
+    <option value="24170741">24统计学本科班</option>
+    <option value="24221241">24网络工程本科班</option>
+    <option value="24101141">24文化产业管理本科</option>
+    <option value="24150641">24舞蹈学本科1班</option>
+    <option value="24150642">24舞蹈学本科2班</option>
+    <option value="24150643">24舞蹈学本科3班</option>
+    <option value="24180141">24物理学本科1班</option>
+    <option value="24180142">24物理学本科2班(公费师范)</option>
+    <option value="24221541">24物联网工程本科班</option>
+    <option value="24110141">24小学教育本科1班</option>
+    <option value="24110142">24小学教育本科2班</option>
+    <option value="24110143">24小学教育本科3班</option>
+    <option value="24110144">24小学教育本科4班(公费师范)</option>
+    <option value="24170241">24信息与计算科学本科班</option>
+    <option value="24110241">24学前教育本科1班</option>
+    <option value="24110242">24学前教育本科2班</option>
+    <option value="24110243">24学前教育本科3班</option>
+    <option value="24110244">24学前教育本科4班(公费师范)</option>
+    <option value="24110621">24学前教育专接本1班</option>
+    <option value="24110622">24学前教育专接本2班</option>
+    <option value="24150141">24音乐学本科1班</option>
+    <option value="24150142">24音乐学本科2班</option>
+    <option value="24150143">24音乐学本科3班</option>
+    <option value="24150144">24音乐学本科4班</option>
+    <option value="24140141">24英语本科1班(公费师范)</option>
+    <option value="24140142">24英语本科2班</option>
+    <option value="24140143">24英语本科3班</option>
+    <option value="24140144">24英语本科4班</option>
+    <option value="24140145">24英语本科5班</option>
+    <option value="24190241">24应用化学本科班</option>
+    <option value="24180841">24应用物理学本科班</option>
+    <option value="24110341">24应用心理学本科班</option>
+    <option value="24160144">24油画1班</option>
+    <option value="24160145">24油画2班</option>
+    <option value="24160146">24油画3班</option>
+    <option value="24200741">24园艺本科班</option>
+    <option value="24130141">24中文本科1班</option>
+    <option value="24130142">24中文本科2班</option>
+    <option value="24130143">24中文本科3班</option>
+    <option value="24130144">24中文本科4班(公费师范)</option>
+    <option value="24130321">24中文专接本班</option>
+    <option value="25190741">25材料化学本科1班</option>
+    <option value="25190742">25材料化学本科2班</option>
+    <option value="25140341">25德语本科班</option>
+    <option value="25210141">25地理科学本科1班</option>
+    <option value="25210142">25地理科学本科2班</option>
+    <option value="25210143">25地理科学本科3班</option>
+    <option value="25210441">25地理信息科学本科班</option>
+    <option value="25231641">25电子商务本科1班</option>
+    <option value="25231642">25电子商务本科2班</option>
+    <option value="25181041">25电子信息科学与技术ISEC本科1班</option>
+    <option value="25181042">25电子信息科学与技术ISEC本科2班</option>
+    <option value="25181043">25电子信息科学与技术ISEC本科3班</option>
+    <option value="25181044">25电子信息科学与技术ISEC本科4班</option>
+    <option value="25181045">25电子信息科学与技术ISEC本科5班</option>
+    <option value="25100141">25法学本科班</option>
+    <option value="25100421">25法学专接本</option>
+    <option value="25231941">25海洋科学本科1班</option>
+    <option value="25231942">25海洋科学本科2班</option>
+    <option value="25131341">25汉语国际教育本科班</option>
+    <option value="25190141">25化学本科1班</option>
+    <option value="25190142">25化学本科2班</option>
+    <option value="25190143">25化学本科3班</option>
+    <option value="25190144">25化学本科4班</option>
+    <option value="25161841">25环境设计1班</option>
+    <option value="25161842">25环境设计2班</option>
+    <option value="25220141">25计算机科学与技术本科1班（西南交大）</option>
+    <option value="25220142">25计算机科学与技术本科2班（西南交大）</option>
+    <option value="25220143">25计算机科学与技术本科3班</option>
+    <option value="25220221">25计算机科学与技术专接本班</option>
+    <option value="25180341">25教育技术学本科班</option>
+    <option value="25231841">25经济学本科1班</option>
+    <option value="40CA64CA540F174AE065000000000001">25经济学本科2班</option>
+    <option value="25200941">25科学教育本科班</option>
+    <option value="25100241">25历史1班</option>
+    <option value="25100242">25历史2班</option>
+    <option value="25100243">25历史3班（公费师范）</option>
+    <option value="25210841">25旅游管理本科1班</option>
+    <option value="25210842">25旅游管理本科2班</option>
+    <option value="25160141">25美术学1班</option>
+    <option value="25160142">25美术学2班</option>
+    <option value="25160143">25美术学3班</option>
+    <option value="25160144">25美术学4班</option>
+    <option value="25160145">25美术学5班</option>
+    <option value="25160146">25美术学6班</option>
+    <option value="25131441">25秘书学本科1班</option>
+    <option value="25131442">25秘书学本科2班</option>
+    <option value="25190541">25能源化学工程本科1班</option>
+    <option value="25190542">25能源化学工程本科2班</option>
+    <option value="25222041">25人工智能本科1班（西南交大）</option>
+    <option value="25222042">25人工智能本科2班（西南交大）</option>
+    <option value="25211141">25人文地理与城乡规划本科班</option>
+    <option value="25140241">25日语本科班</option>
+    <option value="25120341">25社会体育指导与管理1班</option>
+    <option value="25120342">25社会体育指导与管理2班</option>
+    <option value="25120343">25社会体育指导与管理3班</option>
+    <option value="25120344">25社会体育指导与管理4班</option>
+    <option value="25200241">25生物技术1班</option>
+    <option value="25200141">25生物科学1班（公费师范）</option>
+    <option value="25200142">25生物科学2班</option>
+    <option value="25200143">25生物科学3班</option>
+    <option value="25200144">25生物科学4班</option>
+    <option value="25161741">25视觉传达设计1班</option>
+    <option value="25161742">25视觉传达设计2班(数媒)</option>
+    <option value="25161743">25视觉传达设计3班(数媒)</option>
+    <option value="25170841">25数据计算及应用本科班</option>
+    <option value="25170141">25数学与应用数学1班(公费师范)</option>
+    <option value="25170142">25数学与应用数学2班</option>
+    <option value="25170143">25数学与应用数学3班</option>
+    <option value="25170144">25数学与应用数学4班</option>
+    <option value="25221841">25数字媒体技术本科班</option>
+    <option value="25270141">25思想政治教育1班</option>
+    <option value="25270142">25思想政治教育2班</option>
+    <option value="25270143">25思想政治教育3班</option>
+    <option value="25270144">25思想政治教育4班</option>
+    <option value="25111241">25特殊教育本科班</option>
+    <option value="25120141">25体育教育1班</option>
+    <option value="25120142">25体育教育2班</option>
+    <option value="25120143">25体育教育3班</option>
+    <option value="25120144">25体育教育4班</option>
+    <option value="25120145">25体育教育5班</option>
+    <option value="25170741">25统计学本科班</option>
+    <option value="25221241">25网络工程本科班</option>
+    <option value="25101141">25文化产业管理班</option>
+    <option value="25150641">25舞蹈学本科1班</option>
+    <option value="25150642">25舞蹈学本科2班</option>
+    <option value="25150643">25舞蹈学本科3班</option>
+    <option value="25180141">25物理学本科1班</option>
+    <option value="25180142">25物理学本科2班</option>
+    <option value="25180143">25物理学本科3班</option>
+    <option value="25221541">25物联网工程本科班</option>
+    <option value="25230541">25物流管理本科1班</option>
+    <option value="25230542">25物流管理本科2班</option>
+    <option value="25110141">25小学教育本科1班</option>
+    <option value="25110142">25小学教育本科2班</option>
+    <option value="25110143">25小学教育本科3班（公费师范）</option>
+    <option value="25170241">25信息与计算科学本科班</option>
+    <option value="25110241">25学前教育本科1班</option>
+    <option value="25110242">25学前教育本科2班</option>
+    <option value="25110243">25学前教育本科3班</option>
+    <option value="25150141">25音乐学本科1班</option>
+    <option value="25150142">25音乐学本科2班</option>
+    <option value="25150143">25音乐学本科3班</option>
+    <option value="25150144">25音乐学本科4班</option>
+    <option value="25140141">25英语本科1班（公费师范）</option>
+    <option value="25140142">25英语本科2班</option>
+    <option value="25140143">25英语本科3班</option>
+    <option value="25140144">25英语本科4班</option>
+    <option value="25140145">25英语本科5班</option>
+    <option value="25190241">25应用化学本科1班</option>
+    <option value="25190242">25应用化学本科2班</option>
+    <option value="25180841">25应用物理学本科班</option>
+    <option value="25110341">25应用心理学本科班</option>
+    <option value="25200741">25园艺1班</option>
+    <option value="25120441">25运动训练1班</option>
+    <option value="25130141">25中文本科1班</option>
+    <option value="25130142">25中文本科2班</option>
+    <option value="25130143">25中文本科3班</option>
+    <option value="25130144">25中文本科4班(公费师范)</option>
+    <option value="25130321">25中文专接本班</option>
+    <option value="25231541">25资产评估本科1班</option>
+    <option value="25231542">25资产评估本科2班</option>
+    <option value="26190741">26材料化学本科1班</option>
+    <option value="26190742">26材料化学本科2班</option>
+    <option value="26140341">26德语本科班</option>
+    <option value="26210141">26地理科学1班(公费)</option>
+    <option value="26210142">26地理科学2班</option>
+    <option value="26210143">26地理科学3班</option>
+    <option value="26210144">26地理科学4班</option>
+    <option value="26210441">26地理信息科学班</option>
+    <option value="26231641">26电子商务</option>
+    <option value="26181041">26电子信息科学与技术(ISEC)1班</option>
+    <option value="26181042">26电子信息科学与技术(ISEC)2班</option>
+    <option value="26181043">26电子信息科学与技术(ISEC)3班</option>
+    <option value="26181044">26电子信息科学与技术(ISEC)4班</option>
+    <option value="26181045">26电子信息科学与技术(ISEC)5班</option>
+    <option value="26100141">26法学本科班</option>
+    <option value="26181141">26光电信息科学与工程本科班</option>
+    <option value="26231941">26海洋科学1班</option>
+    <option value="26231942">26海洋科学2班</option>
+    <option value="26131341">26汉语国际教育本科班</option>
+    <option value="26190141">26化学本科1班</option>
+    <option value="26190142">26化学本科2班</option>
+    <option value="26190143">26化学本科3班</option>
+    <option value="26190144">26化学本科4班</option>
+    <option value="26190145">26化学本科5班</option>
+    <option value="26161841">26环境设计1班</option>
+    <option value="26161842">26环境设计2班</option>
+    <option value="26222141">26计算机科学与技术(合作培养)1班</option>
+    <option value="26222142">26计算机科学与技术(合作培养)2班</option>
+    <option value="54CEB252DF83998FE065000000000001">26计算机科学与技术专接本班</option>
+    <option value="26180341">26教育技术学本科1班</option>
+    <option value="26180342">26教育技术学本科2班</option>
+    <option value="26231841">26经济学</option>
+    <option value="26200941">26科学教育本科1班</option>
+    <option value="26200942">26科学教育本科2班</option>
+    <option value="26200943">26科学教育本科3班</option>
+    <option value="26100241">26历史学本科1班</option>
+    <option value="26100242">26历史学本科2班</option>
+    <option value="26100243">26历史学本科3班(公费师范)</option>
+    <option value="26210841">26旅游管理1班</option>
+    <option value="26210842">26旅游管理2班</option>
+    <option value="26160141">26美术学1班</option>
+    <option value="26160142">26美术学2班</option>
+    <option value="26160143">26美术学3班</option>
+    <option value="26160144">26美术学4班</option>
+    <option value="26160145">26美术学5班</option>
+    <option value="34E0EDC5D0014FB386636B48A131AA4E">26美术学6班</option>
+    <option value="26131441">26秘书学本科班</option>
+    <option value="26190541">26能源化学工程本科1班</option>
+    <option value="26190542">26能源化学工程本科2班</option>
+    <option value="26222241">26人工智能(合作培养)1班</option>
+    <option value="26222242">26人工智能(合作培养)2班</option>
+    <option value="26211141">26人文地理与城乡规划1班</option>
+    <option value="26211142">26人文地理与城乡规划2班</option>
+    <option value="26140241">26日语本科班</option>
+    <option value="26120341">26社会体育指导与管理本科1班</option>
+    <option value="26120342">26社会体育指导与管理本科2班</option>
+    <option value="26120343">26社会体育指导与管理本科3班</option>
+    <option value="26200241">26生物技术班</option>
+    <option value="26200141">26生物科学1班(公费)</option>
+    <option value="26200142">26生物科学2班</option>
+    <option value="26200143">26生物科学3班</option>
+    <option value="26161741">26视觉传达设计1班</option>
+    <option value="26161742">26视觉传达设计2班</option>
+    <option value="94217D2CA31342F0A01698D5AFDE8845">26视觉传达设计3班</option>
+    <option value="26170841">26数据计算及应用本科班</option>
+    <option value="26170141">26数学与应用数学本科1班(公费师范生)</option>
+    <option value="26170142">26数学与应用数学本科2班</option>
+    <option value="26170143">26数学与应用数学本科3班</option>
+    <option value="26170144">26数学与应用数学本科4班</option>
+    <option value="26221741">26数字媒体技术班</option>
+    <option value="26270141">26思想政治教育教育1班(公费师范生)</option>
+    <option value="26270142">26思想政治教育教育2班</option>
+    <option value="26270143">26思想政治教育教育3班</option>
+    <option value="26270144">26思想政治教育教育4班</option>
+    <option value="26111241">26特殊教育本科1班</option>
+    <option value="26111242">26特殊教育本科2班</option>
+    <option value="26120141">26体育教育本科1班</option>
+    <option value="26120142">26体育教育本科2班</option>
+    <option value="26120143">26体育教育本科3班</option>
+    <option value="26120144">26体育教育本科4班</option>
+    <option value="26120145">26体育教育本科5班</option>
+    <option value="26170741">26统计学本科班</option>
+    <option value="26221241">26网络工程班</option>
+    <option value="26101141">26文化产业管理</option>
+    <option value="26150641">26舞蹈学本科1班</option>
+    <option value="26150642">26舞蹈学本科2班</option>
+    <option value="26150643">26舞蹈学本科3班</option>
+    <option value="26180141">26物理学本科1班</option>
+    <option value="26180142">26物理学本科2班</option>
+    <option value="26180143">26物理学本科3班(公费师范生)</option>
+    <option value="26221541">26物联网工程班</option>
+    <option value="26231741">26物流管理(ISEC)1班</option>
+    <option value="26231742">26物流管理(ISEC)2班</option>
+    <option value="26231743">26物流管理(ISEC)3班</option>
+    <option value="26231744">26物流管理(ISEC)4班</option>
+    <option value="26230541">26物流管理(合作培养)1班</option>
+    <option value="26230542">26物流管理(合作培养)2班</option>
+    <option value="26110141">26小学教育本科1班</option>
+    <option value="26110142">26小学教育本科2班</option>
+    <option value="26110143">26小学教育本科3班</option>
+    <option value="26110144">26小学教育本科4班</option>
+    <option value="26222341">26信息安全班</option>
+    <option value="26170241">26信息与计算科学本科班</option>
+    <option value="26110241">26学前教育本科1班</option>
+    <option value="26110242">26学前教育本科2班</option>
+    <option value="26110243">26学前教育本科3班</option>
+    <option value="26150141">26音乐学本科1班</option>
+    <option value="26150142">26音乐学本科2班</option>
+    <option value="26150143">26音乐学本科3班</option>
+    <option value="26150144">26音乐学本科4班</option>
+    <option value="26140141">26英语本科1班(公费师范)</option>
+    <option value="26140142">26英语本科2班</option>
+    <option value="26140143">26英语本科3班</option>
+    <option value="26140144">26英语本科4班</option>
+    <option value="26140145">26英语本科5班</option>
+    <option value="54CF1029A7E29A22E065000000000001">26应用化学(ISEC)1班</option>
+    <option value="54CEB252DF79998FE065000000000001">26应用化学(ISEC)2班</option>
+    <option value="26190241">26应用化学本科班</option>
+    <option value="26180841">26应用物理学本科班</option>
+    <option value="26110341">26应用心理学本科班</option>
+    <option value="26200741">26园艺班</option>
+    <option value="26120441">26运动训练本科篮球班</option>
+    <option value="26120442">26运动训练本科田径班</option>
+    <option value="26130141">26中文本科1班</option>
+    <option value="26130142">26中文本科2班</option>
+    <option value="26130143">26中文本科3班</option>
+    <option value="26130144">26中文本科4班(公费师范)</option>
+    <option value="26130321">26中文专接本班</option>
+    <option value="26231541">26资产评估1班</option>
+    <option value="26231542">26资产评估2班</option>
+    <option value="35B557C659924F70E065000000000001">教育技术1班</option>
+
+
+</select>
+
+
+							<script type="text/javascript">
+								$("#bh_id").find("option:eq(0)").text("" + $.i18n.get("qb") + "");
+								jQuery('#bh_id').trigger("chosen");
+							</script>
+						</div>
+					</div>
+				</div>
+			
+				<div class="col-md-3 col-sm-6">
+					<div class="form-group">
+						<label for="" class="col-sm-4 control-label">
+							层次
+						</label>
+						<div class="col-sm-8">
+							<select name="pyccdm" id="pyccdm" class="form-control chosen-select">
+    <option value=""
+    >全部</option>
+    <option value="2">专接本</option>
+    <option value="3">专科</option>
+    <option value="4">本科</option>
+    <option value="5">专升本</option>
+    <option value="9">其他</option>
+
+
+</select>
+
+
+							<script type="text/javascript">
+								$("#pyccdm").find("option:eq(0)").text("" + $.i18n.get("qb") + "");
+								jQuery('#pyccdm').trigger("chosen");
+							</script>
+						</div>
+					</div>
+				</div>
+			
+			
+			
+			
+
+			
+			
+			
+			
+			
+			
+			
+		</div>
+	</form>
+
+
+
+	<script type="text/javascript">
+		$('.chosen-select').trigger("chosen");
+	</script>
+	<div class="row sl_aff_btn" >
+		<div class="col-sm-12">
+			<div class="pull-left col-sm-1" style="margin-top: 10px;text-align: left;">
+				<i class="blue bigger-150 glyphicon glyphicon-cog" style="cursor: pointer" id="xszdConfig"></i>
+			</div>
+			<div class="col-sm-4" style="text-align: left; margin-top: 10px;">
+				
+					<lable class="checkbox-inline"><input type="checkbox" id="zxszjjs" name="zxszjjs" value="1"  />
+						只显示主讲教师</lable>
+
+				
+				<!--	-->
+				
+			</div>
+			<div class="pull-right" role="toolbar">
+				<label style="float: left;">
+					<span class="text-danger">
+						
+					</span>
+				</label>
+				<button type="button" class="btn btn-primary btn-sm" id="search_go" onclick="searchResult()">
+					<span class="glyphicon glyphicon-search">
+						查询
+				</button>
+				<!-- 加载当前菜单栏目下操作    :   -->
+				<div class="btn-group">
+                            <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
+                          <span class="glyphicon glyphicon-floppy-save"></span> 批量输出PDF <span class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu" role="menu">
+                              <li><a href="#" onclick="batchShcPdf('list')">列表批量输出</a></li>
+                              <li><a href="#" onclick="batchShcPdf('table')">表格批量输出</a></li>
+                              <li class="divider"></li>
+                              <li><a href="#" onclick="batchShcPdf('both')">同时批量输出</a></li>
+                            </ul>
+                        </div>&nbsp;
+				<!-- 加载当前菜单栏目下操作-->
+				<!-- <div class="btn-group">
+		  			<button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown" aria-expanded="true">
+		    		<span class="glyphicon glyphicon-floppy-save"></span>大课表输出 <span class="caret"></span>
+		  			</button>
+		  			<ul class="dropdown-menu" role="menu">
+		    			<li><a href="#" onclick="scdkb('excel')">输出excel</a></li>
+		    			<li><a href="#" onclick="scdkb('pdf')">输出pdf</a></li>
+		  			</ul>
+				</div> -->
+				
+				
+				
+				
+				<!--<button type="button" id="plhbscpdf_btn" class="btn btn-primary btn-sm">
+						<span class="glyphicon glyphicon-floppy-save"></span> 批量输出excel(合并输出pdf)
+				</button>-->
+				
+				
+				
+				
+				
+				
+			</div>
+		</div>
+	</div>
+
+
+	<div hidden class="sl_fixbt sl_fixbt_pop ">
+		<!--应用在弹出层中的话，此div调用navbar-fixed-bottom、sl_fixbt、sl_fixbt_pop三个class-->
+		<div class="row sl_fixbot_tit" id="fixbot_tit">
+			<div class="col-xs-8 col-sm-4">
+				<h4>
+					已选课表
+				</h4>
+			</div>
+		</div>
+		<div class="row sl_fixbot_con" id="fixbot_con01" style="display: block;">
+			<div class="row" style="height: 100px; overflow-y: auto;">
+				<div class="col-sm-12 clearfix">
+					<ul class="sl_fixbot_ul" id="bot_ul"></ul>
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+	<table id="tabGrid"></table>
+	<div id="pager"></div>
+	<div id="grid_div"></div>
+
+				
+
+<style type="text/css">
+span.ui-jqgrid-title {
+	font-size: 12px
+}
+
+.sl_fixbot_ul li a.ctdanger {
+	background: none repeat scroll 0 0 #f2dede;
+}
+
+.tab_01 {
+	border: 1px solid #307ecc;
+	margin-top: 15px;
+	width: 100%;
+}
+
+.tab_01 td {
+	height: 40px;
+}
+
+.style {
+	height: 250px !important;
+}
+
+.sl_fixbt_pop {
+	margin: 10px;
+	position: static;
+	height: 136px;
+}
+</style>
+
+<!--jQuery.jqGrid -->
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/plugins/jqGrid/css/jquery.jqgrid.css?ver=29818781" />
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/jqGrid/jquery.jqgrid.src-min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/jqGrid/jquery.jqgrid.contact-min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/jqGrid/lang/zh_CN.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/js/plugins/jqGrid4.6/jquery.jqgrid.settings.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/js/plugins/jqGrid4.6/jquery.jqGrid-min.js?ver=29818781" charset="utf-8"></script>
+<!--jQuery.validation -->
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/plugins/validation/css/jquery.validate-min.css?ver=29818781" />
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/validation/js/jquery.validate-min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/validation/js/jquery.validate.contact-min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/validation/js/jquery.validate.methods.contact-min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/validation/lang/zh_CN-min.js?ver=29818781" charset="utf-8"></script>
+<script type="text/javascript">
+	jQuery(function($){
+		$('[data-toggle*="validation"]').trigger("validation");
+	});
+</script>
+
+<link rel="stylesheet" type="text/css" href="/zftal-ui-v5-1.0.2/assets/plugins/backdrop/css/jquery.backdrop-1.0.0.css?ver=29818781" />
+<script type="text/javascript" src="/zftal-ui-v5-1.0.2/assets/plugins/backdrop/jquery.backdrop-min.js?ver=29818781" charset="utf-8"></script>
+
+<script type="text/javascript" src="/js/comp/jwglxt/pkgl/kbdy/bjkbdy.js?ver=29818781"></script>
+
+			</div>
+		</div>
+	</div>
+	<!-- footer -->
+	<div id="footer-div" style="display:none">
+		
+
+
+
+
+
+
+
+<!-- footer --> 
+
+<div id="footerID" class="footer"  style="background-color: " >
+	
+	<p>版权所有&#169; Copyright 1999-2020 正方软件股份有限公司　　中国·杭州西湖区三墩镇数治路99号901室&nbsp;&nbsp;&nbsp;版本V-9.0</p>
+</div>
+
+
+
+
+<script  type="text/javascript">
+	//系统中页面底部的时间随系统时间来定
+	/* var date=new Date;
+	var year=date.getFullYear();
+	var s = $("#footerID").text().indexOf('-');
+	var textNr =$("#footerID").text().substr(0,s+1)+year+$("#footerID").text().substr(s+5);
+	$("#footerID").text("");
+	$("#footerID").text(textNr); */
+
+</script>
+<!-- footer-end -->
+	</div>
+	<!-- footer-end -->
+</body>
+<script type="text/javascript">
+
+	jQuery(function($) {
+
+		if ($("#navbar-tabs").length > 0) {
+			$("#navbar-tabs li:eq(0) a").tab('show');
+		}
+		// setMinheight();
+		$('#yhgnPage').css('min-height',500).data('min-height',500);
+		setCdtsxx();
+
+		// $('#yhgnPage').resize(function(){
+		// 	var minHeight  = $(this).data('min-height');
+		// 	var innerHeight =  $('#innerContainer').outerHeight(true);
+		// 	if(self != top){
+		// 		$(this).css('min-height', "380");
+		// 	}else{
+		// 		$(this).css('min-height', Math.max(minHeight,innerHeight));
+		// 	}
+
+		// });
+
+		function setMinheight(){
+			//计算grid页面高度
+			var docuemntHeight = $(document).height();
+			var topHeight = $('header').height();
+			var footerHeight = $('.footer').height();
+			var containerHeight = docuemntHeight-topHeight-footerHeight-60;
+			console.log(containerHeight,'containerHeight')
+			if(self != top){
+				containerHeight = 380;
+			}
+			$('#yhgnPage').css('min-height',containerHeight).data('min-height',containerHeight);
+		}
+
+		//加载title名称，根据系统内置表设置，取菜单名称或者系统名称
+		$(document).attr("title",'唐山师范学院教务系统');
+
+		//设置菜单提示信息
+		function setCdtsxx(){
+			if($("#cdTsxx").val()!=null&&$("#cdTsxx").val()!="-zfsplit-"){
+				var tsxx = $("#cdTsxx").val().split("-zfsplit-")[0];
+				var tsxxljdz = $("#cdTsxx").val().split("-zfsplit-")[1];
+				var tsxxHtml = "<a class='navbar-brand' "+(tsxxljdz!=""?"href='"+tsxxljdz+"' target='_blank'":"")+">"+tsxx+"</a>";
+				if($("#hidxxdm").val()=='10290'){//中国矿业大学
+					tsxxHtml = "<a class='navbar-brand' style='padding: 0;' "+(tsxxljdz!=""?"href='"+tsxxljdz+"' target='_blank'":"")+">"+tsxx+"</a>";
+					$(".navbar-header").append(tsxxHtml);
+				}else{
+					$(".navbar-header").prepend(tsxxHtml);
+				}
+			}
+		}
+
+
+		//绑定角色切换功能
+		$(document).off('change', '#changeRole').on('change', '#changeRole', function(e,param) {
+			var key = $(this).val();
+			if(device.mobile()){
+				key = param?param:$(this).val();
+			}
+			$.post(_path + "/xtgl/index_changeRole.html",{jsdm:key},function(data){
+				window.location.href = window.location.href;//刷新页面
+			 });
+		});
+        // //针对部分功能，
+        // var hidxxdmValue = $('#hidxxdm').val();
+        // if (hidxxdmValue === '14008') {
+        //     // 获取kqhjs的值
+        //     var qhjsmrz = $('#qhjsmrz').val();
+		//
+		// 	if (qhjsmrz !== '') {
+		// 		// 发送POST请求
+		// 		$.post(_path + "/xtgl/index_changeRole.html", {jsdm: qhjsmrz}, function(data) {
+		// 			// 刷新页面
+		// 			window.location.href = window.location.href;
+		// 		});
+		// 	}
+        // }
+
+		//进行相应判断是否可切换角色及是否移动端的判断
+		if($("#kqhjs").val()=="1"&&device.mobile()){
+			$("#navbar_container").empty();
+			$("#navbar_container").append($("#mobile-div").html());
+			$("#mobile-div").empty();
+		}else{
+			$("#mobile-div").empty();
+		}
+
+		//设置底部版本信息是否显示
+		if($("#sycdbjfs").val()=="1"){
+			$("#footer-div").show();
+		}
+
+		//火狐浏览器 刷新后浏览器会自动填充表单,(但无效 得在s:form里写)
+		// var autoList =['input','select']
+		// $('form').each(function(index,item){
+		// 	$(item).attr('autocomplete','off')
+		// 	autoList.forEach(function(itemp,indexp){
+		// 		$(item).find(itemp).each(function(indexv,itemv){
+		// 			if(!$(itemv).attr('autocomplete')){
+		// 				$(itemv).attr('autocomplete','off')
+		// 			}
+		// 		})
+		// 	})
+		// })
+
+	});
+
+</script>
+<!-- 设置元素固定位置显示插件  scrolltofixed 相应ini文件引用-->
+<!-- è®¾ç½®åç´ åºå®ä½ç½®æ¾ç¤ºæä»¶  scrolltofixed -->
+<script type="text/javascript" src="/js/plugins/scrolltofixed/jquery-scrolltofixed-min.js?ver=29818781"></script>
+<script>
+	$(document).ready(function() {
+		var marginTop = 35
+			if(window.parent !== window) {
+			marginTop = 10
+		}
+		$("div.sl_add_btn .btn-toolbar").scrollToFixed({
+			marginTop:marginTop,
+			zIndex:1060,
+			fixed:function(){
+				//$(this).css({"width":"auto"});
+			},
+		});
+		$("#gbox_tabGrid div.ui-jqgrid-hdiv").scrollToFixed({
+			//marginTop:3,
+			spacerClass:'hide-div'
+		});
+	});
+</script>
+<style>
+	.hide-div{
+		display:none; 
+	}
+</style>
+<!-- 软件评价 相应ini文件引用-->
+
+
+<link rel="stylesheet"  type="text/css" href="/js/plugins/tagtree/tagTree.css?ver=29818781"/>
+<script type='text/javascript' src="/js/plugins/tagtree/tagtree.js?ver=29818781"></script>
+<script type='text/javascript' src="/js/plugins/tagtree/tagtreeBusiness.js?ver=29818781"></script>
+
+</html>

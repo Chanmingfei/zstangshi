@@ -1,0 +1,21 @@
+{
+  "name": "zhangshang-tangshi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "掌上唐师 · 唐山师范学院校园助手（零依赖、零构建、纯静态 ESM）",
+  "type": "module",
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test:week": "node tools/test-week.mjs",
+    "test:gpa": "node tools/test-gpa.mjs",
+    "test:parse": "node tools/test-jwxt-parse.mjs",
+    "test:pages": "node tools/test-pages.mjs",
+    "check": "node tools/check-rules.mjs",
+    "verify": "node tools/test-week.mjs && node tools/test-gpa.mjs && node tools/test-jwxt-parse.mjs && node tools/test-pages.mjs && node tools/check-rules.mjs"
+  }
+}

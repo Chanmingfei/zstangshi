@@ -1,0 +1,13 @@
+# 真实 sdk.dir 只在本机，不入库
+local.properties
+# Gradle / IDE 产物
+.gradle/
+build/
+app/build/
+.idea/
+*.iml
+captures/
+.externalNativeBuild
+.cxx/
+# ★ R9：assets/www 是构建产物，web/ 才是唯一真源，绝不入库
+app/src/main/assets/www/

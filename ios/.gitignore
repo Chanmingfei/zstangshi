@@ -1,0 +1,14 @@
+# 构建产物与本地环境
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.xcarchive
+
+# Xcode 用户态（scheme 的共享副本在 xcshareddata/ 里，必须提交）
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# 系统文件
+.DS_Store

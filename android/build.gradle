@@ -1,0 +1,5 @@
+// build.gradle（根）—— 只声明 AGP 插件版本
+// AGP 8.5.2 需要 Gradle 8.7（见 gradle/wrapper/gradle-wrapper.properties）。
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+}

@@ -1,0 +1,195 @@
+/* ============================================================================
+ * componentsItem.css —— 列表项类组件
+ *  14. c-course    课表课程卡 + 冲突 50% 并排
+ *  15. c-grade     成绩列表行（长按复制的样式钩子）
+ *
+ * 拆文件的原因：check-rules 守卫③ 单文件 ≤400 行。可视化与手势放在
+ * componentsVisual.css / componentsOverlay.css，三者加载顺序无关（选择器互不重叠）。
+ *
+ * 规矩：颜色只用 var(--…)，本文件不出现任何色值字面量。
+ * ========================================================================== */
+
+/* ═══ 14. 课程卡 c-course ════════════════════════════════════════════════
+ * 12% 透明填充只做背景，卡片上的文字一律 --text-primary：
+ * 用课程色本身当文字色，四类里有两类达不到 4.5:1。 */
+
+.c-course {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: var(--space-8);
+  border-left: 3px solid var(--course-required);
+  border-radius: var(--r-sm);
+  background-color: var(--course-required-soft);
+  text-align: left;
+  transition: transform var(--dur-press) var(--ease-standard);
+}
+
+.c-course:active {
+  transform: scale(0.98);
+}
+
+.c-course--elective {
+  border-left-color: var(--course-elective);
+  background-color: var(--course-elective-soft);
+}
+
+.c-course--public {
+  border-left-color: var(--course-public);
+  background-color: var(--course-public-soft);
+}
+
+.c-course--practice {
+  border-left-color: var(--course-practice);
+  background-color: var(--course-practice-soft);
+}
+
+.c-course__name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-caption);
+  line-height: 1.35;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.c-course__meta,
+.c-course__time {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+/* 周次范围外的课程：半透明。
+   T08 课表页的做法是**不渲染**非本周课程（验收：切到第 1 周时 5-17 周的课不能出现），
+   所以这里当前没有使用者；留给「整学期预览 / 待上课程提醒」这类要展示但不占位的场景。 */
+.c-course--dim {
+  opacity: 0.55;
+}
+
+.c-course--compact {
+  padding: var(--space-4);
+}
+
+.c-course--compact .c-course__name {
+  -webkit-line-clamp: 1;
+  font-size: var(--fs-micro);
+}
+
+
+/* ═══ 15. 成绩行 c-grade ═════════════════════════════════════════════════ */
+
+.c-grade {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-12) var(--card-padding);
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.c-grade:active {
+  background-color: var(--bg-sunken);
+}
+
+.c-grade__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.c-grade__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.c-grade__meta {
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+.c-grade__remark {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: var(--r-xs);
+  background-color: var(--danger-soft);
+  color: var(--text-primary);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+}
+
+/* 重修不是「出问题」，用中性底色；红底只留给缓考/缺考这类异常 */
+.c-grade__remark--retake {
+  background-color: var(--brand-primary-soft);
+  color: var(--text-primary);
+}
+
+.c-grade__score {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 64px;
+}
+
+.c-grade__score-value {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-h1);
+  line-height: 1.15;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.c-grade__score-value.is-missing {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/* 不及格才标红；60 分是及格线，不在此列 */
+.c-grade__score-value.is-fail {
+  color: var(--danger);
+}
+
+/* 文字成绩（优秀/良好）与分数并列：95 · 优秀 */
+.c-grade__score-tag {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--brand-accent-text);
+}
+
+.c-grade__gp,
+.c-grade__score-text {
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+.c-grade--fail .c-grade__gp {
+  color: var(--danger);
+}
+
+.c-grade__score-text {
+  color: var(--brand-accent-text);
+}

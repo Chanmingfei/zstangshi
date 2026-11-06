@@ -1,0 +1,22 @@
+# 构建产物
+ios/build/
+DerivedData/
+*.ipa
+*.xcarchive
+*.dSYM.zip
+
+# Xcode 用户态（共享 scheme 在 xcshareddata/ 里，要提交）
+xcuserdata/
+*.xcuserstate
+
+# 依赖
+node_modules/
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 会话工作目录（含本地记忆，不进仓库）
+.workbuddy/

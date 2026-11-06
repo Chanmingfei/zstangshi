@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  与 web/styles/tokens.css 同值（§8 共享知识第 2 条）：
+  改这里必须同步 tokens.css 里的品牌色与页面底色变量，反之亦然。
+  brand_primary_dark 对应 web/index.html 的 theme-color-dark meta。
+-->
+<resources>
+    <color name="brand_primary">#1B3A6B</color>
+    <color name="brand_primary_dark">#0F1520</color>
+    <color name="bg_page">#F6F7F9</color>
+    <color name="ic_launcher_background">#1B3A6B</color>
+    <color name="ic_launcher_foreground_tint">#FFFFFF</color>
+</resources>

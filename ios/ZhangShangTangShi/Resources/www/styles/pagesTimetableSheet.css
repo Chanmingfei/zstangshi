@@ -1,0 +1,79 @@
+/* ============================================================================
+ * pagesTimetableSheet.css —— 课表详情层（课程信息 / 冲突切换 / 复制提示）
+ *
+ * 从 pagesTimetable.css 拆出来只为守住单文件 ≤400 行（check-rules 守卫③）。
+ * 选择器仍以 .p-tt 开头，与主文件同域、加载顺序无关（无同名覆盖）。
+ *
+ * 规矩：颜色只用 var(--…)，本文件不出现任何色值字面量（守卫①）。
+ * ========================================================================== */
+
+.p-tt__detail-meta {
+  margin-bottom: var(--space-12);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+/* 冲突切换条：箭头 + 「1 / 2 · 时间冲突」。
+   箭头 44×44 是读屏/键盘的备用路径，手指直接左右滑也行。 */
+.p-tt__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+  padding: var(--space-4);
+  border-radius: var(--r-sm);
+  background-color: var(--warning-soft);
+}
+
+.p-tt__pager-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  border-radius: var(--r-full);
+  color: var(--text-primary);
+}
+
+.p-tt__pager-nav:disabled {
+  color: var(--text-tertiary);
+  opacity: 0.45;
+}
+
+.p-tt__pager-count {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.p-tt__pager-hint {
+  margin-bottom: var(--space-8);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+.p-tt__show-btn {
+  display: block;
+  width: 100%;
+  min-height: var(--hit-min);
+  border-radius: var(--r-sm);
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+  font-size: var(--fs-body-strong);
+  line-height: var(--lh-body-strong);
+  font-weight: var(--fw-semibold);
+}
+
+/* 长按复制的可见提示：不加这一行，没有人会想到去长按一段静态文本 */
+.p-tt__copy-hint {
+  margin-top: var(--space-12);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-tertiary);
+  text-align: center;
+}

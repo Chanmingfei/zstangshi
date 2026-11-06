@@ -1,0 +1,359 @@
+/* ============================================================================
+ * pagesCalendar.css —— 校历页（p-cal）
+ *
+ * 规矩：颜色只用 var(--…)，本文件不出现任何色值字面量（check-rules 守卫①）。
+ * 可点元素（月份切换 / 回到本月 / 查看原页）一律 ≥44×44（PRD §8.3）。
+ * 月历格子本身只是信息，不是按钮，所以热区规则只约束上面那三个按钮。
+ * ========================================================================== */
+
+.p-cal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-24);
+}
+
+.p-cal__section-title {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  color: var(--text-primary);
+}
+
+/* ── 概览 ──────────────────────────────────────────────────────────────── */
+
+.p-cal__overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-16);
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+}
+
+.p-cal__overview:empty {
+  min-height: 96px;
+}
+
+.p-cal__term {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.p-cal__week {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  color: var(--brand-primary);
+}
+
+.p-cal__meta {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+/* 加载中骨架保持盒高，数据到达时整页不跳 */
+.p-cal__loading[hidden] {
+  display: none;
+}
+
+/* ── 月份切换 ──────────────────────────────────────────────────────────── */
+
+.p-cal__month-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+}
+
+.p-cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  border-radius: var(--r-full);
+  color: var(--text-primary);
+}
+
+.p-cal__month-label {
+  min-width: 120px;
+  font-size: var(--fs-body-strong);
+  line-height: var(--lh-body-strong);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-cal__back {
+  min-height: var(--hit-min);
+  padding: 0 var(--space-12);
+  border-radius: var(--r-full);
+  background-color: var(--brand-primary-soft);
+  color: var(--brand-primary-on-soft);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+.p-cal__back[hidden] {
+  display: none;
+}
+
+/* ── 月历网格：7 列固定，42 格高度恒定（翻月不跳）─────────────────────── */
+
+.p-cal__weekdays,
+.p-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.p-cal__weekdays {
+  gap: 2px;
+}
+
+.p-cal__weekday {
+  padding: var(--space-4) 0;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.p-cal__grid {
+  gap: 2px;
+}
+
+.p-cal__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 3px 1px;
+  border-radius: var(--r-xs);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.p-cal__cell.is-outside {
+  background-color: var(--bg-page);
+  color: var(--text-tertiary);
+}
+
+.p-cal__cell.is-current {
+  background-color: var(--brand-primary-soft);
+}
+
+.p-cal__cell.is-today {
+  box-shadow: inset 0 0 0 2px var(--brand-primary);
+}
+
+.p-cal__cell.is-exam {
+  background-color: var(--brand-accent-soft);
+}
+
+.p-cal__cell-day {
+  font-size: var(--fs-body);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-cal__cell-week {
+  font-size: 9px;
+  line-height: 1.1;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.p-cal__cell.is-exam .p-cal__cell-week {
+  color: var(--brand-accent-text);
+  font-weight: var(--fw-semibold);
+}
+
+.p-cal__cell-dots {
+  display: flex;
+  gap: 2px;
+  min-height: 6px;
+}
+
+.p-cal__cell-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-full);
+}
+
+/* ── 节点类型色点（与图例共用一套 class）────────────────────────────────── */
+
+.p-cal__dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background-color: var(--info);
+}
+
+.p-cal__dot--holiday { background-color: var(--danger); }
+.p-cal__dot--event { background-color: var(--info); }
+.p-cal__dot--enroll { background-color: var(--success); }
+.p-cal__dot--teaching { background-color: var(--brand-primary); }
+.p-cal__dot--vacation { background-color: var(--text-tertiary); }
+.p-cal__dot--exam { background-color: var(--brand-accent); }
+
+.p-cal__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.p-cal__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+/* ── 19 周列表 ────────────────────────────────────────────────────────── */
+
+.p-cal__weeks {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  overflow: hidden;
+}
+
+.p-cal__weeks-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--hit-min);
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-primary);
+}
+
+.p-cal__weeks-row:last-child {
+  border-bottom: 0;
+}
+
+.p-cal__weeks-row.is-current {
+  background-color: var(--brand-primary-soft);
+  font-weight: var(--fw-semibold);
+}
+
+.p-cal__weeks-row.is-exam:not(.is-current) {
+  background-color: var(--brand-accent-soft);
+}
+
+.p-cal__weeks-no {
+  flex: 0 0 auto;
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-cal__weeks-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.p-cal__weeks-tag {
+  flex: 0 0 auto;
+  padding: 2px var(--space-8);
+  border-radius: var(--r-full);
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  white-space: nowrap;
+}
+
+.p-cal__weeks-tag.is-exam {
+  background-color: var(--brand-accent-soft);
+  color: var(--brand-on-accent);
+}
+
+/* ── 关键节点 ──────────────────────────────────────────────────────────── */
+
+.p-cal__events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.p-cal__event {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 32px;
+  padding: 0 var(--space-12);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-surface);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+.p-cal__event-date {
+  flex: 0 0 auto;
+  min-width: 48px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.p-cal__event-title {
+  color: var(--text-primary);
+}
+
+/* ── 来源说明 ──────────────────────────────────────────────────────────── */
+
+.p-cal__source {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-16);
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+.p-cal__source-text,
+.p-cal__source-url,
+.p-cal__source-note {
+  word-break: break-all;
+}
+
+.p-cal__source-url {
+  color: var(--text-secondary);
+}
+
+.p-cal__source-note {
+  color: var(--text-tertiary);
+}
+
+.p-cal__source-btn {
+  min-height: var(--hit-min);
+  padding: 0 var(--space-16);
+  border-radius: var(--r-sm);
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+  font-size: var(--fs-body-strong);
+  line-height: var(--lh-body-strong);
+  font-weight: var(--fw-semibold);
+}

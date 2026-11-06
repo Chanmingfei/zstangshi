@@ -1,0 +1,346 @@
+/* ============================================================================
+ * pagesMine.css —— 「我的」页（p-mine）
+ *
+ * 结构：用户卡 → 数据来源 → 外观 → 常用入口 → 本机数据 → 关于。
+ * 全部颜色只用 var(--…)，本文件不出现任何色值字面量（check-rules 守卫①）。
+ * ========================================================================== */
+
+.p-mine { padding-bottom: var(--space-32); }
+
+.p-mine__hero {
+  padding: var(--space-16) var(--page-gutter) var(--space-8);
+}
+
+.p-mine__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-top: var(--space-12);
+  padding: var(--card-padding);
+  border-radius: var(--r-lg);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+}
+
+.p-mine__avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: var(--space-40);
+  height: var(--space-40);
+  border-radius: var(--r-full);
+  background-color: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+}
+
+.p-mine__user-text { flex: 1 1 auto; min-width: 0; }
+
+.p-mine__name {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-body-strong);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-body-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.p-mine__sub {
+  margin: var(--space-4) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+/* 学号：姓名之下的弱化第二行（姓名是主体，见 paint()） */
+.p-mine__no {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.p-mine__chip { flex: 0 0 auto; }
+.p-mine__chip.is-demo {
+  background-color: var(--warning-soft);
+  color: var(--brand-accent-text);
+}
+
+.p-mine__card {
+  margin: var(--space-16) var(--page-gutter) 0;
+  padding: var(--card-padding);
+  border-radius: var(--r-lg);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+}
+
+.p-mine__card-title {
+  margin: 0 0 var(--space-12);
+  color: var(--text-primary);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-h2);
+}
+
+.p-mine__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-8) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.p-mine__row:last-of-type { border-bottom: 0; }
+
+.p-mine__row-label {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.p-mine__row-value {
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-body);
+  text-align: right;
+}
+
+.p-mine__row-value.is-warn { color: var(--brand-accent-text); }
+
+.p-mine__note,
+.p-mine__hint {
+  margin: var(--space-12) 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+.p-mine__note {
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-sunken);
+}
+
+.p-mine__note[hidden] { display: none; }
+
+/* ── 主题三态分段控件 ─────────────────────────────────────────────────── */
+
+.p-mine__segment {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--r-md);
+  background-color: var(--bg-sunken);
+}
+
+.p-mine__segment-btn {
+  min-height: var(--hit-min);
+  padding: var(--space-8) var(--space-4);
+  border: 0;
+  border-radius: var(--r-sm);
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption-strong);
+  /* base.css 的 button 重置是 text-align: inherit（左对齐），这里显式居中 */
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--dur-press) var(--ease-standard),
+    color var(--dur-press) var(--ease-standard);
+}
+
+.p-mine__segment-btn.is-active {
+  background-color: var(--bg-surface);
+  color: var(--brand-primary);
+  box-shadow: var(--e1);
+}
+
+.p-mine__segment-btn:focus-visible { outline: 2px solid var(--brand-primary); }
+
+/* ── 常用入口 ─────────────────────────────────────────────────────────── */
+
+.p-mine__shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+.p-mine__shortcut {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: var(--hit-min);
+  padding: var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  background-color: var(--bg-elevated);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-standard),
+    border-color var(--dur-press) var(--ease-standard);
+}
+
+.p-mine__shortcut:active { transform: scale(0.98); }
+.p-mine__shortcut:hover { border-color: var(--border-strong); }
+.p-mine__shortcut:focus-visible { outline: 2px solid var(--brand-primary); }
+
+.p-mine__shortcut-label {
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-body);
+}
+
+.p-mine__shortcut-hint {
+  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+/* ── 数据操作 ─────────────────────────────────────────────────────────── */
+
+.p-mine__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+
+.p-mine__action { width: 100%; min-height: var(--hit-min); }
+
+/* ── 学期与教学周设置（弹窗表单） ─────────────────────────────────────── */
+
+.p-mine__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-16) var(--page-gutter) var(--space-24);
+}
+
+.p-mine__form-label {
+  margin-top: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-medium);
+}
+
+.p-mine__form-field {
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+}
+
+.p-mine__form-field:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+/* ── 关于 ─────────────────────────────────────────────────────────────── */
+
+.p-mine__about {
+  padding: var(--space-24) var(--page-gutter) 0;
+  text-align: center;
+}
+
+.p-mine__version {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+}
+
+.p-mine__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8) var(--space-16);
+  margin-top: var(--space-12);
+}
+
+.p-mine__link {
+  min-height: var(--hit-min);
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  background-color: transparent;
+  color: var(--brand-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-caption);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.p-mine__link:focus-visible { outline: 2px solid var(--brand-primary); }
+
+/* 320px 窄屏：入口改单列，避免汉字被挤成两行还溢出 */
+@media (max-width: 340px) {
+  .p-mine__shortcuts { grid-template-columns: minmax(0, 1fr); }
+  .p-mine__avatar { display: none; }
+}
+
+/* ── 关于我们（底部按钮 + 弹窗内容，弹窗样式与登录页校园网提示同款） ──── */
+
+/* 与本页大卡片等宽：显式计算宽度（页面是 align-items 收缩的 flex 列，auto 会被压窄） */
+.p-mine__about-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - 2 * var(--page-gutter));
+  min-height: var(--hit-min);
+  margin: var(--space-16) var(--page-gutter) 0;
+}
+
+.p-mine__about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: 0 0 var(--space-8);
+}
+
+.p-mine__about-version {
+  margin: 0;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.p-mine__about-line {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* 弹窗里的外链：横排并置（文字短，一行放得下） */
+.p-mine__links--sheet {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8) var(--space-16);
+  margin-top: var(--space-4);
+}
+
+.p-mine__links--sheet .p-mine__link {
+  min-height: var(--hit-min);
+}
+
+.p-mine__about-foot {
+  margin: 0;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-tertiary);
+  text-align: center;
+}

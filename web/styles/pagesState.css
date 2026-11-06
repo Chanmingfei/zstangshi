@@ -1,0 +1,48 @@
+/* ============================================================================
+ * pagesState.css —— 页面级「状态页」样式（L1 分层，与 pages.css 同层）
+ *   1. p-error       ErrorBoundary 单页兜底（重试 + 可折叠错误摘要）
+ *   2. p-placeholder 未实现页占位
+ *
+ * 这两类页没有业务排版，只有「把话讲清楚 + 兜住底部」的诉求，故单独成文件
+ * （也顺带守住单文件 ≤400 行的硬约束）。
+ *
+ * 规矩：颜色只用 var(--…)；本文件不出现任何色值字面量（check-rules 守卫①）。
+ * ========================================================================== */
+
+/* ═══ 1. 兜底页 p-error ══════════════════════════════════════════════════ */
+
+.p-error__detail {
+  margin-top: var(--space-8);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-12);
+}
+
+.p-error__summary {
+  min-height: var(--hit-min);
+  display: flex;
+  align-items: center;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.p-error__stack {
+  margin: var(--space-8) 0 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: var(--space-12);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ═══ 2. 占位页 p-placeholder ════════════════════════════════════════════ */
+
+.p-placeholder .c-empty {
+  padding-top: var(--space-24);
+}

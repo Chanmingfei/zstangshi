@@ -1,0 +1,18 @@
+// settings.gradle —— 工程级仓库与模块声明
+// 零第三方依赖：仓库只用于下载 Gradle 本体与 AGP 插件两个构建工具，不引入任何 aar。
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = 'ZhangShangTangShi'
+include ':app'

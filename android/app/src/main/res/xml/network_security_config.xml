@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  网络安全配置（R4）：教务 https://jwxt.tstc.edu.cn 可能是校园自签证书，
+  学工 http://sws.tstc.edu.cn 是明文；Android 7+ 默认既不信任 user CA 也禁明文。
+  所以只对 tstc.edu.cn 子域放开明文 + 信任用户安装的根证书，全局仍禁明文。
+  app.local 是本地虚拟 https 源（不发起真实网络请求），单独声明且禁明文。
+-->
+<network-security-config>
+
+    <!-- 默认：全局禁明文，只信任系统 CA -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- 校内域名：明文 + 额外信任 user CA（校园自签根证书场景） -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">tstc.edu.cn</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- 虚拟静态源：资源由 AssetLoader 拦截返回，不需要也禁止明文 -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">app.local</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+</network-security-config>

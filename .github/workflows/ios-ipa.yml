@@ -1,0 +1,100 @@
+# 在 GitHub 的 macOS runner 上编译 iOS 包。
+#
+# 为什么需要它：打 .ipa 必须有 Apple 的 iOS SDK，而 SDK 只能装在 macOS 上。
+# 手边没有 Mac 时，这是唯一「全自动拿到 .ipa 文件」的途径 ——
+# 推到 GitHub 后点一下 Run workflow，几分钟后从 Actions 页面下载产物。
+#
+# 产物是**未签名** ipa：先下载，再用 Sideloadly / AltStore 以你自己的 Apple ID 重签安装。
+# 若要出可直接分发的签名包，见文件末尾注释掉的 signed 任务（需要配置 Secrets）。
+
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: '要编译的分支或 tag（留空 = 当前分支）'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  unsigned-ipa:
+    name: 编译未签名 ipa
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: 环境信息
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          node --version
+
+      - name: 同步 H5 资源（web/ 是唯一真源）
+        run: bash ios/scripts/sync-web.sh
+
+      - name: 校验工程结构
+        run: node ios/scripts/verify-project.mjs
+
+      - name: 桥协议一致性测试
+        run: node ios/scripts/test-bridge.mjs
+
+      - name: 渲染冒烟（失败不阻塞出包）
+        continue-on-error: true
+        run: node ios/scripts/test-shell-smoke.mjs
+
+      - name: 编译并打包 ipa
+        run: bash ios/scripts/build-ipa.sh --output "$RUNNER_TEMP/out"
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZhangShangTangShi-unsigned-ipa
+          path: ${{ runner.temp }}/out/*.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 可选：出「已签名」的 ipa（需要 Apple 开发者账号）
+#
+# 先在仓库 Settings → Secrets and variables → Actions 里加三个 secret：
+#   APPLE_TEAM_ID          10 位团队 ID
+#   BUILD_CERTIFICATE_P12  开发者证书 .p12 的 base64（base64 -i cert.p12 | pbcopy）
+#   CERTIFICATE_PASSWORD   证书密码
+#   PROVISIONING_PROFILE   mobileprovision 的 base64（可选，自动签名可省）
+#
+# 然后把下面这段取消注释。注意 development / ad-hoc 包只能装在
+# 证书里已登记 UDID 的设备上；要给别人装得走 TestFlight 或企业证书。
+#
+#   signed-ipa:
+#     name: 编译签名 ipa
+#     runs-on: macos-14
+#     steps:
+#       - uses: actions/checkout@v4
+#       - name: 导入证书
+#         env:
+#           P12: ${{ secrets.BUILD_CERTIFICATE_P12 }}
+#           PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+#         run: |
+#           echo "$P12" | base64 -d > /tmp/cert.p12
+#           security create-keychain -p actions build.keychain
+#           security default-keychain -s build.keychain
+#           security unlock-keychain -p actions build.keychain
+#           security import /tmp/cert.p12 -k build.keychain -P "$PASSWORD" -T /usr/bin/codesign
+#           security set-key-partition-list -S apple-tool:,apple: -s -k actions build.keychain
+#       - name: 同步资源并编译
+#         run: |
+#           bash ios/scripts/sync-web.sh
+#           bash ios/scripts/build-ipa.sh --team "${{ secrets.APPLE_TEAM_ID }}" --method development
+#       - uses: actions/upload-artifact@v4
+#         with:
+#           name: ZhangShangTangShi-signed-ipa
+#           path: ios/build/export/*.ipa

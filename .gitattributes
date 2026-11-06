@@ -1,0 +1,35 @@
+# 换行符锁定。
+#
+# 这一条不是洁癖：ios/scripts/*.sh 会在 macOS runner 上直接执行，
+# 一旦仓库里的 blob 带 CR（Windows 的 core.autocrlf=true 很容易造成），
+# macOS 上的 bash 会报 `bad interpreter: /usr/bin/env bash^M`，整个 CI 直接挂。
+# 所以这里对所有文本文件强制 LF，二进制文件显式排除。
+* text=auto eol=lf
+
+*.sh      text eol=lf
+*.mjs     text eol=lf
+*.js      text eol=lf
+*.json    text eol=lf
+*.swift   text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.md      text eol=lf
+*.txt     text eol=lf
+*.py      text eol=lf
+*.css     text eol=lf
+*.html    text eol=lf
+*.xml     text eol=lf
+*.plist   text eol=lf
+*.pbxproj text eol=lf
+*.xcscheme text eol=lf
+*.gradle  text eol=lf
+*.java    text eol=lf
+*.pro     text eol=lf
+
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.webp    binary
+*.ico     binary
+*.ipa     binary
+*.zip     binary

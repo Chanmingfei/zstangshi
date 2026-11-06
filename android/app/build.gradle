@@ -1,0 +1,51 @@
+// app/build.gradle —— 应用模块
+//
+// 零第三方依赖：dependencies {} 必须保持为空。
+// minSdk 26 / targetSdk 34 / compileSdk 34 由本文件统一声明（AGP 会忽略 manifest 里的 uses-sdk）。
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.tstc.zstangshi'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.tstc.zstangshi'
+        minSdk 26
+        targetSdk 34
+        versionCode 5
+        versionName '1.2.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        // 关掉 BuildConfig：MainActivity 不引用 BuildConfig.DEBUG，WebView 调试直接用常量
+        buildConfig false
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    // 空：Activity / WebView / CookieManager / KeyStore / HttpsURLConnection 全在 Framework 内
+}
+
+// ★ R9：web/ 是唯一真源。每次构建前把整个 web/ 复制进 assets/www，杜绝双端资源漂移。
+tasks.register('syncWebAssets', Copy) {
+    from rootProject.file('../web')
+    into "$projectDir/src/main/assets/www"
+}
+
+// 挂在 preBuild 上：assembleDebug / assembleRelease / 直接 Run 都会先同步。
+// preBuild 由 AGP 在应用插件时即创建，可以按名字直接挂依赖（AGP 8.5 实测可用）。
+preBuild.dependsOn 'syncWebAssets'

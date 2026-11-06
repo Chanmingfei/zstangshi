@@ -1,0 +1,398 @@
+/* ============================================================================
+ * pages.css —— 页面级样式（L1 分层：只放具体页面的排版，不放组件）
+ *   1. p-login    登录页
+ *   2. p-home     首页（倒计时 / 今日课程 / 宫格 / 学工入口）
+ *
+ * 状态页（p-error / p-placeholder）在 pagesState.css。
+ *
+ * 规矩：颜色只用 var(--…)；本文件不出现任何色值字面量（check-rules 守卫①）。
+ * 可点元素一律 ≥44×44（PRD §8.3），靠 min-height + 上下 padding 补足，视觉尺寸可以更小。
+ * ========================================================================== */
+
+/* ═══ 1. 登录页 p-login ══════════════════════════════════════════════════ */
+
+.p-login {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--space-16);
+  max-width: 400px;
+  margin: 0 auto;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding-top: var(--space-24);
+  padding-bottom: var(--space-24);
+}
+
+.p-login__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+/* 校徽横幅（校徽 + 校名一体，web/assets/school-badge.png，562×177，底透明） */
+.p-login__logo {
+  display: block;
+  width: 200px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.p-login__name {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+}
+
+.p-login__slogan {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+/* 校园网提示弹窗（登录页连接类失败时） */
+.p-login__wifi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: 0 0 var(--space-8);
+}
+
+.p-login__wifi-title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  color: var(--text-primary);
+}
+
+.p-login__wifi-text {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+}
+
+.p-login__wifi-btn {
+  width: 100%;
+}
+
+.p-login__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--card-padding);
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+}
+
+/* 抖动：失败时给 3 次 ±6px 的水平位移。系统「减弱动态效果」时由 base.css
+   把 animation-duration 压到 1ms，等价于瞬切，此时靠内联错误文案 + Toast 传达失败。 */
+.p-login__card.is-shaking {
+  animation: p-login-shake 420ms var(--ease-standard) 1;
+}
+
+@keyframes p-login-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  20% {
+    transform: translate3d(-6px, 0, 0);
+  }
+  40% {
+    transform: translate3d(6px, 0, 0);
+  }
+  60% {
+    transform: translate3d(-4px, 0, 0);
+  }
+  80% {
+    transform: translate3d(4px, 0, 0);
+  }
+}
+
+.p-login__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.p-login__label {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+.p-login__input {
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.p-login__input:focus {
+  border-color: var(--brand-primary);
+  background-color: var(--bg-surface);
+}
+
+.p-login__pwd {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.p-login__input--pwd {
+  padding-right: 52px;
+}
+
+.p-login__eye {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  border-radius: var(--r-full);
+  color: var(--text-secondary);
+}
+
+.p-login__remember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--hit-min);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+.p-login__checkbox {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background-color: var(--bg-surface);
+}
+
+.p-login__checkbox:checked {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary);
+}
+
+.p-login__error {
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--r-sm);
+  background-color: var(--danger-soft);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+.p-login__submit {
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+.p-login__demo {
+  align-self: center;
+}
+
+.p-login__privacy {
+  padding: 0 var(--space-8);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ═══ 2. 首页 p-home ═════════════════════════════════════════════════════ */
+
+.p-home {
+  /* 下拉容器本身就是页面根，内边距给到这里，body 才能整块跟随手指位移 */
+  padding: var(--page-gutter) var(--page-gutter) var(--space-32);
+}
+
+.p-home__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+}
+
+/* —— 倒计时：一行紧凑条（重要性撑不起两块大卡，压在宫格下方）—— */
+.p-home__counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-4) var(--space-8);
+  padding: var(--space-12) var(--card-padding);
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+.p-home__count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  white-space: nowrap;
+}
+
+.p-home__count-label {
+  color: var(--text-secondary);
+}
+
+.p-home__count-num {
+  font-size: var(--fs-h2);
+  line-height: 1;
+  font-weight: var(--fw-display);
+  /* 暖金做文字只有这一档对比度够（--brand-accent 在白底 2.41，不可用于文字） */
+  color: var(--brand-accent-text);
+}
+
+.p-home__count-unit {
+  color: var(--text-secondary);
+}
+
+.p-home__count-sep {
+  color: var(--text-tertiary);
+}
+
+/* —— 今日课程 —— */
+.p-home__courses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.p-home__hint {
+  margin-top: var(--space-12);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+/* —— 快捷宫格：4 列，7 个入口排成 4 + 3 —— */
+.p-home__grid-title {
+  margin: var(--space-8) 0 calc(var(--card-gap) * -1);
+}
+
+.p-home__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-8);
+}
+
+.p-home__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-height: 78px;
+  padding: var(--space-8) var(--space-4);
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  transition: transform var(--dur-press) var(--ease-standard),
+    background-color var(--dur-press) var(--ease-standard);
+}
+
+.p-home__cell:active {
+  transform: scale(0.96);
+  background-color: var(--brand-primary-soft);
+}
+
+.p-home__cell-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--brand-primary);
+}
+
+.p-home__cell-label {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+/* —— 学工入口（外部网页，语义上不属于宫格） —— */
+.p-home__affairs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-12) var(--card-padding);
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  text-align: left;
+}
+
+.p-home__affairs:active {
+  background-color: var(--brand-primary-soft);
+}
+
+.p-home__affairs-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background-color: var(--info-soft);
+  color: var(--info);
+}
+
+.p-home__affairs-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.p-home__affairs-title {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.p-home__affairs-desc {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+.p-home__affairs-arrow {
+  flex: 0 0 auto;
+  display: flex;
+  color: var(--text-tertiary);
+}
+

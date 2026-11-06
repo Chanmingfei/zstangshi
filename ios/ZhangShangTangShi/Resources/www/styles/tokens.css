@@ -1,0 +1,336 @@
+/* ============================================================================
+ * tokens.css —— 设计 token 的唯一来源
+ *
+ * 规矩：
+ *   1. 全项目只有本文件允许出现 #hex / rgb() / hsl() 字面量。
+ *      其它 CSS 一律写 var(--token)，由 tools/check-rules.mjs 守卫①强制执行。
+ *   2. --dur-* 档位对齐 Fluid Interfaces：按压 100ms / sheet 300ms / 转场 400ms。
+ *   3. android/app/src/main/res/values/colors.xml 与本文件同值，改动需两处同步。
+ *
+ * Apple HIG 映射（2026-11 视觉重设计）：
+ *   - 主色 = systemBlue 家族：浅色 #0062CC（iOS 蓝 hue、按 WCAG AA 加深，#007AFF
+ *     直上白底只有 4.02 过不了守卫⑤）、深色 #3395FF（#0A84FF 在暗卡上 4.49 差临门一脚）。
+ *   - 语义色 = iOS accessible 档：红 #D70015/#FF453A、绿 #21803A/#30D158、橙 #E08600/#FF9F0A。
+ *   - 灰阶 = systemGray 1-6（--system-gray-1..-6），分隔线取 gray4/gray2。
+ *   - 字阶沿用项目原尺度（28/22/18/15/13/11），Apple 映射只保留层级语义与字重规则
+ *     （「强调优先加字重」）；title3 17/22、subhead 14/19 为新增档，按原尺度内插。
+ *   - 毛玻璃只给控件层（appBar / tabBar），配方见 --mat-chrome / --blur-chrome。
+ *
+ * 取值来源：docs/PRD.md §8.1 ~ §8.4 + apple-ui-design skill 速查表
+ * ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* —— 品牌色（systemBlue 家族 + 唐师暖金点缀）—— */
+  --brand-primary: #0062CC;
+  --brand-primary-deep: #004C9E;
+  --brand-primary-soft: #E8F1FC;
+  /* 浅主色底（--brand-primary-soft）上的主色文字。语义固定：chip 选中态 / 浅底主色文字。 */
+  --brand-primary-on-soft: #0062CC;
+  --brand-on-primary: #FFFFFF;
+  --brand-accent: #C8A24A;
+  --brand-accent-soft: #F7F0DF;
+  /* 暖金做【文字】时必须用这个（白底 5.91 / 页面底 5.46）；图形、进度条、深底文字仍用 --brand-accent */
+  --brand-accent-text: #7F5F1B;
+  /* 暖金浅底上的前景色（演示提示条） */
+  --brand-on-accent: #3D2F0B;
+
+  /* —— 背景（iOS systemGroupedBackground 体系）—— */
+  --bg-page: #F2F2F7;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-sunken: #E5E5EA;
+  --bg-mask: rgba(0, 0, 0, 0.4);
+
+  /* —— 文本（iOS label 四档，次级按 AA 加深）—— */
+  --text-primary: #1C1C1E;
+  --text-secondary: #5B5F66;
+  --text-tertiary: #737379;
+  --text-inverse: #FFFFFF;
+
+  /* —— 灰阶（iOS systemGray 1-6）—— */
+  --system-gray: #8E8E93;
+  --system-gray-2: #AEAEB2;
+  --system-gray-3: #C7C7CC;
+  --system-gray-4: #D1D1D6;
+  --system-gray-5: #E5E5EA;
+  --system-gray-6: #F2F2F7;
+
+  /* —— 描边（分隔线取 gray4，强调线取 gray2）—— */
+  --border-subtle: #D1D1D6;
+  --border-strong: #AEAEB2;
+
+  /* —— 语义色（iOS accessible 档：浅色加深保 AA，深色用原档）—— */
+  --success: #21803A;
+  --success-soft: rgba(33, 128, 58, 0.12);
+  --warning: #E08600;
+  --warning-soft: rgba(224, 134, 0, 0.12);
+  --danger: #D70015;
+  --danger-soft: rgba(215, 0, 21, 0.12);
+  --info: #2F6FB5;
+  --info-soft: rgba(47, 111, 181, 0.12);
+
+  /* —— 课程类型（12% 透明填充 + 3px 左侧实色条）
+     实色用于左边条，-soft 用于填充，-text 用于深底可读文本。
+     必修跟主色（systemBlue），选修 info 蓝，公共绿，实践暖金 —— 四类一眼可分。 */
+  --course-required: #0062CC;
+  --course-required-soft: rgba(0, 98, 204, 0.12);
+  --course-elective: #2F6FB5;
+  --course-elective-soft: rgba(47, 111, 181, 0.12);
+  --course-public: #21803A;
+  --course-public-soft: rgba(33, 128, 58, 0.12);
+  --course-practice: #C8A24A;
+  --course-practice-soft: rgba(200, 162, 74, 0.14);
+
+  /* —— 字阶（390px 基准；2026-11-06 用户反馈 Dynamic Type 档偏大，按原尺度回落。
+     Apple 映射仅保留层级语义：display≈Title1 / h1≈Title2 / h2≈Title3+，
+     title3 / subhead 为本轮新增 token，按原尺度内插（17/22、14/19）—— */
+  --fs-display: 28px;
+  --lh-display: 34px;
+  --fw-display: 700;
+
+  --fs-h1: 22px;
+  --lh-h1: 28px;
+  --fw-h1: 600;
+
+  --fs-h2: 18px;
+  --lh-h2: 24px;
+  --fw-h2: 600;
+
+  --fs-title3: 17px;
+  --lh-title3: 22px;
+  --fw-title3: 600;
+
+  --fs-body: 15px;
+  --lh-body: 22px;
+  --fw-body: 400;
+
+  --fs-body-strong: 15px;
+  --lh-body-strong: 22px;
+  --fw-body-strong: 600;
+
+  --fs-subhead: 14px;
+  --lh-subhead: 19px;
+  --fw-subhead: 400;
+
+  --fs-caption: 13px;
+  --lh-caption: 18px;
+  --fw-caption: 400;
+  /* 顶栏两段文本用 caption 字号 + 600 字重，防止长文本换行 */
+  --fw-caption-strong: 600;
+
+  --fs-micro: 11px;
+  --lh-micro: 15px;
+  --fw-micro: 500;
+
+  /* —— 字重别名 —— */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* —— 字体族：只用系统栈（零外链，SF/苹方/鸿蒙按平台就近回落）—— */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei',
+    'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+  --font-number: 'SF Pro Display', -apple-system, 'PingFang SC', 'Helvetica Neue', Arial,
+    sans-serif;
+
+  /* —— 间距（8pt 网格 + 4px 半档；页面边距对齐 HIG 的 20px）—— */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  /* 语义间距 */
+  --page-gutter: var(--space-20);
+  --card-padding: var(--space-16);
+  --card-gap: var(--space-12);
+  --section-gap: var(--space-24);
+
+  /* —— 圆角 —— */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-full: 999px;
+
+  /* —— 阴影：克制，最多 2 层（iOS 化后卡片主要靠底色分层，阴影更轻）—— */
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --e2: 0 4px 16px rgba(0, 0, 0, 0.08);
+
+  /* —— 控件层毛玻璃（Liquid Glass 配方，只给 appBar / tabBar 等导航层）——
+     内容层一律实色，不叠 blur；prefers-reduced-transparency 时退化为实色。 */
+  --mat-chrome: rgba(255, 255, 255, 0.72);
+  --mat-chrome-edge: rgba(255, 255, 255, 0.4);
+  --blur-chrome: blur(20px) saturate(180%);
+
+  /* —— 缓动 —— */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  /* 按压反馈：100ms ease-out（Fluid Interfaces「按下即反馈」） */
+  --ease-press: cubic-bezier(0, 0, 0.2, 1);
+  --ease-linear: linear;
+
+  /* —— 时长档位（Fluid Interfaces：默认弹簧 ≈ 400ms 临界阻尼；sheet 300ms）—— */
+  --dur-press: 100ms;
+  --dur-pull: 200ms;
+  --dur-page: 400ms;
+  --dur-enter: 300ms;
+  --dur-skeleton: 1200ms;
+  /* 交错入场：每个元素 +40ms，最多 8 个之后不再叠加延迟 */
+  --stagger-step: 40ms;
+  --stagger-max: 8;
+
+  /* —— 安全区（刘海 / 底部手势条）—— */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+
+  /* —— 布局度量 —— */
+  --appbar-h: 64px;
+  --appbar-h-compact: 56px;
+  --notice-h: 36px;
+  --tabbar-h: 56px;
+  --hit-min: 44px;
+
+  /* —— 层级 —— */
+  --z-appbar: 30;
+  --z-tabbar: 40;
+  --z-mask: 50;
+  --z-sheet: 60;
+  --z-toast: 70;
+}
+
+/* ============================================================================
+ * 深色主题：由 index.html 的内联脚本在首帧前写入 html[data-theme]
+ * 注意：只切 [data-theme]，组件里不得再出现 @media 深色判断。
+ * ========================================================================== */
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* 主色：iOS systemBlue 深色档提亮到 AA（#0A84FF 在暗卡上 4.49，#3395FF 5.36） */
+  --brand-primary: #3395FF;
+  --brand-primary-deep: #5AA9FF;
+  --brand-primary-soft: #14294A;
+  --brand-primary-on-soft: #6FA8FF;
+  --brand-on-primary: #0B1220;
+  --brand-accent: #D9B96B;
+  --brand-accent-soft: #2A2418;
+  --brand-accent-text: #D9B96B;
+  --brand-on-accent: #ECD9A6;
+
+  /* 背景保留品牌海军蓝基调（深色品牌识别），灰阶与语义色切 iOS 深色档 */
+  --bg-page: #0F1520;
+  --bg-surface: #17202E;
+  --bg-elevated: #1D2838;
+  --bg-sunken: #0B111A;
+  --bg-mask: rgba(0, 0, 0, 0.55);
+
+  --text-primary: #F2F2F7;
+  --text-secondary: #A8B2C0;
+  --text-tertiary: #98989F;
+  --text-inverse: #0F1520;
+
+  --system-gray: #8D8D93;
+  --system-gray-2: #636366;
+  --system-gray-3: #48484A;
+  --system-gray-4: #3A3A3C;
+  --system-gray-5: #2C2C2E;
+  --system-gray-6: #1C1C1E;
+
+  --border-subtle: #26313F;
+  --border-strong: #354354;
+
+  --success: #30D158;
+  --success-soft: rgba(48, 209, 88, 0.16);
+  --warning: #FF9F0A;
+  --warning-soft: rgba(255, 159, 10, 0.16);
+  --danger: #FF453A;
+  --danger-soft: rgba(255, 69, 58, 0.16);
+  --info: #409CFF;
+  --info-soft: rgba(64, 156, 255, 0.16);
+
+  --course-required: #3395FF;
+  --course-required-soft: rgba(51, 149, 255, 0.16);
+  --course-elective: #409CFF;
+  --course-elective-soft: rgba(64, 156, 255, 0.16);
+  --course-public: #30D158;
+  --course-public-soft: rgba(48, 209, 88, 0.16);
+  --course-practice: #D9B96B;
+  --course-practice-soft: rgba(217, 185, 107, 0.16);
+
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --e2: 0 4px 16px rgba(0, 0, 0, 0.45);
+
+  --mat-chrome: rgba(30, 30, 32, 0.72);
+  --mat-chrome-edge: rgba(255, 255, 255, 0.14);
+}
+
+/* 无脚本 / 脚本异常时的降级：跟随系统偏好。
+   内联脚本正常执行时总会显式写入 data-theme，此时本段与上面的规则取值一致，不会打架。 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --brand-primary: #3395FF;
+    --brand-primary-deep: #5AA9FF;
+    --brand-primary-soft: #14294A;
+    --brand-primary-on-soft: #6FA8FF;
+    --brand-on-primary: #0B1220;
+    --brand-accent: #D9B96B;
+    --brand-accent-soft: #2A2418;
+    --brand-accent-text: #D9B96B;
+    --brand-on-accent: #ECD9A6;
+
+    --bg-page: #0F1520;
+    --bg-surface: #17202E;
+    --bg-elevated: #1D2838;
+    --bg-sunken: #0B111A;
+    --bg-mask: rgba(0, 0, 0, 0.55);
+
+    --text-primary: #F2F2F7;
+    --text-secondary: #A8B2C0;
+    --text-tertiary: #98989F;
+    --text-inverse: #0F1520;
+
+    --system-gray: #8D8D93;
+    --system-gray-2: #636366;
+    --system-gray-3: #48484A;
+    --system-gray-4: #3A3A3C;
+    --system-gray-5: #2C2C2E;
+    --system-gray-6: #1C1C1E;
+
+    --border-subtle: #26313F;
+    --border-strong: #354354;
+
+    --success: #30D158;
+    --success-soft: rgba(48, 209, 88, 0.16);
+    --warning: #FF9F0A;
+    --warning-soft: rgba(255, 159, 10, 0.16);
+    --danger: #FF453A;
+    --danger-soft: rgba(255, 69, 58, 0.16);
+    --info: #409CFF;
+    --info-soft: rgba(64, 156, 255, 0.16);
+
+    --course-required: #3395FF;
+    --course-required-soft: rgba(51, 149, 255, 0.16);
+    --course-elective: #409CFF;
+    --course-elective-soft: rgba(64, 156, 255, 0.16);
+    --course-public: #30D158;
+    --course-public-soft: rgba(48, 209, 88, 0.16);
+    --course-practice: #D9B96B;
+    --course-practice-soft: rgba(217, 185, 107, 0.16);
+
+    --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --e2: 0 4px 16px rgba(0, 0, 0, 0.45);
+
+    --mat-chrome: rgba(30, 30, 32, 0.72);
+    --mat-chrome-edge: rgba(255, 255, 255, 0.14);
+  }
+}

@@ -1,0 +1,6 @@
+# 复制本文件为 android/local.properties，把 sdk.dir 改成本机 Android SDK 的绝对路径。
+# Windows 路径里的冒号与反斜杠需要转义；Android Studio 打开工程时也会自动帮你写这个文件。
+# 示例（Windows）：
+sdk.dir=C\:\\Users\\<你的用户名>\\AppData\\Local\\Android\\Sdk
+# 示例（macOS / Linux）：
+# sdk.dir=/Users/<你的用户名>/Library/Android/sdk

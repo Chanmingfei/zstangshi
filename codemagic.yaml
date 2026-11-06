@@ -1,0 +1,39 @@
+# codemagic.yaml —— 备用出包链路。
+#
+# 为什么存在：GitHub Actions 的免费额度虽然够用，但账号一旦处于
+# 「billing lock」（例如未绑定付款方式 / 有欠费），连 ubuntu-latest 都会被拒绝启动，
+# 报 `The job was not started because your account is locked due to a billing issue`。
+# 此时不必先解决付款问题——Codemagic 的免费档（500 分钟/月 macOS）不需要绑定信用卡，
+# 用 GitHub 账号登录即可，跑完在构建页直接下载 ipa 产物。
+#
+# 它跑的是与 GitHub Actions 完全相同的脚本，产物也同为「未签名 ipa」，
+# 后续同样用 Sideloadly 以你的 Apple ID 重签安装。
+#
+# 用法：codemagic.io → 用 GitHub 登录 → Add application → 选本仓库 →
+#       Codemagic 会自动识别本文件 → Start new build → 选 ios-unsigned → 下载 Artifacts 里的 ipa。
+
+workflows:
+  ios-unsigned:
+    name: iOS 未签名 ipa
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+
+    environment:
+      xcode: latest
+      node: lts
+
+    scripts:
+      - name: 同步 H5 资源（web/ 是唯一真源）
+        script: bash ios/scripts/sync-web.sh
+
+      - name: 校验工程结构与桥协议
+        script: |
+          set -e
+          node ios/scripts/verify-project.mjs
+          node ios/scripts/test-bridge.mjs
+
+      - name: 编译并打包 ipa
+        script: bash ios/scripts/build-ipa.sh --output "$CM_BUILD_DIR/out"
+
+    artifacts:
+      - out/*.ipa

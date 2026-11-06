@@ -20,6 +20,13 @@
 2. 等 5–10 分钟，进入该次运行，页面底部 **Artifacts** 下载 `ZhangShangTangShi-unsigned-ipa`
 3. 解压得到 `ZhangShangTangShi-1.2.0-unsigned.ipa`
 
+> **如果 Actions 起不来**，报 `The job was not started because your account is locked due to a billing issue`：
+> 这是 GitHub 账号的计费锁（连免费的 ubuntu runner 都会被拒），与本仓库无关。
+> 两种解法：
+> - 去 [github.com/settings/billing](https://github.com/settings/billing) 处理付款信息（公开仓库的 macOS 分钟数本身是免费的，只是需要有有效的付款方式）
+> - 或者完全绕开 GitHub Actions：用 [codemagic.io](https://codemagic.io)（GitHub 登录，免费档 500 分钟/月 macOS，不需信用卡）导入本仓库，它会自动识别根目录的 `codemagic.yaml`，点 Start new build 即可，产物同样在构建页下载
+
+
 ## 装到 iPhone 上
 
 下载的 ipa 是**未签名**的，iOS 不允许安装未签名可执行文件，需要用你自己的 Apple ID 重签一次。Windows 上做这件事：

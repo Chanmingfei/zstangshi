@@ -23,7 +23,9 @@ on:
 jobs:
   unsigned-ipa:
     name: 编译未签名 ipa
-    runs-on: macos-14
+    # 注意：本账号下 macos-14 会报 "The configuration 'macos-14-arm64-us-default' is not supported"，
+    # 用 macos-15。它会给出 Xcode 16 与 iOS 18 SDK，本工程 objectVersion 56 可直接打开。
+    runs-on: macos-15
     timeout-minutes: 30
 
     steps:
@@ -76,7 +78,7 @@ jobs:
 #
 #   signed-ipa:
 #     name: 编译签名 ipa
-#     runs-on: macos-14
+#     runs-on: macos-15
 #     steps:
 #       - uses: actions/checkout@v4
 #       - name: 导入证书

@@ -1,6 +1,8 @@
 # 掌上唐师
 
-唐山师范学院教务系统移动端。同一套 H5 业务代码，两个原生壳：Android（原始工程）与 iOS（本仓库新增）。
+唐山师范学院教务系统移动端。同一套 H5 业务代码，两个原生壳：Android（WebView）与 iOS（WKWebView）。
+
+当前版本 **v1.5.2**（`versionCode 11`）：成绩分项明细、文字成绩、应用内返回栈、校外 http 协议自适应、冷启动加载页。
 
 ```
 .
@@ -11,6 +13,36 @@
 ├── tools/         解析器测试与规则守卫脚本
 └── .github/       GitHub Actions：在 macOS runner 上编译 ios
 ```
+
+> `web/` 是唯一真源，改功能只改这里。
+> `ios/ZhangShangTangShi/Resources/www/` 是它的同步副本（用 `ios/scripts/sync-web.sh` 刷新）；
+> `android/app/src/main/assets/www/` 是构建产物，不入库，由 `android/build-manual.sh` 第 0 步自动生成。
+
+## 快速开始
+
+浏览器里直接调试 H5（演示数据，不需要教务账号）：
+
+```bash
+node server.js                 # 默认 http://127.0.0.1:5173，可用 PORT=8080 改端口
+```
+
+跑完全部规则守卫与单测：
+
+```bash
+node tools/test-week.mjs && node tools/test-gpa.mjs && \
+node tools/test-jwxt-parse.mjs && node tools/test-pages.mjs && \
+node tools/check-rules.mjs
+```
+
+## 构建 Android 安装包
+
+```bash
+bash android/build-manual.sh
+```
+
+脚本会自动同步 `web/` → `assets/www/`，再用本机的 aapt2 / javac / d8 / apksigner 产出
+`android/build/app-debug.apk`（首次运行会在同目录生成 `debug.keystore`，后续沿用同一签名，
+因此可以直接覆盖安装）。环境变量与 Windows 下的 SDK 路径见 [`android/README.md`](android/README.md)。
 
 ## 拿到 iOS 安装包（不需要 Mac）
 

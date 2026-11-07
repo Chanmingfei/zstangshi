@@ -18,8 +18,12 @@
 
 import { httpRequest, detectEnv } from '../core/transport.js';
 import { ok, fail, makeError } from './provider.js';
+import {
+  ORIGIN_HTTPS, getActiveOrigin, resolveOrigin, probeOrigin, forgetOrigin,
+} from './jwxtOrigin.js';
 
-export const ORIGIN = 'https://jwxt.tstc.edu.cn';
+/** 默认 origin（校内 https）。真实地址由 jwxtOrigin 探测：校外 443 不通时自动退 http */
+export const ORIGIN = ORIGIN_HTTPS;
 export const SOURCE = 'remote';
 const DEFAULT_PROXY = '/jwxt';
 
@@ -136,33 +140,30 @@ export function missingEndpoints() {
   return Object.keys(config.endpoints).filter((key) => !config.endpoints[key]);
 }
 
-/** 拼最终 URL：Web 走同源代理，Android 直达教务 */
+/** 拼最终 URL：Web 走同源代理，Android 直达教务（协议由 jwxtOrigin 现场决定） */
 function urlOf(path) {
   if (config.proxyBase) return `${config.proxyBase.replace(/\/$/, '')}${path}`;
   if (typeof window !== 'undefined' && detectEnv() === 'web') return `${DEFAULT_PROXY}${path}`;
-  return `${ORIGIN}${path}`;
+  return `${getActiveOrigin()}${path}`;
 }
 
 function transportFail(result) {
   const code = result && result.error ? result.error.code : 'NETWORK';
   return fail(makeError(code === 'TIMEOUT' ? 'TIMEOUT' : 'NETWORK', {
-    message: code === 'TIMEOUT' ? '教务系统响应超时，请稍后再试' : '连不上教务系统，请检查校园网后重试',
+    message: code === 'TIMEOUT'
+      ? '教务系统响应超时，请稍后再试'
+      : '连不上教务系统，请检查手机网络后重试',
     detail: result && result.error ? result.error.detail || result.error.message : '',
   }), { source: SOURCE });
 }
 
 /**
- * 发一次教务请求。
- * @param {string|null} path null = 端点未实测，直接给可诊断的 NOT_IMPLEMENTED
- * @param {{method?: string, body?: string|object, headers?: object, timeout?: number}} [options]
+ * 发一次请求（不含协议自适应）。
+ * @param {string} path
+ * @param {{method?: string, body?: string|object, headers?: object, timeout?: number}} options
  * @returns {Promise<{ok: true, text: string, status: number}|{ok: false, error: object, meta: object}>}
  */
-export async function request(path, options = {}) {
-  if (!path) return fail(makeError('NOT_IMPLEMENTED', {
-    message: '该教务模块的地址尚未实测，暂用演示数据',
-    detail: '拿到 gnmkdm 后调用 configureRemote({ endpoints }) 补齐',
-  }), { source: SOURCE });
-
+async function send(path, options = {}) {
   const body = options.body && typeof options.body === 'object'
     ? new URLSearchParams(options.body).toString()
     : options.body || null;
@@ -176,7 +177,7 @@ export async function request(path, options = {}) {
       ...(options.headers || {}),
     },
     body,
-    timeout: options.timeout || 15000,
+    timeout: options.timeout || 20000,
   });
   if (!res.ok) return transportFail(res);
   const status = Number(res.data && res.data.status) || 200;
@@ -186,6 +187,43 @@ export async function request(path, options = {}) {
     }), { source: SOURCE });
   }
   return { ok: true, text: String((res.data && res.data.body) || ''), status };
+}
+
+/**
+ * 发一次教务请求。
+ *
+ * 2026-11-07：地址不再写死 https。移动数据下 jwxt 的 443 端口直接 connect timeout、
+ * 80 正常，而校园网两者都通 —— 所以先用 jwxtOrigin 选一个能连的协议；若本次请求
+ * 网络层失败（可能刚换了网络环境），忘掉缓存重探一次再重试，避免「浏览器能开、
+ * App 登录失败」。
+ *
+ * @param {string|null} path null = 端点未实测，直接给可诊断的 NOT_IMPLEMENTED
+ * @param {{method?: string, body?: string|object, headers?: object, timeout?: number}} [options]
+ * @returns {Promise<{ok: true, text: string, status: number}|{ok: false, error: object, meta: object}>}
+ */
+export async function request(path, options = {}) {
+  if (!path) return fail(makeError('NOT_IMPLEMENTED', {
+    message: '该教务模块的地址尚未实测，暂用演示数据',
+    detail: '拿到 gnmkdm 后调用 configureRemote({ endpoints }) 补齐',
+  }), { source: SOURCE });
+
+  const viaNative = !config.proxyBase && typeof window !== 'undefined' && detectEnv() === 'android';
+  if (viaNative) await resolveOrigin();
+
+  const first = await send(path, options);
+  if (first.ok || !viaNative) return first;
+
+  // 只有网络层失败才值得换协议：AUTH / PARSE / HTTP 状态码换协议也没用
+  const code = first.error && first.error.code;
+  if (code !== 'NETWORK' && code !== 'TIMEOUT') return first;
+  // 已经在 http 上超时，说明是「服务端慢」而不是「协议不通」，再换也救不回来（只会多等 20s）
+  const wasHttps = getActiveOrigin() === ORIGIN_HTTPS;
+  if (code === 'TIMEOUT' && !wasHttps) return first;
+  forgetOrigin();
+  const switched = await probeOrigin();
+  if (!switched) return first;
+  const second = await send(path, options);
+  return second.ok ? second : first;
 }
 
 /** 从登录页 HTML 抠 csrftoken（两段 uuid 都要，§1.1） */
@@ -291,7 +329,7 @@ export async function loginOnce(studentNo, password) {
   const verify = await request(config.endpoints.menuList, { method: 'GET' });
   if (!verify.ok) {
     return fail(makeError(verify.error && verify.error.code === 'TIMEOUT' ? 'TIMEOUT' : 'NETWORK', {
-      message: '登录后核对会话失败，请检查校园网后重试',
+      message: '登录后核对会话失败，请检查手机网络后重试',
       detail: verify.error && (verify.error.detail || verify.error.message),
     }), { source: SOURCE });
   }

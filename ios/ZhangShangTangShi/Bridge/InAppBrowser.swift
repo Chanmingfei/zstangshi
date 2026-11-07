@@ -20,6 +20,9 @@ final class InAppBrowserViewController: UIViewController {
     private let progressBar = UIProgressView(progressViewStyle: .bar)
     private var progressObservation: NSKeyValueObservation?
 
+    /// 协议兜底只换一次，防止两边都失败时来回跳（对应 WebActivity.AppWebViewClient.swapped）
+    private var swappedScheme = false
+
     init(url: URL) {
         self.initialURL = url
 
@@ -131,6 +134,61 @@ extension InAppBrowserViewController: WKNavigationDelegate {
         if let pageTitle = webView.title, !pageTitle.isEmpty {
             title = pageTitle
         }
+        // 本次导航已成功 → 重置兜底开关。Android 侧是整个 Activity 生命周期只兜一次，
+        // 这里按「每次导航」兜一次更合理：用户换了网络后重新点开的链接仍能被救。
+        swappedScheme = false
+    }
+
+    /// 主框架加载失败 → 换一次 http/https 重试（对应 Android WebActivity.onReceivedError）
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!,
+                 withError error: Error) {
+        retryWithSwappedScheme(error: error)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        retryWithSwappedScheme(error: error)
+    }
+
+    // MARK: - 协议兜底
+
+    /**
+     * 教务对外只开 80 / 443，可达性随网络环境变：校园网 443 通，移动数据下 443 的 SYN
+     * 直接被丢弃、80 正常（2026-11-07 实测）。H5 的 jwxtOrigin 会探测并选协议，但
+     * 「探测那一刻」与「用户真正点开那一刻」可能已不在同一个网络，所以这里再兜一次，
+     * 避免「浏览器能开、应用内一片空白」。
+     */
+    private func retryWithSwappedScheme(error: Error) {
+        guard !swappedScheme else { return }
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else { return }
+
+        // 只对「连不上」类错误换协议：用户取消、证书问题、策略拦截换过去也一样失败
+        let retryable = [
+            NSURLErrorCannotConnectToHost,
+            NSURLErrorTimedOut,
+            NSURLErrorNetworkConnectionLost,
+            NSURLErrorCannotFindHost,
+            NSURLErrorNotConnectedToInternet,
+            NSURLErrorSecureConnectionFailed,
+        ]
+        guard retryable.contains(nsError.code) else { return }
+
+        let failing = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? webView.url
+        guard let source = failing,
+              var components = URLComponents(url: source, resolvingAgainstBaseURL: false) else {
+            return
+        }
+
+        switch components.scheme?.lowercased() {
+        case "https": components.scheme = "http"
+        case "http": components.scheme = "https"
+        default: return
+        }
+        guard let target = components.url,
+              target.absoluteString != source.absoluteString else { return }
+
+        swappedScheme = true
+        webView.load(URLRequest(url: target))
     }
 
     /// 站内导航全部留在应用内；tel / mailto 交给系统

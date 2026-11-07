@@ -73,8 +73,8 @@ echo "==> [2/5] aapt2 link (+生成 R.java, 内联 assets/www)"
   -A "$APP/assets" \
   --min-sdk-version 26 \
   --target-sdk-version 34 \
-  --version-code 9 \
-  --version-name 1.5.0 \
+  --version-code 11 \
+  --version-name 1.5.2 \
   "$OUT/res.flata"
 
 # ── 3. javac 编译 R.java + 5 个 Java 源文件 ──

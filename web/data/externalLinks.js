@@ -8,8 +8,17 @@
  * 注意：两处都不能写成 src / href —— 那会被浏览器当成资源加载（守卫② 会直接拦下）。
  */
 
+import { getActiveOrigin } from './jwxtOrigin.js';
+
 /** 学工系统（学校站点只提供 http 明文；Android 侧由 network_security_config 对 tstc.edu.cn 放行） */
 export const XUEGONG_URL = 'http://sws.tstc.edu.cn/XGTSTC/Phone/#/login';
 
-/** 教务系统（正方教务原站点，首页「更多功能」入口） */
-export const JWXT_URL = 'https://jwxt.tstc.edu.cn/';
+/**
+ * 教务系统（正方教务原站点，首页「更多功能」入口）。
+ * 协议不能写死：校园网 https 可用，移动数据下 443 不通、只有 http —— 由 jwxtOrigin 探测，
+ * 这里只读探测结果。未探测时回落到 https，原生 WebView 加载失败还会换协议重试。
+ * @returns {string}
+ */
+export function jwxtUrl() {
+  return `${getActiveOrigin()}/`;
+}

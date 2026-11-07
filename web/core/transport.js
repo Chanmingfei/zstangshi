@@ -16,8 +16,12 @@
  * 本文件不 import 任何模块 —— 保持零依赖，方便将来单独抽出去复用。
  */
 
-/** 默认超时 15s（PRD F-16 要求 15s 内出现兜底页） */
-export const DEFAULT_TIMEOUT = 15000;
+/**
+ * 默认超时 20s。原为 15s（PRD F-16），但 2026-11-07 实测校外移动数据下教务单次
+ * 请求（含登录页）要 15-16 s：15 s 恰好卡在边界上，会把「慢」误判成「不通」。
+ * 20 s 留出余量，仍远小于用户失去耐心的阈值。
+ */
+export const DEFAULT_TIMEOUT = 20000;
 
 /** 错误码（与 data/types.js 的 ErrorCode 一致） */
 export const ERR = Object.freeze({

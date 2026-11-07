@@ -38,6 +38,7 @@ const EXTERNAL_ALLOW = new Set([
   'web/data/remoteProvider.js', // 教务接口地址常量
   'web/data/jwxtClient.js', // 教务 origin / 端点表（拆分后 URL 常量搬到这里）
   'web/data/externalLinks.js', // 外链入口地址唯一来源（学工 / 教务），页面一律引用不写死
+  'web/data/jwxtOrigin.js', // 教务 origin 候选（https / http），按网络环境探测择一
   'web/pages/mine.js', // 关于页：教务处 / 校历来源链接
   'web/data/school-calendar.json', // 校历来源元数据（与 docs/ 严格同源）
 ]);

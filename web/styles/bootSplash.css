@@ -1,0 +1,133 @@
+/* bootSplash.css —— 冷启动加载页
+ *
+ * 为什么要有它：boot() 会先做一次会话探测（resumeSession 要真发一个请求），
+ * 校外网络单次请求可能要十几秒，这段时间 #app-main 是空的 —— 用户看到的就是白屏。
+ * 这段静态 HTML 直接写在 index.html 里（不依赖 JS 执行），所以**首帧就有内容**，
+ * boot 结束后由 app.js 淡出并移除。
+ *
+ * 视觉沿用登录页品牌区：同一张校徽、同一套字号字距，冷启动到登录页不会「跳一下」。
+ * 加载图标用三颗呼吸圆点：比转圈更轻，也不会和校徽抢注意力。
+ * 颜色全部走 token，亮/暗自动适配；prefers-reduced-motion 下退化为静态，不做无谓动画。
+ */
+
+#boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--space-24) + env(safe-area-inset-top)) var(--space-24)
+    calc(var(--space-24) + env(safe-area-inset-bottom));
+  background: var(--bg-page);
+  opacity: 1;
+  transition: opacity 260ms ease-out;
+}
+
+/* boot 完成：先淡出，再由 JS 移除节点（保留一点余韵，避免硬切） */
+#boot-splash.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bs__logo {
+  width: 200px;
+  max-width: 62vw;
+  height: auto;
+  animation: bs-breathe 2.6s ease-in-out infinite;
+}
+
+.bs__name {
+  margin: var(--space-16) 0 0;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.bs__slogan {
+  margin: var(--space-8) 0 0;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption, 1.4);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* 三颗呼吸圆点：错开 160ms，读起来像「正在过来」而不是「卡住了」 */
+.bs__dots {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: var(--space-32);
+  height: 6px;
+}
+
+.bs__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  opacity: 0.24;
+  animation: bs-dot 1.2s ease-in-out infinite;
+}
+
+.bs__dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.bs__dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+/* 屏幕阅读器可读，但不占视觉空间 */
+.bs__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes bs-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.86;
+    transform: scale(0.995);
+  }
+}
+
+@keyframes bs-dot {
+  0%,
+  100% {
+    opacity: 0.24;
+    transform: scale(0.86);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 减少动态：不呼吸、不跳动，圆点保持中间亮度，靠文案表达「加载中」 */
+@media (prefers-reduced-motion: reduce) {
+  #boot-splash {
+    transition: none;
+  }
+
+  .bs__logo,
+  .bs__dot {
+    animation: none;
+  }
+
+  .bs__dot {
+    opacity: 0.55;
+  }
+}

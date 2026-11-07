@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -35,11 +36,33 @@ public class WebActivity extends Activity {
     private WebView webView;
     private TextView titleView;
 
-    /** 站内导航全部留在应用内，不跳系统浏览器（具名类规避 R8 匿名类 NPE） */
+    /**
+     * 站内导航全部留在应用内，不跳系统浏览器（具名类规避 R8 匿名类 NPE）。
+     *
+     * 另外补一条协议兜底：教务站点对外只开 80 / 443，但两者可达性随网络环境变 ——
+     * 校园网 443 正常，移动数据下 443 直接连不上、80 正常（2026-11-07 实测）。
+     * 主框架加载失败时把 http/https 换一次重试，避免「浏览器能开、应用内一片空白」。
+     */
     private static class AppWebViewClient extends WebViewClient {
+        /** 只换一次，防止两边都失败时来回跳 */
+        private boolean swapped = false;
+
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             return false;
+        }
+
+        @Override
+        public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+            if (swapped || request == null || !request.isForMainFrame()) return;
+            String url = request.getUrl() == null ? "" : request.getUrl().toString();
+            String alt = null;
+            if (url.startsWith("https://")) alt = "http://" + url.substring("https://".length());
+            else if (url.startsWith("http://")) alt = "https://" + url.substring("http://".length());
+            if (alt == null || alt.isEmpty()) return;
+            swapped = true;
+            Log.d("zsts-cookie", "WebView 主框架加载失败，换协议重试：" + alt);
+            view.loadUrl(alt);
         }
     }
 

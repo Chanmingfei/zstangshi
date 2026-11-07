@@ -27,7 +27,7 @@ import {
   getSemesters,
   isoOfDayNumber,
 } from '../data/calendar.js';
-import { JWXT_URL, XUEGONG_URL } from '../data/externalLinks.js';
+import { jwxtUrl, XUEGONG_URL } from '../data/externalLinks.js';
 
 /** 快捷入口（顺序即渲染顺序）。`path` 是 hash 路由。
  * 「教学执行计划查看」按用户口径已整条下线，这里是剩下的 6 个。 */
@@ -214,7 +214,7 @@ export default {
           {
             className: 'p-home__cell',
             type: 'button',
-            dataset: { action: `open-external:${JWXT_URL}` },
+            dataset: { action: `open-external:${jwxtUrl()}` },
             'aria-label': '更多功能',
           },
           [

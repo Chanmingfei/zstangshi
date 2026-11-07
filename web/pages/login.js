@@ -211,8 +211,9 @@ export default {
     };
 
     /**
-     * 校园网提示弹窗：教务系统基本只在联通校园网内可达。确定 → 系统 Wi-Fi 设置。
-     * 只在连接类失败时出现；账号密码错误（AUTH）不会打扰用户。
+     * 网络提示弹窗：只在连接类失败时出现；账号密码错误（AUTH）不会打扰用户。
+     * 2026-11-07 起教务地址不再写死 https —— 校内走 https，校外自动退 http（443 不通），
+     * 所以文案不能再写「必须连校园网」，否则会误导已经能用的移动数据用户。
      */
     function showNetDialog() {
       const bridge = window.NativeBridge;
@@ -227,7 +228,7 @@ export default {
         h('p', { className: 'p-login__wifi-title', text: '连不上教务系统？' }),
         h('p', {
           className: 'p-login__wifi-text',
-          text: '教务系统可能需要在校园网环境下使用。请先连接学校校园网（联通），再返回重试。',
+          text: '校园网与移动数据都支持：校内走加密连接，校外会自动换成普通连接。两种都不通时，请检查手机网络，或先连接学校校园网（联通）再重试。',
         }),
         goWifi,
       ]));

@@ -30,8 +30,16 @@ enum HTTPClient {
         case transport(code: String, detail: String)
     }
 
-    /// 与 transport.js 的 DEFAULT_TIMEOUT = 15000 对齐
-    static let timeout: TimeInterval = 15
+    /**
+     * 与 transport.js 的 DEFAULT_TIMEOUT = 20000 对齐（Android 侧 CookieJar.TIMEOUT_MS 同值）。
+     *
+     * 这个数**必须 ≥ H5 侧的超时**，否则会把本该成功的慢请求掐死：
+     * transport.js:178 自己也挂了 setTimeout 兜超时（到点先 resolve TIMEOUT），
+     * 原生这层只是后备。2026-11-07 实测校外移动数据下教务单次请求要 15–16 s，
+     * 原先写 15 s 正好卡在边界上 —— H5 给了 20 s 预算，原生却先在第 15 秒失败，
+     * 结果就是「浏览器能开、App 登录失败」。两者必须同步，改一个就改另一个。
+     */
+    static let timeout: TimeInterval = 20
     private static let maxHops = 5
 
     /// 关掉 URLSession 的自动重定向与自动 Cookie —— 这两件事都必须由我们手工接管

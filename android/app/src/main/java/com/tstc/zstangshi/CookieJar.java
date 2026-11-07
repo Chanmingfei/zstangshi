@@ -40,8 +40,8 @@ import java.util.Map;
 public final class CookieJar {
 
     private static final String TAG = "zsts-cookie";
-    /** 与 transport.js DEFAULT_TIMEOUT = 15000 对齐 */
-    static final int TIMEOUT_MS = 15000;
+    /** 与 transport.js DEFAULT_TIMEOUT = 20000 对齐（校外移动数据实测单次请求 15-16 s） */
+    static final int TIMEOUT_MS = 20000;
     private static final int MAX_HOPS = 5;
     private static volatile boolean installed = false;
 

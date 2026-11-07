@@ -69,12 +69,21 @@ window.webkit.messageHandlers.zsts = {
   postMessage: function (payload) {
     window.__MOCK_MESSAGES.push(payload);
     if (payload && payload.op === 'http') {
-      // 模拟原生异步回调：给一条正常的空响应，验证 __nativeHttpCallback 链路
+      // 模拟原生异步回调。默认给一条正常响应；测试可用 __MOCK_HTTP_PLAN 按 URL 改结果，
+      // 用来验证「协议自适应」这类依赖网络成败的路径。
       var reqId = payload.reqId;
+      var plan = typeof window.__MOCK_HTTP_PLAN === 'function' ? window.__MOCK_HTTP_PLAN : null;
+      var decision = plan ? plan(payload.url) : null;
       setTimeout(function () {
-        var body = '{"ok":true}';
+        if (decision && decision.error) {
+          var errJson = JSON.stringify({ reqId: reqId, error: decision.error });
+          if (window.__nativeHttpCallback) window.__nativeHttpCallback(errJson);
+          return;
+        }
+        var status = (decision && decision.status) || 200;
+        var body = (decision && decision.body) || '{"ok":true}';
         var payloadJson = JSON.stringify({
-          reqId: reqId, status: 200, headers: { 'content-type': 'application/json' },
+          reqId: reqId, status: status, headers: { 'content-type': 'application/json' },
           body: body, url: payload.url, finalUrl: payload.url,
         });
         if (window.__nativeHttpCallback) window.__nativeHttpCallback(payloadJson);
@@ -312,6 +321,22 @@ try {
     return JSON.parse(result.result.value);
   };
 
+  /*
+   * 冷启动加载页（v1.5.2 新增 #boot-splash）必须自己收起。
+   * 这张遮罩是无条件盖在最上层的，一旦没被移除，用户就永远停在品牌页上 —— 比白屏更糟，
+   * 因为它看起来像「已经加载好了但没反应」。等过 MIN_SPLASH_MS(420) + 淡出动画(280) 再断言。
+   */
+  await new Promise((ok) => setTimeout(ok, 900));
+  const splashState = await call(socket, 'Runtime.evaluate', {
+    expression: `JSON.stringify({
+      exists: document.getElementById('boot-splash') !== null,
+      bar: !!document.getElementById('app-bar'),
+    })`,
+    returnByValue: true,
+  });
+  const splash = JSON.parse(splashState.result.value);
+  check('冷启动加载页已自动移除', splash.exists === false, String(splash.exists));
+
   await shoot('smoke-login.png');
 
   /* ── 主界面：走真实的演示模式 + 路由，逐个 Tab 触发懒加载 ────────────── */
@@ -340,6 +365,47 @@ try {
     check(`${route} 底栏就绪`, state.tabbar > 0, `tabbar 子节点 ${state.tabbar}`);
     await shoot(file);
   }
+
+  /* ── 协议自适应（v1.5.2 的核心改动）：https 不通时是否真的退到 http ────── */
+  console.log('\n[协议自适应]');
+
+  const runAdapt = async (httpsReachable) => {
+    const result = await call(socket, 'Runtime.evaluate', {
+      expression: `(async () => {
+        window.__MOCK_HTTP_PLAN = (url) => (
+          url.indexOf('https://') === 0
+            ? ${httpsReachable
+              ? `{ status: 200, body: 'probe' }`
+              : `{ error: 'NETWORK|mock: 443 不可达' }`}
+            : { status: 200, body: 'probe' }
+        );
+        const origin = await import('./data/jwxtOrigin.js');
+        const links = await import('./data/externalLinks.js');
+        origin.forgetOrigin();
+        const probed = await origin.resolveOrigin();
+        return JSON.stringify({
+          probed,
+          active: origin.getActiveOrigin(),
+          jwxtUrl: links.jwxtUrl(),
+          insecure: origin.isInsecureOrigin(),
+        });
+      })()`,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    return JSON.parse(result.result.value);
+  };
+
+  const fallback = await runAdapt(false);
+  check('https 不通时退到 http', fallback.probed === 'http://jwxt.tstc.edu.cn', fallback.probed);
+  check('getActiveOrigin 同步跟随（http）', fallback.active === 'http://jwxt.tstc.edu.cn', fallback.active);
+  check('「更多功能」外链用 http 协议', fallback.jwxtUrl === 'http://jwxt.tstc.edu.cn/', fallback.jwxtUrl);
+  check('isInsecureOrigin 正确报告降级', fallback.insecure === true, String(fallback.insecure));
+
+  const normal = await runAdapt(true);
+  check('https 通时保持 https', normal.probed === 'https://jwxt.tstc.edu.cn', normal.probed);
+  check('「更多功能」外链用 https 协议', normal.jwxtUrl === 'https://jwxt.tstc.edu.cn/', normal.jwxtUrl);
+  check('未降级时 isInsecureOrigin 为 false', normal.insecure === false, String(normal.insecure));
 
   check('整个过程无新增未捕获异常', consoleErrors.length === 0,
     consoleErrors.slice(0, 3).join(' | '));

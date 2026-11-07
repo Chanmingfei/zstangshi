@@ -33,6 +33,9 @@
   <link rel="stylesheet" href="./styles/pages.css" />
   <!-- 登录页补充区块（「仅登录学工系统」卡片）：pages.css 已到 400 行上限，按规则拆出 -->
   <link rel="stylesheet" href="./styles/pagesLogin.css" />
+  <!-- 冷启动加载页：必须随首帧就绪，所以写成静态 HTML（不依赖 JS 执行）。
+       boot() 里要发一次会话探测请求，校外网络可能要十几秒，这段时间不能是白屏。 -->
+  <link rel="stylesheet" href="./styles/bootSplash.css" />
   <!-- 状态页样式（p-error / p-placeholder），拆出来守 400 行上限 -->
   <link rel="stylesheet" href="./styles/pagesState.css" />
   <!-- 我的课表（p-tt），拆出来守 400 行上限 -->
@@ -74,6 +77,19 @@
   </script>
 </head>
 <body>
+  <!-- 冷启动加载页（品牌 + 三颗呼吸圆点）。boot 完成后由 app.js 淡出移除；
+       与登录页品牌区同源：同一张校徽、同一套字号，切换过去不会跳一下。 -->
+  <div id="boot-splash" role="status" aria-live="polite" aria-label="正在加载掌上唐师">
+    <img class="bs__logo" src="./assets/school-badge.png" alt="" aria-hidden="true" />
+    <h1 class="bs__name">掌上唐师</h1>
+    <p class="bs__slogan">唐山师范学院 · 教务数据随身看</p>
+    <div class="bs__dots" aria-hidden="true">
+      <span class="bs__dot"></span>
+      <span class="bs__dot"></span>
+      <span class="bs__dot"></span>
+    </div>
+    <span class="bs__sr">正在检查登录状态，请稍候</span>
+  </div>
   <!-- 应用外壳：顶栏（吸顶）+ 可滚动主区 + 底部 Tab -->
   <div id="app">
     <div id="app-bar" role="banner"></div>

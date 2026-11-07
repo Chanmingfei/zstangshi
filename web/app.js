@@ -229,6 +229,35 @@ async function bootTerm() {
   }
 }
 
+/** 加载页最短展示时长：没有会话可恢复时 boot 只要几十毫秒，
+ *  若立刻淡出会变成「闪一下」的白光，比直接看到登录页更难受。 */
+const MIN_SPLASH_MS = 420;
+/** 模块开始执行的时刻（≈ 首帧后不久），用于计算加载页已显示了多久 */
+const bootStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+/**
+ * 收起冷启动加载页（index.html 里的 #boot-splash）。
+ * 先淡出再移除：直接删节点会从「品牌页」硬切到「登录页」，观感像闪了一下。
+ * 减少动态 / 找不到节点时立即移除，保证任何情况下都不会残留遮罩。
+ * @returns {void}
+ */
+function dismissSplash() {
+  const splash = document.getElementById('boot-splash');
+  if (!splash) return;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const wait = Math.max(0, MIN_SPLASH_MS - (now - bootStartedAt));
+  const hide = () => {
+    if (prefersReducedMotion()) {
+      splash.remove();
+      return;
+    }
+    splash.classList.add('is-done');
+    setTimeout(() => splash.remove(), 280);
+  };
+  if (wait > 0) setTimeout(hide, wait);
+  else hide();
+}
+
 /**
  * 启动流程。
  * @returns {Promise<void>}
@@ -294,6 +323,12 @@ async function boot() {
   console.log('[zsts] booted', store.getState().term.context);
 }
 
-boot();
+// 加载页必须无条件收起：boot 抛错时交给 ErrorBoundary（router 的 onError）兜底，
+// 而不是把用户永远留在品牌页上。
+boot()
+  .catch((err) => {
+    console.error('[zsts] boot failed', err);
+  })
+  .finally(dismissSplash);
 
 export { store, actions, router, provider, TAB_ITEMS };

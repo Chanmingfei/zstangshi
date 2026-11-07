@@ -14,6 +14,8 @@
  * 绝不从「1-16周(单)」这种文案反推——教务的周次是任意集合，不是范围 + 单双周。
  */
 
+import { weeksFromRow } from './jwxtWeekParse.js';
+
 /** 12 节作息（不分冬夏），来自用户提供的《最新作息时间表》 */
 export const PERIOD_TIMES = Object.freeze([
   { section: 1, startTime: '08:00', endTime: '08:45' },
@@ -36,48 +38,6 @@ export const TYPE_MAP = Object.freeze([
   [/公共|通识/, 'public'], [/实践|实验|实习|训练/, 'practice'],
 ]);
 
-/**
- * 解析周次文案。支持教务常见的几种写法：
- *   '1-16周' / '1-9周(单)' / '2-8周(双)' / '1-9周,11-19周' / '第1-16周'
- * 返回升序去重数组；解析不出返回空数组（**不猜**，页面就不渲染这门课）。
- *
- * @param {string} raw
- * @returns {number[]}
- */
-export function parseWeeks(raw) {
-  const src = String(raw || '')
-    // 先把 (单)/(双) 收成紧贴「周」后的单字，别让括号把标记与范围拆到两段去
-    .replace(/[（(]\s*([单双全])\s*[)）]/g, '$1')
-    .replace(/[(){}（）|第]/g, '')
-    .replace(/到/g, '-');
-  if (!src.trim()) return [];
-  const out = new Set();
-  /** 匹配 '1-9周单' / '2-8周双' / '11-19周' / '3周'，奇偶标记属于它前面那段范围 */
-  const re = /(\d+)\s*(?:-\s*(\d+))?\s*周\s*([单双])?/g;
-  let match;
-  let matched = false;
-  while ((match = re.exec(src)) !== null) {
-    matched = true;
-    const lo = Math.max(1, Math.min(Number(match[1]), Number(match[2] || match[1])));
-    const hi = Math.min(30, Math.max(Number(match[1]), Number(match[2] || match[1])));
-    const parity = match[3] === '单' ? 'odd' : match[3] === '双' ? 'even' : 'all';
-    for (let w = lo; w <= hi; w += 1) {
-      if (parity === 'odd' && w % 2 === 0) continue;
-      if (parity === 'even' && w % 2 !== 0) continue;
-      out.add(w);
-    }
-  }
-  // 少数页面只给 '1-16' 不带「周」字：按全周兜底，别整门课消失
-  if (!matched) {
-    const bare = /^(\d+)\s*-\s*(\d+)$/.exec(src.trim());
-    if (bare) {
-      const lo = Math.max(1, Number(bare[1]));
-      const hi = Math.min(30, Number(bare[2]));
-      for (let w = lo; w <= hi; w += 1) out.add(w);
-    }
-  }
-  return [...out].sort((a, b) => a - b);
-}
 
 /**
  * 解析节次文案 '1-2节,5-6节' → [1,2,5,6]，夹到 1..12。
@@ -130,7 +90,8 @@ export function kbRowToCourse(row, semesterId, options = {}) {
 
   const name = pick('kcmc', 'kcmcmc', 'courseName');
   if (!name) return null;
-  const weeks = parseWeeks(pick('zcd', 'zcmc', 'weeks'));
+  // 精确周次优先（zcds / oldzc），中文文案 zcd 只作兜底 —— 单双周不能靠猜
+  const weeks = weeksFromRow(row);
   const sections = parseSections(pick('jc', 'jcs', 'sections'));
   const dayOfWeek = Number(pick('xqj', 'day')) || 0;
   if (weeks.length === 0 || sections.length === 0 || dayOfWeek < 1 || dayOfWeek > 7) return null;
@@ -140,6 +101,10 @@ export function kbRowToCourse(row, semesterId, options = {}) {
   const nature = pick('kcxzmc', 'kcxz', 'nature');
   const typeMatch = TYPE_MAP.find(([re]) => re.test(nature));
   const derived = deriveWeekFields(weeks);
+  // 推荐课表打印页的「板块课」占位行：pkbj = -1、地点「未排地点」、0 学分、
+  // 课程号就是课程名（如「大学体育2025(板块)」）。它表示这个时间段有板块，
+  // 具体模块由学生自选，不是一门排定的课；拿它和真实课比时间会凭空造出冲突。
+  const isPlaceholder = pick('pkbj') === '-1';
 
   return {
     id: pick('jxbmc', 'kch_id', 'id') || `${semesterId}-${pick('kch', 'code') || name}`,
@@ -162,7 +127,38 @@ export function kbRowToCourse(row, semesterId, options = {}) {
     startTime: first ? first.startTime : '--:--',
     endTime: last ? last.endTime : '--:--',
     isSelected: Boolean(options.isSelected),
+    isPlaceholder,
   };
+}
+
+/**
+ * 教务有时把同一门课按周次拆成多行（1-8 周一行、9-16 周一行，或单/双周各一行）。
+ * 两行都当成独立课程时，切到交界周以外的任一格都会自己跟自己「时间冲突」。
+ * 只有「同一教学班 + 同一天 + 同一节次 + 同一教师地点 + 周次完全不重叠」才合并，
+ * 有交集的重复行保持原样（那是真冲突，不能擅自吞掉）。
+ *
+ * @param {object[]} courses
+ * @returns {object[]}
+ */
+export function mergeSplitRows(courses) {
+  /** @type {string[]} */
+  const keys = [];
+  /** @type {object[]} */
+  const out = [];
+  for (const course of courses) {
+    const key = [course.id, course.dayOfWeek, (course.sections || []).join(','),
+      course.teacher, course.location].join('|');
+    const at = keys.findIndex((k, i) => k === key
+      && !out[i].weeks.some((w) => course.weeks.includes(w)));
+    if (at >= 0) {
+      const weeks = [...new Set([...out[at].weeks, ...course.weeks])].sort((a, b) => a - b);
+      out[at] = { ...out[at], weeks, ...deriveWeekFields(weeks) };
+      continue;
+    }
+    keys.push(key);
+    out.push(course);
+  }
+  return out;
 }
 
 /**
@@ -178,7 +174,7 @@ export function parseKbList(payload, semesterId, options = {}) {
     rows = payload.kbList || payload.items || payload.rows || payload.data || [];
   }
   if (!Array.isArray(rows)) return [];
-  return rows.map((row) => kbRowToCourse(row, semesterId, options)).filter(Boolean);
+  return mergeSplitRows(rows.map((row) => kbRowToCourse(row, semesterId, options)).filter(Boolean));
 }
 
 /**
@@ -308,3 +304,6 @@ export function normalizeTerm(code, termName) {
 export {
   gradeRowToGrade, parseGradeList, parseGradeComponents, mergeGradeComponents,
 } from './jwxtGradeParse.js';
+
+/* ── 周次解析：实现已拆到 jwxtWeekParse.js，这里做转发 ─────────────────── */
+export { parseWeeks, parseWeekList, parseWeekMask, weeksFromRow } from './jwxtWeekParse.js';

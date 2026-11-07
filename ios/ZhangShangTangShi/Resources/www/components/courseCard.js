@@ -60,6 +60,7 @@ function sectionText(sections) {
  *   dim?: boolean,       // 非本周课程半透明（当前无使用者，见 CSS 注释）
  *   compact?: boolean,
  *   showTime?: boolean,  // false = 网格卡，不渲染节次时间
+ *   parity?: string,     // 'odd' / 'even'：写进读屏标签；网格上的可见角标由容器画
  *   action?: string
  * }} [options]
  * @returns {HTMLElement}
@@ -68,6 +69,7 @@ export function courseCard(course, options = {}) {
   const type = COURSE_TYPE_LABEL[course && course.courseType] ? course.courseType : 'required';
   const name = (course && course.name) || '未命名课程';
   const showTime = options.showTime !== false;
+  const parityText = options.parity === 'odd' ? '单周' : options.parity === 'even' ? '双周' : '';
   const timeText =
     course && course.startTime && course.startTime !== '--:--'
       ? `${course.startTime}-${course.endTime || ''}`.replace(/-$/, '')
@@ -85,6 +87,7 @@ export function courseCard(course, options = {}) {
   const ariaParts = [
     name,
     COURSE_TYPE_LABEL[type],
+    parityText,
     options.conflict ? '与另一门课时间冲突' : '',
     sections,
     metaLine,

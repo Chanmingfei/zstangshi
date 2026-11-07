@@ -18,12 +18,13 @@ import { h } from '../core/dom.js';
 import { courseCard, COURSE_TYPE_LABEL } from '../components/courseCard.js';
 import { kvList } from '../components/card.js';
 import { WEEKDAY_LABELS } from '../data/calendar.js';
-import { PERIOD_TIMES, TOTAL_SECTIONS, SEGMENT_STARTS, periodInfo, weeksText } from './timetableUtils.js';
+import { PERIOD_TIMES, TOTAL_SECTIONS, SEGMENT_STARTS, periodInfo, weeksText, coursesInCell } from './timetableUtils.js';
 
 /**
  * 一格多课时，挑哪一门画在格子里。
  *
  * 规则（按优先级）：
+ *   ⓪ 板块占位行（isPlaceholder）排在真实课后面 —— 它只是「这个时段有板块」的提示；
  *   ① 用户手动点过「显示这门课」的那门 → 用用户的选择；
  *   ② 周次覆盖最多的那门 —— 冲突里通常一门是贯穿整个模块的主线课（1-9 周），
  *      一门是插空 / 双周的短课，画主线课更符合「这门课一直在上」的直觉；
@@ -42,7 +43,8 @@ export function pickPrimary(list, shownId) {
     .slice()
     .sort((a, b) => {
       const weeksOf = (course) => (Array.isArray(course.weeks) ? course.weeks.length : 0);
-      return weeksOf(b) - weeksOf(a) || String(a.id).localeCompare(String(b.id));
+      const pseudo = (course) => (course.isPlaceholder ? 1 : 0);
+      return pseudo(a) - pseudo(b) || weeksOf(b) - weeksOf(a) || String(a.id).localeCompare(String(b.id));
     })[0];
 }
 
@@ -133,24 +135,29 @@ export function buildGrid(courses, view) {
     const primary = pickPrimary(cell.list, shown[cell.key]);
     const start = Math.min(...primary.sections);
     const span = Math.max(...primary.sections) - start + 1;
-    const conflict = cell.list.length > 1;
+    // 只有「本周都在这格、节次重叠」才是真冲突；周次互补的单/双周课另标轮换
+    const { relation } = coursesInCell(courses, cell.day, cell.start, weekNo);
+    const conflict = relation === 'conflict';
 
     const card = courseCard(
       // 教师不上网格卡：36px 宽的列放不下，而且学生扫课表找的是「在哪上」（理由见 courseCard.js）
       { ...primary, teacher: '' },
-      { showTime: false, conflict }
+      { showTime: false, conflict, parity: primary.weekParity }
     );
     card.classList.add('p-tt__card');
     cards.push(card);
 
+    const parityMark = primary.weekParity === 'odd' ? '单' : primary.weekParity === 'even' ? '双' : '';
     const holder = h('div', {
-      className: `p-tt__gridcard${conflict ? ' is-conflict' : ''}`,
+      className: `p-tt__gridcard${conflict ? ' is-conflict' : ''}${relation === 'alternating' ? ' is-alternating' : ''}${parityMark ? ' is-parity' : ''}`,
       dataset: {
         day: String(cell.day),
         start: String(start),
         span: String(span),
         courseId: String(primary.id),
         conflictCount: String(cell.list.length),
+        relation,
+        parity: parityMark,
       },
       style: { gridRow: `${start + 1} / span ${span}`, gridColumn: String(cell.day + 1) },
     }, [
@@ -199,7 +206,7 @@ export function markNow(grid, section, todayIndex) {
  */
 export function detailNodes(course) {
   const info = periodInfo(course.sections);
-  return [
+  const nodes = [
     h('p', {
       className: 'p-tt__detail-meta',
       text: [
@@ -220,6 +227,21 @@ export function detailNodes(course) {
       ['教学班', course.classNo || '—', { mono: true }],
     ]),
   ];
+  // 单双周轮换的「另一半」：本周不上，但要说清楚它什么时候上，别让人以为课丢了
+  if (course.offWeek) {
+    nodes.unshift(h('p', {
+      className: 'p-tt__offweek',
+      text: `本周无课 · ${weeksText(course.weeks)} 上课`,
+    }));
+  }
+  // 板块课占位行：教务只说「这个时段有板块」，没排具体地点，不能当成撞课
+  if (course.isPlaceholder) {
+    nodes.unshift(h('p', {
+      className: 'p-tt__notice',
+      text: '板块课占位 · 地点未排，具体上课模块以自选结果为准',
+    }));
+  }
+  return nodes;
 }
 
 /**

@@ -54,7 +54,16 @@ mkdir -p "$APP/assets/www"
 cp -r "$ROOT/web/." "$APP/assets/www/"
 rm -rf "$APP/assets/www/dev"   # dev/ 调试脚手架，应用从不引用，剔除以缩减体积
 
-# ── 0. 临时 manifest：注入 package 属性（原件保持 gradle 兼容的 namespace）──
+# ── 0b. 版本号单一真源 = app/build.gradle ────────────────────────────────
+# 旧脚本在这里写死 --version-code / --version-name，改 build.gradle 发版时
+# APK 仍是上一版（1.5.3 踩过一次）。现在直接从 gradle 声明里读。
+VERSION_CODE="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*/\1/p' "$ROOT/android/app/build.gradle" | head -1)"
+VERSION_NAME="$(sed -nE "s/^[[:space:]]*versionName[[:space:]]+'([^']+)'.*/\1/p" "$ROOT/android/app/build.gradle" | head -1)"
+: "${VERSION_CODE:?build.gradle 里找不到 versionCode}"
+: "${VERSION_NAME:?build.gradle 里找不到 versionName}"
+echo "==> 版本 $VERSION_NAME ($VERSION_CODE)"
+
+# ── 0c. 临时 manifest：注入 package 属性（原件保持 gradle 兼容的 namespace）──
 MANIFEST_TMP="$OUT/AndroidManifest.xml"
 sed 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.tstc.zstangshi">#' \
   "$MANIFEST" > "$MANIFEST_TMP"
@@ -73,8 +82,8 @@ echo "==> [2/5] aapt2 link (+生成 R.java, 内联 assets/www)"
   -A "$APP/assets" \
   --min-sdk-version 26 \
   --target-sdk-version 34 \
-  --version-code 11 \
-  --version-name 1.5.2 \
+  --version-code "$VERSION_CODE" \
+  --version-name "$VERSION_NAME" \
   "$OUT/res.flata"
 
 # ── 3. javac 编译 R.java + 5 个 Java 源文件 ──

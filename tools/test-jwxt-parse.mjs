@@ -13,12 +13,15 @@
  * 运行：node tools/test-jwxt-parse.mjs
  */
 
+import { readFileSync } from 'node:fs';
 import {
   PERIOD_TIMES, parseWeeks, parseSections, deriveWeekFields,
   kbRowToCourse, parseKbList, htmlToText, parseGpaPage,
   readSelectValue, normalizeTerm, gradeRowToGrade, parseGradeList,
   parseGradeComponents, mergeGradeComponents,
+  parseWeekList, parseWeekMask, weeksFromRow, mergeSplitRows,
 } from '../web/data/jwxtParse.js';
+import { coursesInCell } from '../web/pages/timetableUtils.js';
 import { ENDPOINTS, missingEndpoints } from '../web/data/jwxtClient.js';
 import {
   parseFilterOptions, classRowToItem, buildListBody, buildYlMap, semesterIdOf,
@@ -264,6 +267,91 @@ check('H10 预览 map 平铺三 id + 会话语境字段',
   yl.njdm_id === '2024' && yl.zyh_id === 'Z1' && yl.bh_id === '24231641' && yl.kzlx === 'ck');
 eq('H11 学期码归一 3 → 第 1 学期', semesterIdOf({ xnm: '2026', xqm: '3' }), '2026-1');
 
+/* ── I. 单双周回归（2026-11-07 真机抓的 2024 级电商 1 班 + 落盘样本） ────
+ * 症状：单/双周课程被当成全周课，同一格里两门课同时命中 → 页面显示「时间冲突」。
+ * 根因：只解析 zcd 中文文案；教务其实还给了精确字段 zcds（列表）/ oldzc（位掩码）。
+ */
+const kbRaw = JSON.parse(
+  readFileSync(new URL('../docs/diagnostics/bjkbdy-kb-sample.json', import.meta.url), 'utf8')
+);
+const real = parseKbList(kbRaw, '2026-1');
+const evenCourse = real.find((c) => c.name === '国际贸易实务实训');
+const oddCourse = real.find((c) => c.name === '供应链与物流管理实训' && c.weeks.length === 3);
+eq('I1 双周课 weeks 取 zcds 精确值', evenCourse && evenCourse.weeks, [10, 12, 14, 16]);
+eq('I2 单周课 weeks 取 zcds 精确值', oddCourse && oddCourse.weeks, [11, 13, 15]);
+check('I3 两门课确实同在周三 5-8 节', Boolean(evenCourse && oddCourse
+  && evenCourse.dayOfWeek === 3 && String(evenCourse.sections) === '5,6,7,8'
+  && String(oddCourse.sections) === '5,6,7,8'));
+const cell10 = coursesInCell(real, 3, 5, 10);
+const cell11 = coursesInCell(real, 3, 5, 11);
+check('I4 第 10 周只上双周课，单周课进轮换列表',
+  cell10.active.length === 1 && cell10.relation === 'alternating' && cell10.rotating[0].offWeek === true);
+check('I5 第 11 周换成单周课', cell11.active.length === 1
+  && cell11.active[0].name === '供应链与物流管理实训' && cell11.rotating.length === 1);
+check('I6 周次互补的两门课绝不判「时间冲突」',
+  cell10.relation !== 'conflict' && cell11.relation !== 'conflict');
+const clash = [
+  { id: 'A', dayOfWeek: 3, sections: [5, 6], weeks: [1, 2, 3] },
+  { id: 'B', dayOfWeek: 3, sections: [5, 6], weeks: [1, 2, 3] },
+];
+check('I7 同一周真撞课仍然判冲突', coursesInCell(clash, 3, 5, 2).relation === 'conflict');
+check('I8 单门课 relation=single',
+  coursesInCell([clash[0]], 3, 5, 2).relation === 'single');
+
+eq('I9 前缀「单周1-16周」', parseWeeks('单周1-16周'), [1, 3, 5, 7, 9, 11, 13, 15]);
+eq('I10 前缀「双周2-16周」', parseWeeks('双周2-16周'), [2, 4, 6, 8, 10, 12, 14, 16]);
+eq('I11 裸列表 1,3,5,7', parseWeeks('1,3,5,7'), [1, 3, 5, 7]);
+eq('I12 混合段不被前缀二次过滤', parseWeeks('1-9周(单),2-8周(双)'), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+eq('I13 zcds 精确列表', parseWeekList('10,12,14,16'), [10, 12, 14, 16]);
+eq('I14 zcds 非法值不猜', parseWeekList('讲师'), []);
+eq('I15 oldzc 255 → 1-8 周', parseWeekMask('255'), [1, 2, 3, 4, 5, 6, 7, 8]);
+eq('I16 oldzc 64512 → 11-16 周', parseWeekMask('64512'), [11, 12, 13, 14, 15, 16]);
+eq('I17 oldzc 43520 → 10/12/14/16 周', parseWeekMask('43520'), [10, 12, 14, 16]);
+eq('I18 oldzc 空值', parseWeekMask(''), []);
+eq('I19 weeksFromRow 精确字段优先于文案',
+  weeksFromRow({ zcd: '1-17周', zcds: '10,12,14,16' }), [10, 12, 14, 16]);
+eq('I20 weeksFromRow 无 zcds 时用 oldzc',
+  weeksFromRow({ zcd: '1-8周', oldzc: '255' }), [1, 2, 3, 4, 5, 6, 7, 8]);
+eq('I21 weeksFromRow 纯文案兜底',
+  weeksFromRow({ zcd: '单周1-16周' }), [1, 3, 5, 7, 9, 11, 13, 15]);
+eq('I22 weeksFromRow 字段名大小写不敏感', weeksFromRow({ ZCDS: '1,3,5' }), [1, 3, 5]);
+const apiRow = {
+  kcmc: '国际贸易实务实训', xqj: '3', jc: '5-8节', zcd: '1-17周',
+  zcds: '10,12,14,16', oldzc: '43520', cdmc: '实验室A', xm: '张老师',
+};
+const apiCourse = kbRowToCourse(apiRow, '2026-1');
+eq('I23 kbRowToCourse 取 zcds 而非 zcd', apiCourse.weeks, [10, 12, 14, 16]);
+check('I24 派生字段跟着精确周次走',
+  apiCourse.weekParity === 'even' && String(apiCourse.weekRange) === '10,16');
+const split = [
+  { id: 'X', dayOfWeek: 3, sections: [5, 6], weeks: [1, 2, 3, 4], teacher: 'T', location: 'C305' },
+  { id: 'X', dayOfWeek: 3, sections: [5, 6], weeks: [5, 6, 7, 8], teacher: 'T', location: 'C305' },
+];
+const merged = mergeSplitRows(split);
+check('I25 教务按周次拆的两行合并成一门',
+  merged.length === 1 && merged[0].weeks.length === 8 && merged[0].weekParity === 'all');
+const overlap = [
+  { id: 'Y', dayOfWeek: 3, sections: [5, 6], weeks: [1, 2, 3], teacher: 'T', location: 'C305' },
+  { id: 'Y', dayOfWeek: 3, sections: [5, 6], weeks: [3, 4, 5], teacher: 'T', location: 'C305' },
+];
+check('I26 周次有交集的重复行不吞掉（真冲突保持可见）', mergeSplitRows(overlap).length === 2);
+// 真机抓到的「大学体育2025(板块)」：pkbj=-1 / 未排地点 / 0 学分，与 Java 课同格
+const blockRow = {
+  kcmc: '大学体育2025(板块)', xqj: '1', jc: '6-9节', zcd: '1-17周',
+  zcds: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17',
+  cdmc: '未排地点', pkbj: '-1',
+};
+const javaRow = { ...blockRow, kcmc: 'Java编程开发', jc: '6-7节', cdmc: 'C312', pkbj: '1' };
+check('I27 板块占位行被标记', kbRowToCourse(blockRow, '2026-1').isPlaceholder === true
+  && kbRowToCourse(javaRow, '2026-1').isPlaceholder === false);
+const withBlock = parseKbList({ kbList: [javaRow, blockRow] }, '2026-1');
+check('I28 真实课 + 板块占位行不算时间冲突',
+  coursesInCell(withBlock, 1, 6, 10).relation === 'placeholder');
+check('I29 详情层把真实课排在占位行前面',
+  coursesInCell(withBlock, 1, 6, 10).active[0].name === 'Java编程开发');
+check('I30 两门真实课同周重叠仍然判冲突',
+  coursesInCell([...clash, { ...clash[0], id: 'C' }], 3, 5, 2).relation === 'conflict');
+
 /* ── 结论 ─────────────────────────────────────────────────────────────── */
 if (failures.length) {
   process.stderr.write(`\n  [FAIL] 教务解析器 ${failures.length} 条断言未通过\n\n`);
@@ -271,6 +359,6 @@ if (failures.length) {
   process.stderr.write('\n');
   process.exitCode = 1;
 } else {
-  process.stdout.write(`\n  [PASS] 教务解析器 ${passed + failures.length} 条断言全部通过（周次/节次/kbList/GPA 原文/学期码/成绩映射/端点边界）\n\n`);
+  process.stdout.write(`\n  [PASS] 教务解析器 ${passed + failures.length} 条断言全部通过（周次/单双周/节次/kbList/GPA 原文/学期码/成绩映射/端点边界）\n\n`);
   process.exitCode = 0;
 }

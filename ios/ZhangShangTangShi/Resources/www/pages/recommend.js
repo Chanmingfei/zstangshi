@@ -18,7 +18,7 @@ import { stagger } from '../core/animate.js';
 import { createSheet } from '../components/sheet.js';
 import { emptyState } from '../components/emptyState.js';
 import { skeletonList } from '../components/skeleton.js';
-import { currentSemester, weekDates } from './timetableUtils.js';
+import { currentSemester, weekDates, coursesInCell } from './timetableUtils.js';
 import { buildGrid } from './timetableView.js';
 import { createCourseDetail } from './timetableDetail.js';
 
@@ -310,17 +310,15 @@ export default {
     const onBodyClick = (event) => {
       const holder = event.target.closest('.p-tt__gridcard');
       if (!holder) return;
-      const active = local && local.data ? local.data : store.getState().slots.recommend.data;
-      if (!active) return;
+      const source = local && local.data ? local.data : store.getState().slots.recommend.data;
+      if (!source) return;
       const day = Number(holder.dataset.day);
       const start = Number(holder.dataset.start);
-      const courses = (active.courses || []).filter(
-        (c) => c.dayOfWeek === day && Array.isArray(c.weeks)
-          && c.weeks.includes(weekNo) && Math.min(...c.sections) === start
-      );
+      const { active, rotating, relation } = coursesInCell(source.courses, day, start, weekNo);
+      const courses = active.concat(rotating);
       if (courses.length === 0) return;
       const at = Math.max(0, courses.findIndex((c) => c.id === holder.dataset.courseId));
-      detail.open(courses, at);
+      detail.open(courses, at, relation);
     };
     view.body.addEventListener('click', onBodyClick);
 

@@ -221,6 +221,35 @@
   pointer-events: none;
 }
 
+/* 单/双周课：右下角一个「单」「双」小圆标。
+   网格列在 320px 屏上只有 ~36px 宽，卡片里塞不下任何额外文字，
+   所以角标借用格子的右下角空隙（与冲突三角同一个位置），不占课程名的空间。
+   真正的撞课优先显示上面的橙色三角，故排除 .is-conflict。 */
+.p-tt__gridcard.is-parity:not(.is-conflict)::after {
+  content: attr(data-parity);
+  position: absolute;
+  right: 2px;
+  bottom: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--bg-surface);
+  box-shadow: inset 0 0 0 1px var(--brand-accent);
+  color: var(--brand-accent-text);
+  font-size: var(--fs-micro);
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* 同格还有一门隔周才上的课：圆标换成主色描边，提示「这格点进去能翻到另一门」，
+   但绝不用橙色三角 —— 单双周轮换不是时间冲突。 */
+.p-tt__gridcard.is-alternating.is-parity:not(.is-conflict)::after {
+  box-shadow: inset 0 0 0 2px var(--brand-primary);
+}
+
 .p-tt__card {
   flex: 1 1 auto;
   width: 100%;

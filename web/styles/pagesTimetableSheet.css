@@ -7,6 +7,18 @@
  * 规矩：颜色只用 var(--…)，本文件不出现任何色值字面量（守卫①）。
  * ========================================================================== */
 
+/* 单双周轮换里「本周不上」的那门 / 板块课占位行：先把结论说清楚 */
+.p-tt__offweek,
+.p-tt__notice {
+  margin: 0 0 var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--r-sm);
+  background-color: var(--warning-soft);
+  color: var(--brand-accent-text);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
 .p-tt__detail-meta {
   margin-bottom: var(--space-12);
   font-size: var(--fs-caption);

@@ -73,6 +73,46 @@ export function periodInfo(sections) {
 }
 
 /**
+ * 取「星期 × 起始节次」这一格与当前周有关的全部课程。
+ *
+ * 旧实现只认 `weeks.includes(weekNo)`，于是当教务把单周课、双周课拆成两行、
+ * 又因文案写法变化被解析成全周时，两者会同时命中 → 页面报「时间冲突」，
+ * 用户反而看不到真正该上的那门课。这里把结果分成两类：
+ *   · active    本周确实要上的（网格只画这些，真实课排在板块占位行前面）
+ *   · rotating  同一格、本周没课、且与某门 active 课周次完全互补的「另一半」
+ *               （不占格子，但进详情层，让用户知道隔周还有一门）
+ *
+ * `relation` 里 `placeholder` 表示这格只有「真实课 + 板块占位行」，不是撞课；
+ * 只有两门以上真实课同周重叠才叫 `conflict`。
+ *
+ * @param {object[]} courses 整张课表（不要预先按周过滤）
+ * @param {number} day 1..7
+ * @param {number} start 起始节次
+ * @param {number} weekNo 当前周
+ * @returns {{active: object[], rotating: object[],
+ *            relation: 'single'|'conflict'|'alternating'|'placeholder'}}
+ */
+export function coursesInCell(courses, day, start, weekNo) {
+  const list = (Array.isArray(courses) ? courses : []).filter(
+    (c) => c && c.dayOfWeek === day && Array.isArray(c.sections) && c.sections.length
+      && Math.min(...c.sections) === start
+  );
+  const active = list
+    .filter((c) => Array.isArray(c.weeks) && c.weeks.includes(weekNo))
+    .sort((a, b) => Number(Boolean(a.isPlaceholder)) - Number(Boolean(b.isPlaceholder)));
+  const rotating = list
+    .filter((c) => Array.isArray(c.weeks) && !c.weeks.includes(weekNo)
+      && active.some((a) => !a.isPlaceholder && !a.weeks.some((w) => c.weeks.includes(w))))
+    .map((c) => ({ ...c, offWeek: true }));
+  const realActive = active.filter((c) => !c.isPlaceholder);
+  let relation = 'single';
+  if (realActive.length > 1) relation = 'conflict';
+  else if (active.some((c) => c.isPlaceholder)) relation = 'placeholder';
+  else if (rotating.length) relation = 'alternating';
+  return { active, rotating, relation };
+}
+
+/**
  * 当前时刻落在第几小节（1-12），课间 / 午休返回 0。
  *
  * 判定用「左闭右闭」：08:45 这一分钟算第 1 节还没下课 ——

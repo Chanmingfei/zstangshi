@@ -41,6 +41,8 @@ export function createCourseDetail(options = {}) {
   /** @type {object[]} */
   let list = [];
   let index = 0;
+  /** 同格多课的性质：真撞课 vs 单双周轮换（文案与读屏标签都要区分） */
+  let relation = 'single';
 
   const body = sheet.panel.querySelector('.c-sheet__body');
 
@@ -67,33 +69,43 @@ export function createCourseDetail(options = {}) {
     const nodes = detailNodes(course);
 
     if (list.length > 1) {
+      const alternating = relation === 'alternating';
+      const label = alternating ? '单双周轮换' : relation === 'placeholder' ? '含板块课' : '时间冲突';
       nodes.unshift(
         h('div', { className: 'p-tt__pager' }, [
           h('button', {
             className: 'p-tt__pager-nav',
             type: 'button',
-            'aria-label': '上一门冲突课程',
+            'aria-label': '上一门课',
             html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6 9 12l5.5 6"/></svg>',
             disabled: index === 0,
           }),
-          h('span', { className: 'p-tt__pager-count', text: `${index + 1} / ${list.length} · 时间冲突` }),
+          h('span', { className: 'p-tt__pager-count', text: `${index + 1} / ${list.length} · ${label}` }),
           h('button', {
             className: 'p-tt__pager-nav',
             type: 'button',
-            'aria-label': '下一门冲突课程',
+            'aria-label': '下一门课',
             html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6 15 12l-5.5 6"/></svg>',
             disabled: index === list.length - 1,
           }),
         ])
       );
-      nodes.push(
-        h('p', { className: 'p-tt__pager-hint', text: '这一格有两门课时间重叠，左右滑动可切换查看' }),
-        h('button', {
+      nodes.push(h('p', {
+        className: 'p-tt__pager-hint',
+        text: alternating
+          ? '这一格的课按单双周轮换，左右滑动可切换查看；标「本周无课」的那门本周不用去'
+          : relation === 'placeholder'
+            ? '这一格还有一条板块课占位信息（地点未排），不是与上面的课撞时间'
+            : '这一格有两门课时间重叠，左右滑动可切换查看',
+      }));
+      // 本周不上课的「另一半」不能被设成网格主显，否则切周后会指向一门不存在的课
+      if (!current().offWeek) {
+        nodes.push(h('button', {
           className: 'p-tt__show-btn',
           type: 'button',
           text: '显示这门课',
-        })
-      );
+        }));
+      }
     }
 
     nodes.push(h('p', { className: 'p-tt__copy-hint', text: '长按此区域可复制课程信息' }));
@@ -175,9 +187,11 @@ export function createCourseDetail(options = {}) {
     /**
      * @param {object[]} courses 同格的全部课程（1 门时就是普通详情）
      * @param {number} [startIndex] 从哪一门开始看
+     * @param {'single'|'conflict'|'alternating'|'placeholder'} [cellRelation] 同格多课的性质
      */
-    async open(courses, startIndex = 0) {
+    async open(courses, startIndex = 0, cellRelation = 'single') {
       list = Array.isArray(courses) ? courses.filter(Boolean) : [];
+      relation = cellRelation;
       index = Math.min(Math.max(0, startIndex), Math.max(0, list.length - 1));
       render(false);
       await sheet.open();

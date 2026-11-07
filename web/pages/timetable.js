@@ -23,7 +23,7 @@ import { stagger } from '../core/animate.js';
 import { createSheet } from '../components/sheet.js';
 import { emptyState } from '../components/emptyState.js';
 import { skeletonList } from '../components/skeleton.js';
-import { currentSection, currentSemester, weekDates } from './timetableUtils.js';
+import { currentSection, currentSemester, weekDates, coursesInCell } from './timetableUtils.js';
 import { buildGrid, markNow } from './timetableView.js';
 import { createCourseDetail } from './timetableDetail.js';
 
@@ -257,20 +257,16 @@ export default {
       if (!data) return;
 
       // 同格的课要现算：卡上只画了「主课」，但详情层允许左右翻出这一格的全部课
+      // （含本周不上、隔周才来的单/双周轮换课）
       const day = Number(holder.dataset.day);
       const start = Number(holder.dataset.start);
-      const courses = (data.courses || []).filter(
-        (course) =>
-          course.dayOfWeek === day &&
-          Array.isArray(course.weeks) &&
-          course.weeks.includes(weekNo) &&
-          Math.min(...course.sections) === start
-      );
+      const { active, rotating, relation } = coursesInCell(data.courses, day, start, weekNo);
+      const courses = active.concat(rotating);
       if (courses.length === 0) return;
 
       const primaryId = holder.dataset.courseId;
       const startIndex = Math.max(0, courses.findIndex((course) => course.id === primaryId));
-      detail.open(courses, startIndex);
+      detail.open(courses, startIndex, relation);
     };
     view.body.addEventListener('click', onBodyClick);
 

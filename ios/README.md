@@ -16,7 +16,7 @@ Android 源码（`android/` + `web/`）到 iOS 的完整移植。**H5 业务代�
 
 | 你的条件 | 怎么做 | 产出 |
 | --- | --- | --- |
-| 有一台 Mac | `bash ios/scripts/build-ipa.sh` | `ios/build/ZhangShangTangShi-1.5.0-unsigned.ipa` |
+| 有一台 Mac | `bash ios/scripts/build-ipa.sh` | `ios/build/ZhangShangTangShi-1.5.2-unsigned.ipa` |
 | 有 Mac + 开发者账号 | `build-ipa.sh --team <TEAM_ID>` | 已签名 ipa，可直接装到登记过的设备 |
 | 没有 Mac，有 GitHub 账号 | 推仓库 → Actions 里点 `Build iOS IPA` | 从 Actions 页面下载 ipa |
 | 只想看界面 | 用浏览器打开 `Resources/www/index.html` | 无（数据层会走 web 通道，教务接口被 CORS 拦） |
@@ -45,7 +45,7 @@ ios/
 │   │   ├── CredentialStore.swift        # Keychain 存凭据（对应 SecurePrefs）
 │   │   └── InAppBrowser.swift           # 应用内浏览器（对应 WebActivity）
 │   └── Resources/
-│       ├── Info.plist                   # 版本 1.5.0(9)、ATS、启动页、方向
+│       ├── Info.plist                   # 版本 1.5.2(11)、ATS、启动页、方向
 │       ├── Assets.xcassets/             # AppIcon（1024，按 Android 矢量重绘）
 │       └── www/                         # H5 资源，由 sync-web.sh 生成，不要手改
 └── scripts/
@@ -75,7 +75,7 @@ ios/
 | `WebActivity`（应用内浏览器） | `InAppBrowserViewController` | 同样共享 Cookie，关闭即回主页 |
 | `onBackPressed` → `window.__appBack()` | 左边缘右滑 → `window.__appBack()` | 见「平台差异」 |
 | `splash_bg` 品牌深蓝 | `UILaunchScreen` + `LaunchBackground` 色 | 冷启动全程无白屏 |
-| `versionName 1.5.0 / versionCode 9` | `CFBundleShortVersionString 1.5.0 / CFBundleVersion 9` | 双端版本号对齐（`verify-project.mjs` 会动态比对，不一致直接失败）|
+| `versionName 1.5.2 / versionCode 11` | `CFBundleShortVersionString 1.5.2 / CFBundleVersion 11` | 双端版本号对齐（`verify-project.mjs` 会动态比对，不一致直接失败）|
 | 自适应图标（深蓝 + 白书） | 1024 图标，同一矢量重绘 | 按 iOS 遮罩特性换算可见占比 |
 
 ---
@@ -164,7 +164,7 @@ cd ios && xcodegen generate    # 读取 project.yml，覆盖生成 .xcodeproj
 
 ## 云端构建已打通（Codemagic）
 
-2026-11-06 首次跑通，产物 `ZhangShangTangShi-1.5.0-unsigned.ipa`（507 KB，arm64）。
+2026-11-06 首次跑通，产物 `ZhangShangTangShi-1.5.0-unsigned.ipa`（507 KB，arm64）；2026-11-07 升到 v1.5.2 后产物为 `ZhangShangTangShi-1.5.2-unsigned.ipa`（515 KB，arm64）。
 前三次失败都是**脚本层**问题，与 Swift 代码无关，记在这里免得下次重踩：
 
 | 报错 | 根因 | 修法 |
@@ -174,3 +174,19 @@ cd ios && xcodegen generate    # 读取 project.yml，覆盖生成 .xcodeproj
 | `zip error: Could not create output file (out/...)` | 产物路径是相对目录，而 zip 在 `(cd "$STAGE" && ...)` 子 shell 里执行 | 参数解析后把 `OUT_DIR` 转绝对路径 |
 
 另外 `macos-14` 在 GitHub 上曾报 `configuration ... is not supported`，工作流已改用 `macos-15`。
+
+---
+
+## v1.5.2 的双端对齐要点（2026-11-07）
+
+v1.5.2 的核心是「教务地址协议自适应」：校外移动数据下 443 端口不可达、80 正常，
+所以 H5 新增 `data/jwxtOrigin.js` 探测后再拼 URL。iOS 侧有两处**必须跟**，否则新功能形同失效：
+
+| 位置 | 改动 | 不做的后果 |
+|---|---|---|
+| `Bridge/HTTPClient.swift` | 超时 15s → 20s（对齐 `CookieJar.TIMEOUT_MS = 20000`） | `transport.js` 在 JS 层也挂了 20s 定时器，原生却先在第 15 秒失败；校外那种 15–16 s 才返回的成功请求会被原生掐断，登录仍然失败 |
+| `Bridge/InAppBrowser.swift` | 补 `didFailProvisionalNavigation` / `didFail`，把 http↔https 换一次重试 | 对应 Android `WebActivity.onReceivedError`。`jwxtUrl()` 可能给出 http，探测时刻与点开时刻网络不同时会白屏 |
+
+`detectEnv()` 只判断 `window.NativeBridge.httpRequest` 是否存在，所以 iOS 壳里同样返回
+`'android'` —— 协议自适应、原生通道分支都会自动生效，H5 无需为 iOS 分支。
+`Info.plist` 的 `NSAllowsArbitraryLoads = true` 保证 http 明文请求在 iOS 上也能发出。

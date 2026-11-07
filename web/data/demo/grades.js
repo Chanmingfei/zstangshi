@@ -14,6 +14,9 @@
  *   · 及格线：`score: 60` + `gradePoint: 1.0`（军事理论，恰好压线）
  *   · 重修：`isRetake: true` + `examType: 'retake'`（2026-2027-1 古代汉语（二）71 分）
  *   · 文字成绩：`scoreText: '优秀'`（中国传统文化概论 95、教师职业道德 93）
+ *   · 成绩构成：`components`（平时/期末分项，2025-2026-1 放了 7 条样本）——
+ *     其中「马克思主义基本原理」期末 48 不及格但总评 61 通过，是「必须看分项」的典型；
+ *     「大学体育（三）」只有 `期末(100%)` 一项，用来走详情页的单列布局。
  *
  * 学分口径：同一 courseId 只计一次。古代汉语（二）在 2025-2026-2 不及格（0 学分），
  * 2026-2027-1 重修通过后的 4 学分才计入已获学分 —— 与 plan.js 的 earnedCredits 对齐。
@@ -35,6 +38,7 @@ export const GRADES = [
     id: 'g-2526-1-01', courseId: '2025-1-0831002-01', courseCode: '0831002', courseName: '中国古代文学（二）',
     credits: 5, score: 88, gradePoint: 3.7, courseType: 'required', assessment: 'exam',
     semesterId: '2025-2026-1', examType: 'normal', isRetake: false,
+    components: [{ label: '平时', weight: 40, score: '90' }, { label: '期末', weight: 60, score: '87' }],
   },
   {
     id: 'g-2526-1-02', courseId: '2025-1-0831003-01', courseCode: '0831003', courseName: '中国现当代文学（一）',
@@ -45,6 +49,7 @@ export const GRADES = [
     id: 'g-2526-1-03', courseId: '2025-1-0831012-01', courseCode: '0831012', courseName: '古代汉语（一）',
     credits: 4, score: 79, gradePoint: 3.0, courseType: 'required', assessment: 'exam',
     semesterId: '2025-2026-1', examType: 'normal', isRetake: false,
+    components: [{ label: '平时', weight: 40, score: '85' }, { label: '期末', weight: 60, score: '75' }],
   },
   {
     id: 'g-2526-1-04', courseId: '2025-1-0831020-01', courseCode: '0831020', courseName: '现代汉语（一）',
@@ -55,11 +60,13 @@ export const GRADES = [
     id: 'g-2526-1-05', courseId: '2025-1-0831010-01', courseCode: '0831010', courseName: '文学概论',
     credits: 3, score: 92, gradePoint: 4.0, courseType: 'required', assessment: 'exam',
     semesterId: '2025-2026-1', examType: 'normal', isRetake: false,
+    components: [{ label: '平时', weight: 20, score: '88' }, { label: '期末', weight: 80, score: '93' }],
   },
   {
     id: 'g-2526-1-06', courseId: '2025-1-0831024-01', courseCode: '0831024', courseName: '语言学概论',
     credits: 3, score: 74, gradePoint: 2.3, courseType: 'required', assessment: 'exam',
     semesterId: '2025-2026-1', examType: 'normal', isRetake: false,
+    components: [{ label: '平时', weight: 40, score: '78' }, { label: '期末', weight: 60, score: '72' }],
   },
   {
     id: 'g-2526-1-07', courseId: '2025-1-0831025-01', courseCode: '0831025', courseName: '基础写作',
@@ -70,11 +77,13 @@ export const GRADES = [
     id: 'g-2526-1-08', courseId: '2025-1-0000101-01', courseCode: '0000101', courseName: '大学英语（三）',
     credits: 3, score: 68, gradePoint: 2.0, courseType: 'public', assessment: 'exam',
     semesterId: '2025-2026-1', examType: 'normal', isRetake: false,
+    components: [{ label: '平时', weight: 40, score: '70' }, { label: '期末', weight: 60, score: '67' }],
   },
   {
     id: 'g-2526-1-09', courseId: '2025-1-0000203-01', courseCode: '0000203', courseName: '大学体育（三）',
     credits: 1, score: 90, gradePoint: 4.0, courseType: 'public', assessment: 'check',
     semesterId: '2025-2026-1', examType: 'normal', isRetake: false,
+    components: [{ label: '期末', weight: 100, score: '90' }],
   },
   {
     id: 'g-2526-1-10', courseId: '2025-1-0000301-01', courseCode: '0000301', courseName: '计算机应用基础',
@@ -100,6 +109,7 @@ export const GRADES = [
     id: 'g-2526-1-14', courseId: '2025-1-0000402-01', courseCode: '0000402', courseName: '马克思主义基本原理',
     credits: 3, score: 61, gradePoint: 1.0, courseType: 'public', assessment: 'exam',
     semesterId: '2025-2026-1', examType: 'normal', isRetake: false,
+    components: [{ label: '平时', weight: 40, score: '80' }, { label: '期末', weight: 60, score: '48' }],
   },
   {
     id: 'g-2526-1-15', courseId: '2025-1-0000601-01', courseCode: '0000601', courseName: '军事理论',

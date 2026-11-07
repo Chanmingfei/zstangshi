@@ -17,6 +17,7 @@ import {
   PERIOD_TIMES, parseWeeks, parseSections, deriveWeekFields,
   kbRowToCourse, parseKbList, htmlToText, parseGpaPage,
   readSelectValue, normalizeTerm, gradeRowToGrade, parseGradeList,
+  parseGradeComponents, mergeGradeComponents,
 } from '../web/data/jwxtParse.js';
 import { ENDPOINTS, missingEndpoints } from '../web/data/jwxtClient.js';
 import {
@@ -184,6 +185,45 @@ eq('G21 { items } 包装能解开且丢弃空行', parseGradeList({ items: [cjRo
 eq('G22 裸数组也能解', parseGradeList([cjRow]).length, 1);
 eq('G23 无课名行丢弃', gradeRowToGrade({ ...cjRow, kcmc: '' }), null);
 eq('G24 非数组输入返回空', parseGradeList('坏数据'), []);
+
+/* ── G2. 成绩构成（N305007 明细，2026-11-07 真机 216 行实测）───────────────
+ * 一行 = 一门课的一个分项；`xmblmc` 形如 `平时(40%)`，`xmcj` 可能是「良好」。
+ * 铁律：总评行丢掉（与成绩查询 cj 逐条一致），权重按括号数字解析，得分不折算。 */
+const detailRow = (jxbId, label, score, extra = {}) => ({
+  jxb_id: jxbId, xmblmc: label, xmcj: score, kcmc: '示例课程',
+  xnm: '2024', xqm: '12', ...extra,
+});
+const detailMap = parseGradeComponents({
+  items: [
+    detailRow('J1', '平时(40%)', '90'),
+    detailRow('J1', '期末(60%)', '85'),
+    detailRow('J1', '总评', '87'),
+    detailRow('J1', '平时(40%)', '90'),   // 重复项只留一条
+    detailRow('J2', '期末(100%)', '良好'), // 单分项 + 汉字得分
+    detailRow('J3', '技能考核（30％）', '88'), // 全角括号/全角百分号
+    detailRow('', '平时(20%)', '77'),      // 无 jxb_id 时退化为 课号|学年|学期
+  ],
+});
+eq('G25 分项按教学班归组，总评不计入', detailMap.get('J1').length, 2);
+eq('G26 分项名去掉权重后缀', detailMap.get('J1').map((c) => c.label), ['平时', '期末']);
+eq('G27 权重解析成数字', detailMap.get('J1').map((c) => c.weight), [40, 60]);
+eq('G28 得分保留原文（含汉字等第）',
+  [detailMap.get('J1').map((c) => c.score), detailMap.get('J2')[0].score], [['90', '85'], '良好']);
+eq('G29 全角括号 / 全角百分号也认', detailMap.get('J3')[0], { label: '技能考核', weight: 30, score: '88' });
+check('G30 缺 jxb_id 时用 课号|学年|学期 兜底', detailMap.has('|2024|12'));
+eq('G31 非对象输入返回空 Map', parseGradeComponents(null).size, 0);
+
+/* 合并：只给有明细的课补 components，不能把没有分项的课弄丢（明细少 6 门网络学习课） */
+const mergedList = mergeGradeComponents(
+  [
+    { id: 'a', courseId: 'J1', courseName: '有明细' },
+    { id: 'b', courseId: 'J9', courseName: '无明细' },
+  ],
+  detailMap
+);
+eq('G32 有明细的课补上分项', mergedList[0].components.length, 2);
+eq('G33 无明细的课保持原样（不写空数组）', mergedList[1].components, undefined);
+eq('G34 明细为空表时不动成绩', mergeGradeComponents([{ id: 'a', courseId: 'J1' }], null)[0].components, undefined);
 
 /* ── H. 推荐课表链路（2026-11-06 PC 实测，样本 docs/diagnostics/bjkbdy-*）──── */
 const dictHtml = `

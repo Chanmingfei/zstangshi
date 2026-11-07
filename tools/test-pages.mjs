@@ -145,6 +145,38 @@ for (const rel of routePaths) {
 check(contractOk === routePaths.length, 'C1 全部页面导出契约齐全',
   `${contractOk}/${routePaths.length}，其中 ${needsDom} 个模块在 Node 下退化为静态检查`);
 
+/* ── D. 应用内返回栈（core/navStack.js）───────────────────────────────────
+ * 复现 1.5.0 真机 bug：首页 → 成绩列表 → 成绩详情，按返回曾经直接跳回首页。
+ * 现在返回语义由 App 自己记，这条链必须回「成绩列表」。 */
+const { recordVisit, takePrevious } = await import(
+  pathToFileURL(path.join(WEB, 'core', 'navStack.js')).href
+);
+
+const stackA = [];
+recordVisit(stackA, '/home', '/grades');
+recordVisit(stackA, '/grades', '/grade/abc');
+check(stackA.length === 2 && stackA[0] === '/home' && stackA[1] === '/grades',
+  'D1 逐级入栈：首页 → 成绩 → 详情', JSON.stringify(stackA));
+check(takePrevious(stackA, '/grade/abc') === '/grades', 'D2 详情返回先去成绩列表');
+check(takePrevious(stackA, '/grades') === '/home', 'D3 再返回到首页');
+check(takePrevious(stackA, '/home') === null, 'D4 首页没有上一层（交宿主退出）');
+
+const stackB = [];
+recordVisit(stackB, null, '/grade/abc'); // 深链直达
+check(stackB.length === 0 && takePrevious(stackB, '/grade/abc') === null,
+  'D5 深链直达详情时不空造来路，返回由调用方回首页');
+
+const stackC = ['/home'];
+recordVisit(stackC, '/home', '/home');
+check(stackC.length === 1, 'D6 同页跳转不入栈');
+
+const stackD = [];
+recordVisit(stackD, '/grades', '/grade/a');
+recordVisit(stackD, '/grades', '/grade/b');
+check(stackD.length === 1 && stackD[0] === '/grades',
+  'D7 同一父页连开两条详情不重复入栈', JSON.stringify(stackD));
+check(takePrevious(['/grades'], '/grades') === null, 'D8 自指的脏记录被跳过');
+
 /* ── 结论 ─────────────────────────────────────────────────────────────── */
 if (failures.length) {
   process.stderr.write(`\n  [FAIL] 页面契约 ${failures.length} 项未通过\n\n`);

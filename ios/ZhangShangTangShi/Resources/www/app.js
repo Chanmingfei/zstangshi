@@ -162,6 +162,18 @@ router = createRouter({
 
 const actions = createActions({ store, provider, getRouter: () => router });
 
+/**
+ * 外链统一在应用内 WebView 承载（2026-11-06 口径）：学工系统与首页「更多功能」（教务系统）
+ * 共用这一条通道，都不跳系统浏览器。原生壳不存在时（桌面浏览器预览）才降级新标签页。
+ * @param {string} url
+ */
+function openExternal(url) {
+  if (!url) return;
+  const bridge = window.NativeBridge;
+  if (bridge && typeof bridge.openWebView === 'function') bridge.openWebView(url);
+  else window.open(url, '_blank', 'noopener');
+}
+
 /* ── 全局事件委托（页面只写 data-action）────────────────────────────────── */
 
 bindActions(document, {
@@ -177,14 +189,9 @@ bindActions(document, {
     if (payload) toast('课程详情在 T08 上线', 'info');
   },
   logout: () => actions.logout(),
-  // 学工系统：首页/我的入口直接跳应用内 WebView；无原生壳则降级系统浏览器
-  'open-xuegong': (_event, _el, payload) => {
-    const url = payload || '';
-    if (!url) return;
-    const bridge = window.NativeBridge;
-    if (bridge && typeof bridge.openWebView === 'function') bridge.openWebView(url);
-    else window.open(url, '_blank', 'noopener');
-  },
+  // 学工系统 / 教务系统「更多功能」：直接跳应用内 WebView，无原生壳才降级系统浏览器
+  'open-external': (_event, _el, payload) => openExternal(payload),
+  'open-xuegong': (_event, _el, payload) => openExternal(payload),
 });
 
 /* ── 订阅：顶栏文案 & 演示提示条 ───────────────────────────────────────── */

@@ -233,8 +233,23 @@ if (!existsSync(plistPath)) {
   const build = /<key>CFBundleVersion<\/key>\s*<string>([^<]+)<\/string>/.exec(plist);
   if (!version) fail('Info.plist 缺少 CFBundleShortVersionString');
   if (!build) fail('Info.plist 缺少 CFBundleVersion');
-  if (version && version[1] !== '1.2.0') notes.push(`注意：版本号 ${version[1]}（源码包为 1.2.0）`);
-  if (build && build[1] !== '5') notes.push(`注意：构建号 ${build[1]}（Android versionCode 为 5）`);
+  // 双端版本号应一致：Android 的 versionName / versionCode 是唯一基准，
+  // 这里动态读取，避免把期望值写死在脚本里（升级版本就误报）。
+  const gradlePath = join(iosRoot, '..', 'android', 'app', 'build.gradle');
+  if (existsSync(gradlePath)) {
+    const gradle = readFileSync(gradlePath, 'utf8');
+    const androidName = /versionName\s+'([^']+)'/.exec(gradle);
+    const androidCode = /versionCode\s+(\d+)/.exec(gradle);
+    if (androidName && version && version[1] !== androidName[1]) {
+      fail(`版本号不一致：iOS ${version[1]} / Android ${androidName[1]}`);
+    }
+    if (androidCode && build && build[1] !== androidCode[1]) {
+      fail(`构建号不一致：iOS ${build[1]} / Android ${androidCode[1]}`);
+    }
+    if (androidName && version) notes.push(`版本 ${version[1]}(${build ? build[1] : '?'}) 与 Android 一致`);
+  } else {
+    notes.push('未找到 android/app/build.gradle，跳过双端版本号比对');
+  }
   if (!plist.includes('UILaunchScreen')) fail('Info.plist 缺少 UILaunchScreen（冷启动会白屏）');
   if (!plist.includes('NSAppTransportSecurity')) fail('Info.plist 缺少 ATS 配置（学工系统 http 外链会被拦）');
 }

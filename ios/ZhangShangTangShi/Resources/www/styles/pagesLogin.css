@@ -1,0 +1,68 @@
+/* ============================================================================
+ * pagesLogin.css —— 登录页补充区块（pages.css 已顶到 400 行上限，新块按 400 行规则拆出）
+ *   1. p-login__alt  「仅登录学工系统」卡片 —— 绕开教务的侧门
+ *
+ * 规矩与 pages.css 一致：颜色只用 var(--…)；可点区域 ≥44×44（本卡 min-height 64）。
+ * 视觉刻意与首页 p-home__affairs 对齐（同样的图标块 / 标题 / 说明 / 箭头偏移），
+ * 让「打开外部站点」在 App 里永远是同一副样子，用户不用重新学一遍。
+ * ========================================================================== */
+
+.p-login__alt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-12) var(--card-padding);
+  border-radius: var(--r-md);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  text-align: left;
+  transition: background-color var(--dur-press) var(--ease-standard);
+}
+
+.p-login__alt:active {
+  background-color: var(--brand-primary-soft);
+}
+
+.p-login__alt-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background-color: var(--info-soft);
+  color: var(--info);
+}
+
+.p-login__alt-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.p-login__alt-title {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.p-login__alt-desc {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-secondary);
+}
+
+.p-login__alt-arrow {
+  flex: 0 0 auto;
+  display: flex;
+  color: var(--text-tertiary);
+}

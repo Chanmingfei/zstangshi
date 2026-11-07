@@ -2,8 +2,12 @@
  * gradeRow.js —— 成绩列表行
  *
  * 一行信息密度很高，所以分三层：主信息（课程名 + 学分/类型/考核）、备注徽标（重修/缓考/
- * 不及格）、右侧成绩与绩点。`score` 为 null 时显示「未录入」——这是演示数据里真实存在的
- * 状态，不许显示成 0。
+ * 不及格）、右侧成绩与绩点。
+ *
+ * 右侧成绩有三种形态（判定统一在 data/gradeText.js，本文件不自己判）：
+ *   · 数字分：88 / 88 · 优秀
+ *   · 文字成绩：良好 / 优秀（五级制，右侧就该显示这两个字，不是「未录入」）
+ *   · 还没有结果：未录入 / 缓考（`score` 为 null 且没有文字成绩，不许显示成 0）
  *
  * 长按复制：手指按住 500ms 复制一行纯文本成绩，用于「发给同学 / 记到备忘录」。
  * 手势与写剪贴板都在 `core/clipboard.js`（课表详情层用的是同一套），这里只提供复制内容。
@@ -14,6 +18,7 @@
 import { h } from '../core/dom.js';
 import { toast } from '../core/toast.js';
 import { bindLongPress, writeClipboard } from '../core/clipboard.js';
+import { GRADE_KIND, gradeResultOf } from '../data/gradeText.js';
 
 /** 课程类型中文（与 courseCard 同口径，这里不 import 它以免两个组件互相依赖） */
 const TYPE_LABEL = { required: '必修', elective: '选修', public: '公共', practice: '实践' };
@@ -22,15 +27,28 @@ const ASSESS_LABEL = { exam: '考试', check: '考查' };
 /**
  * 拼一行可复制的成绩文本：`课程名 学分 成绩 绩点`（如 `中国古代文学（二） 5 88 3.7`）。
  * 未录入/缓考时对应位置给中文，不用空串，粘到备忘录里也读得懂。
+ * 有分项的课（平时/期末）追加一段 `（平时 90 期末 85）`，复制出去也能说明总评怎么来的。
  * @param {object} grade
  * @returns {string}
  */
 function copyTextOf(grade) {
-  const score = grade.score === null || grade.score === undefined
-    ? grade.remark || '成绩未录入'
-    : String(grade.score);
+  const score = gradeResultOf(grade).value;
   const gp = grade.gradePoint === null || grade.gradePoint === undefined ? '--' : String(grade.gradePoint);
-  return [grade.courseName, String(grade.credits), score, gp].join(' ');
+  const split = splitTextOf(grade);
+  return [grade.courseName, String(grade.credits), score, gp].join(' ')
+    + (split ? `（${split}）` : '');
+}
+
+/**
+ * 成绩构成的一行文字：`平时 90 · 期末 85`。
+ * 只有两个及以上分项才返回 —— 单分项的课（`期末(100%)`）加起来就是总评，重复显示没有信息量。
+ * @param {object} grade
+ * @returns {string}
+ */
+export function splitTextOf(grade) {
+  const comps = Array.isArray(grade.components) ? grade.components : [];
+  if (comps.length < 2) return '';
+  return comps.map((item) => `${item.label} ${item.score}`).join(' · ');
 }
 
 /**
@@ -50,15 +68,16 @@ function copyTextOf(grade) {
  * @returns {HTMLElement}
  */
 export function gradeRow(grade, options = {}) {
-  const missing = grade.score === null || grade.score === undefined;
-  /** 未录入 ≠ 缓考：缓考是「考了但顺延」，必须原样显示备注，不能都写成「未录入」 */
-  const pendingLabel = grade.remark === '缓考' || grade.remark === '缺考' ? grade.remark : '未录入';
-  /** 60 分是及格线，只有 < 60 才标红（压线不许误伤） */
-  const failed = !missing && Number(grade.score) < 60;
+  const result = gradeResultOf(grade);
+  /** 未录入 ≠ 缓考 ≠ 文字成绩：只有「确实还没有结果」才走灰字小号的 missing 态 */
+  const missing = result.kind === GRADE_KIND.PENDING;
+  const isText = result.kind === GRADE_KIND.TEXT;
+  const failed = result.failed;
   const remark = missing ? '' : grade.remark || (grade.isRetake ? '重修' : '');
   const typeText = options.showType === false ? '' : TYPE_LABEL[grade.courseType] || '';
   const assessText = ASSESS_LABEL[grade.assessment] || '';
   const meta = [`${grade.credits} 学分`, typeText, assessText].filter(Boolean).join(' · ');
+  const splitText = splitTextOf(grade);
 
   const dataset = { gradeId: grade.id ? String(grade.id) : '' };
   if (options.action) dataset.action = options.action;
@@ -79,6 +98,11 @@ export function gradeRow(grade, options = {}) {
           dataset: { shared: `grade:${grade.id || ''}` },
         }),
         h('span', { className: 'c-grade__meta', text: meta }),
+        // 平时/期末：教务「成绩明细查询」才有，只在这一行加一栏浅灰小字，
+        // 不动右侧总评/绩点的层级 —— 总评仍是主角，分项是注脚
+        splitText
+          ? h('span', { className: 'c-grade__split', text: splitText })
+          : null,
         remark
           ? h('span', {
               className: `c-grade__remark${remark === '重修' ? ' c-grade__remark--retake' : ''}`,
@@ -88,11 +112,14 @@ export function gradeRow(grade, options = {}) {
       ]),
       h('span', { className: 'c-grade__score' }, [
         h('span', {
-          className: `c-grade__score-value${missing ? ' is-missing' : ''}${failed ? ' is-fail' : ''}`,
-          text: missing ? pendingLabel : String(grade.score),
+          className:
+            `c-grade__score-value${missing ? ' is-missing' : ''}` +
+            `${isText ? ' is-text' : ''}${failed ? ' is-fail' : ''}`,
+          text: result.value,
         }),
-        // 文字成绩（优秀/良好）与分数并列给：95 · 优秀
-        grade.scoreText && !missing
+        // 文字成绩只在「数字分已给出」时作为并列标注出现（95 · 优秀）；
+        // 纯文字成绩本身已经占住右侧大字位，不再重复标一遍。
+        !missing && !isText && grade.scoreText
           ? h('span', { className: 'c-grade__score-tag', text: `· ${grade.scoreText}` })
           : null,
         h('span', {

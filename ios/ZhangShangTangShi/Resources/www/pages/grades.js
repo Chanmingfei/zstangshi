@@ -5,11 +5,12 @@
  *   1. **不算均分、不算加权、不算 GPA**。GPA 只从教务权威页取（OFFICIAL_GPA），
  *      成绩页自己算一个就会和绩点页打架 —— 本地加权 3.07 vs 教务 3.16 的教训（R11）。
  *      这里只给三个客观计数：门数 / 已获学分 / 不及格门数。
- *   2. **未录入 ≠ 0 分 ≠ 缓考**。`score: null` 是「还没出分」，缓考是「考了但顺延」，
- *      两者都不能被当成 0 参与学分与不及格统计。
+ *   2. **未录入 ≠ 0 分 ≠ 缓考 ≠ 文字成绩**。`score: null` 只是「没有数字」，
+ *      缓考是「考了但顺延」，而「良好/优秀」是**已经出分**的五级制成绩。三者都不能被当成 0
+ *      参与统计，但文字成绩该算已获学分、该算不及格（判定统一在 data/gradeText.js）。
  *   3. **60 分是及格线**，压线通过不许标红；只有 < 60 才算不及格。
  *
- * 已获学分 = 该学期 `score >= 60` 的 credits 之和（未录入/缓考/不及格都不计）。
+ * 已获学分 = 该学期「分数 ≥ 60」或「文字成绩通过」的 credits 之和（未录入/缓考/不及格都不计）。
  *
  * 搜索与学期筛选都在**已取回的整份数据**上做，不做假防抖：数据量就 36 条，
  * 每次输入直接过滤比等 300ms 更跟手。
@@ -23,12 +24,14 @@ import { emptyState } from '../components/emptyState.js';
 import { skeletonList } from '../components/skeleton.js';
 import { rememberShared } from '../core/shared.js';
 import { syncText } from '../core/format.js';
+import { gradeResultOf } from '../data/gradeText.js';
 
 /** 「全部学期」的 chip id */
 const ALL = 'all';
 
 /**
- * 三项概览。注意统计口径：只有真正出了分且及格的才计学分。
+ * 三项概览。注意统计口径：数字分 ≥ 60 或文字成绩通过（良好/优秀/及格…）才计学分，
+ * 文字「不及格」计入门数；未录入 / 缓考两边都不计。
  * @param {object[]} list 已按学期筛选的记录
  * @returns {{count: number, credits: number, failed: number}}
  */
@@ -36,10 +39,10 @@ function summarize(list) {
   let credits = 0;
   let failed = 0;
   for (const grade of list) {
-    const score = grade.score;
-    if (score === null || score === undefined) continue;
-    if (Number(score) >= 60) credits += Number(grade.credits) || 0;
-    else failed += 1;
+    const result = gradeResultOf(grade);
+    if (result.kind === 'pending') continue;
+    if (result.failed) failed += 1;
+    else credits += Number(grade.credits) || 0;
   }
   // 学分有 .5，浮点加完可能 42.99999，保留一位
   return { count: list.length, credits: Math.round(credits * 10) / 10, failed };

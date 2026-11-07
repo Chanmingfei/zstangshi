@@ -304,62 +304,7 @@ export function normalizeTerm(code, termName) {
   return code === '12' ? '2' : code === '16' ? '3' : '1';
 }
 
-/**
- * 教务成绩行（`cjcx_cxXsgrcj.html?doType=query` 的 items）→ App Grade。
- * 只读原文，不做绩点换算、不加权、不补造缺失字段。
- * @param {object} row
- * @returns {object|null}
- */
-export function gradeRowToGrade(row) {
-  if (!row || typeof row !== 'object') return null;
-  const low = {};
-  for (const [key, value] of Object.entries(row)) low[key.toLowerCase()] = value;
-  const pick = (...keys) => {
-    for (const key of keys) {
-      const value = low[key.toLowerCase()];
-      if (value !== undefined && value !== null && value !== '') return String(value).trim();
-    }
-    return '';
-  };
-
-  const courseName = pick('kcmc', 'courseName');
-  if (!courseName) return null;
-  const rawScore = pick('cj');
-  const numericScore = /^-?\d+(?:\.\d+)?$/.test(rawScore);
-  const rawPoint = pick('jd', 'xfjd');
-  const nature = `${pick('kcxzmc')} ${pick('kclbmc')}`;
-  const typeMatch = TYPE_MAP.find(([re]) => re.test(nature));
-  const xnm = pick('xnmmc', 'xnm');
-  const xqm = pick('xqm');
-  const semesterId = `${xnm}-${normalizeTerm(xqm, pick('xqmmc'))}`;
-  const examNature = pick('ksxz');
-  const isRetake = pick('cjsfzf') === '是' || /重修/.test(examNature);
-  const grade = {
-    id: pick('key') || `${semesterId}-${pick('kch')}-${pick('jxb_id')}`,
-    courseId: pick('jxb_id', 'kch_id', 'kch'),
-    courseCode: pick('kch'),
-    courseName,
-    credits: Number(pick('xf')) || 0,
-    score: numericScore ? Number(rawScore) : null,
-    gradePoint: /^-?\d+(?:\.\d+)?$/.test(rawPoint) ? Number(rawPoint) : null,
-    courseType: typeMatch ? typeMatch[1] : 'required',
-    assessment: /考查/.test(pick('khfsmc')) ? 'check' : 'exam',
-    semesterId,
-    examType: isRetake ? 'retake' : /补考/.test(examNature) ? 'makeup' : 'normal',
-    isRetake,
-  };
-  // 文字成绩（优秀/合格/缓考/缺考）保留原文，不假装成数字
-  if (!numericScore && rawScore) grade.scoreText = rawScore;
-  if (/缓考|缺考/.test(rawScore)) grade.remark = rawScore;
-  return grade;
-}
-
-/** 成绩接口 JSON → Grade[]（兼容 { items } / { rows } / 裸数组） */
-export function parseGradeList(payload) {
-  let rows = payload;
-  if (payload && !Array.isArray(payload) && typeof payload === 'object') {
-    rows = payload.items || payload.rows || payload.data || [];
-  }
-  if (!Array.isArray(rows)) return [];
-  return rows.map(gradeRowToGrade).filter(Boolean);
-}
+/* ── 成绩解析：实现已拆到 jwxtGradeParse.js，这里只做转发 ─────────────────── */
+export {
+  gradeRowToGrade, parseGradeList, parseGradeComponents, mergeGradeComponents,
+} from './jwxtGradeParse.js';

@@ -11,51 +11,8 @@
  */
 
 import { pageSwap } from './animate.js';
-
-/**
- * 把 `'/grades/:id'` 编译成正则 + 参数名表。
- * @param {string} pattern
- * @returns {{keys: string[], regex: RegExp}}
- */
-function compilePattern(pattern) {
-  const keys = [];
-  const source = pattern.replace(/\/:([A-Za-z0-9_]+)/g, (_, key) => {
-    keys.push(key);
-    return '/([^/]+)';
-  });
-  return { keys, regex: new RegExp(`^${source}/?$`) };
-}
-
-/**
- * 解析查询串。
- * @param {string} search 形如 'a=1&b=2'（不含 '?'）
- * @returns {Record<string, string>}
- */
-function parseQuery(search) {
-  const query = {};
-  if (!search) return query;
-  for (const pair of search.split('&')) {
-    if (!pair) continue;
-    const index = pair.indexOf('=');
-    const key = index === -1 ? pair : pair.slice(0, index);
-    const rawValue = index === -1 ? '' : pair.slice(index + 1);
-    try {
-      query[decodeURIComponent(key)] = decodeURIComponent(rawValue);
-    } catch {
-      query[key] = rawValue;
-    }
-  }
-  return query;
-}
-
-/** 安全 decode 一个路径段（畸形编码原样返回，别让一个 % 炸掉整个路由）。 */
-function safeDecode(segment) {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
+import { compilePattern, parseQuery, safeDecode } from './routeMatch.js';
+import { recordVisit, takePrevious as popPrevious } from './navStack.js';
 
 /**
  * 创建路由器。
@@ -89,6 +46,18 @@ export function createRouter({
   let current = null;
   /** 渲染令牌：并发导航时只有最后一次生效 */
   let renderToken = 0;
+  /**
+   * 应用内返回栈（只记 `go()` 产生的真跳转）。
+   *
+   * 为什么不用浏览器历史：WebView 里 hash 导航不是可靠的「一页一条记录」——
+   * 实测（2026-11-07 1.5.0 真机）从成绩详情按返回，`history.back()` 直接跳回了
+   * App 首页（无 hash 的初始记录），而用户期待的是回到成绩列表。所以返回语义
+   * 由 App 自己记：谁打开我，返回就回谁。
+   * @type {string[]}
+   */
+  const backStack = [];
+  /** 本次 hash 变化是否由 go() 发起；replaceHash 触发的一律不入栈 */
+  let pendingFrom = null;
   /** 弹层拦截器（由 app.js 注入：有弹层时返回 true 表示已消费返回事件） */
   let backInterceptor = null;
   let started = false;
@@ -195,6 +164,16 @@ export function createRouter({
       return;
     }
     if (typeof guard === 'function' && guard(match) === false) return;
+
+    /**
+     * 入栈：只有 go() 发起的跳转才记「来路」。
+     * replaceHash（tab 切换 / 返回 / 重定向）不入栈 —— 它们不产生新的层级关系。
+     */
+    if (pendingFrom !== null) {
+      const from = pendingFrom;
+      pendingFrom = null;
+      recordVisit(backStack, from, match.path);
+    }
 
     const token = ++renderToken;
     saveScroll();
@@ -318,13 +297,28 @@ export function createRouter({
   function go(path) {
     const next = `#${path}`;
     if (window.location.hash === next) return;
+    // 记下从哪来，交给 render 入栈（render 才知道有没有被 guard 拦下）
+    pendingFrom = current ? current.path : null;
     window.location.hash = next;
   }
 
-  /** 后退。 */
+  /**
+   * 取上一层路径（同时把它从栈里弹掉；重复的当前页直接丢弃）。
+   * @returns {string|null}
+   */
+  function takePrevious() {
+    return popPrevious(backStack, current && current.path);
+  }
+
+  /** 后退：优先回应用内上一层，没有就回首页（顶栏返回永远不负责退出 App）。 */
   function back() {
-    if (window.history.length > 1) window.history.back();
-    else go(defaultPath);
+    const prev = takePrevious();
+    if (prev) {
+      replaceHash(prev);
+      return;
+    }
+    if (!current || current.path === defaultPath) return;
+    replaceHash(defaultPath);
   }
 
   /** 硬件返回语义：true = App 已自行处理；false = 交给宿主（Android 退出 / 浏览器后退）。 */
@@ -340,17 +334,19 @@ export function createRouter({
     // Tab 根页：非首页先回首页，首页则交还宿主退出
     if (current.route.tab) {
       if (current.path !== defaultPath) {
+        backStack.length = 0; // 回首页等于把整条来路作废，避免残留脏记录
         go(defaultPath);
         return true;
       }
       return false;
     }
-    // 次级页：正常后退
-    if (window.history.length > 1) {
-      window.history.back();
+    // 次级页：回打开它的那一页（成绩详情 → 成绩列表），不去碰浏览器历史
+    const prev = takePrevious();
+    if (prev) {
+      replaceHash(prev);
       return true;
     }
-    go(defaultPath);
+    replaceHash(defaultPath);
     return true;
   }
 

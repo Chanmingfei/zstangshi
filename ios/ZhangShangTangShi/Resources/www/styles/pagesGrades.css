@@ -199,6 +199,17 @@
   color: var(--text-tertiary);
 }
 
+/* 文字成绩（良好/优秀）：是真实结果，颜色要正，但 56px 喊两个汉字会溢出整屏，
+   收到 40px 并换回正文字体 —— 视觉重量仍明显高于「未录入」的灰字 */
+.p-gd__score-value.is-text {
+  font-family: var(--font-sans);
+  font-size: 40px;
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  color: var(--text-primary);
+  letter-spacing: 0;
+}
+
 .p-gd__score-tag {
   font-size: var(--fs-caption);
   line-height: var(--lh-caption);
@@ -308,6 +319,15 @@
   gap: var(--space-8);
 }
 
+/* 分项只有 1-2 个时（如 期末(100%) 的纯考试课）不摆 3 列，否则会空出半屏 */
+.p-gd__breakdown-grid.is-compact {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.p-gd__breakdown-grid.is-single {
+  grid-template-columns: 1fr;
+}
+
 .p-gd__breakdown-cell {
   display: flex;
   flex-direction: column;
@@ -326,6 +346,13 @@
   font-weight: var(--fw-display);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+}
+
+/* 分项是汉字等第（期末 良好）时换正文字体、降一级字号，别用数字字体硬套 */
+.p-gd__breakdown-value.is-text {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
 }
 
 .p-gd__breakdown-label {

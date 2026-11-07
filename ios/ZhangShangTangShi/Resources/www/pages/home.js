@@ -6,7 +6,7 @@
  *   · 今日课程卡是唯一有网络依赖的区块，失败时**只降级它自己**，宫格与倒计时永远可用；
  *   · 倒计时不是写死的日期，从 school-calendar.json 的 examWeeks / semesterEnd 推出来，
  *     明年换校历不用改代码；
- *   · 6 个宫格 + 学工入口一律走 data-action 全局委托，页面不绑零散 click；
+ *   · 6 个宫格 +「更多功能」+ 学工入口一律走 data-action 全局委托，页面不绑零散 click；
  *   · 下拉刷新只重取今日课程（顶栏与宫格是同步数据，刷新它们没有意义）。
  *
  * 演示态用 `term.todayIso`（app.js 在 demo 模式写入 DEMO.today），所以「今天」永远是
@@ -27,6 +27,7 @@ import {
   getSemesters,
   isoOfDayNumber,
 } from '../data/calendar.js';
+import { JWXT_URL, XUEGONG_URL } from '../data/externalLinks.js';
 
 /** 快捷入口（顺序即渲染顺序）。`path` 是 hash 路由。
  * 「教学执行计划查看」按用户口径已整条下线，这里是剩下的 6 个。 */
@@ -39,9 +40,8 @@ const QUICK_ENTRIES = [
   { path: '/calendar', label: '校历', icon: 'calendar' },
 ];
 
-/** 学工系统地址（http 明文；Android 端由原生 WebView 承载，见 NativeBridge.openWebView）。
- * 放在首页直接打开，不做中间跳转页。 */
-const XUEGONG_URL = 'http://sws.tstc.edu.cn/XGTSTC/Phone/#/login';
+/** 学工入口与「更多功能」的地址都来自 data/externalLinks.js（页面不写死 URL），
+ * 两者都从首页一次点击直达，不做中间跳转页。 */
 
 /**
  * 从校历推出倒计时（不写死日期）。
@@ -188,7 +188,7 @@ export default {
     const todayHost = h('div', { className: 'p-home__today' });
     const todayCard = card({ title: '今日课程', subtitle: dateText }, todayHost);
 
-    /* ── 快捷宫格 + 学工入口 ── */
+    /* ── 快捷宫格 + 更多功能 + 学工入口 ── */
     const grid = h(
       'div',
       { className: 'p-home__grid' },
@@ -204,6 +204,22 @@ export default {
           [
             h('span', { className: 'p-home__cell-icon', 'aria-hidden': 'true', html: icon(entry.icon, 24) }),
             h('span', { className: 'p-home__cell-label', text: entry.label }),
+          ]
+        )
+      ).concat(
+        // 「更多功能」：不属于 App 内路由，与学工入口同一条原生 WebView 通道打开教务系统原站点。
+        // 尺寸/质感与上面 6 格完全一致，只把它排在宫格末尾（第 7 格），设计不做其它改动。
+        h(
+          'button',
+          {
+            className: 'p-home__cell',
+            type: 'button',
+            dataset: { action: `open-external:${JWXT_URL}` },
+            'aria-label': '更多功能',
+          },
+          [
+            h('span', { className: 'p-home__cell-icon', 'aria-hidden': 'true', html: icon('grid', 24) }),
+            h('span', { className: 'p-home__cell-label', text: '更多功能' }),
           ]
         )
       )
@@ -278,7 +294,7 @@ export default {
       countUp(item.el, Math.max(0, item.days), { decimals: 0 });
     }
 
-    // 宫格交错入场：40ms/个，第 9 个起不再叠加（此处只有 6 个）
+    // 宫格交错入场：40ms/个，第 9 个起不再叠加（此处 6 格 + 更多功能 = 7 个）
     stagger(view.grid.children);
 
     return () => {

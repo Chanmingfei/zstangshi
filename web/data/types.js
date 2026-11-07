@@ -201,23 +201,41 @@
 
 /**
  * 成绩单条记录。
- * `score` 为 null 表示「尚未录入」；`gradePoint` 为 null 表示缓考/缺考（不计入 GPA）。
+ *
+ * 两种「没有数字」必须分开看（判定统一走 data/gradeText.js 的 gradeResultOf）：
+ *   · `score: null` + `scoreText: '良好'` → **已出分的五级制成绩**，右侧就该显示「良好」，
+ *     学分照算、不及格照算（微格教学这类考查/实践课常见）；
+ *   · `score: null` 且没有文字成绩 → **尚未录入 / 缓考 / 缺考**，不参与任何统计。
+ *
+ * `gradePoint` 为 null 表示教务没给绩点（缓考/缺考必然为 null），App 不本地折算。
  * @typedef {object} Grade
  * @property {string} id 成绩记录 ID
  * @property {string} courseId 关联 Course.id
  * @property {string} courseCode 课程号
  * @property {string} courseName 课程名
  * @property {number} credits 学分
- * @property {number|null} score 百分制成绩；null=未录入
- * @property {string} [scoreText] 文字成绩 '优秀' / '合格'
- * @property {number|null} gradePoint 绩点；缓考/缺考为 null
+ * @property {number|null} score 百分制成绩；null=没有数字（可能是文字成绩，也可能未录入）
+ * @property {string} [scoreText] 文字成绩原文：'优秀' / '良好' / '中等' / '及格' / '不及格'，
+ *   以及 '缓考' / '缺考'（后两个属于「还没有结果」，不是成绩）
+ * @property {number|null} gradePoint 绩点；教务未给为 null
  * @property {CourseType} courseType 课程类型
  * @property {Assessment} assessment 考核方式
  * @property {string} semesterId 所属学期
  * @property {'normal'|'retake'|'makeup'} examType 正考 / 重修 / 补考
- * @property {boolean} isRetake 是否重修（影响绩点计算口径）
+ * @property {boolean} isRetake 是否重修（绩点口径由教务决定，App 不重算）
  * @property {string} [remark] '缓考' / '缺考' / '重修'
- * @property {{usual?: number, midterm?: number, final?: number}} [scoreDetail] 成绩构成
+ * @property {GradeComponent[]} [components] 成绩构成：平时/期末等分项（来自「学生成绩明细查询」）
+ * @property {{usual?: number, midterm?: number, final?: number}} [scoreDetail] 早期写死的三项构成（仅兼容老缓存）
+ */
+
+/**
+ * 成绩构成的一个分项。
+ * 名称与权重原样取教务 `xmblmc`（`平时(40%)` 拆成 label=平时 / weight=40），
+ * 得分沿用原文 —— 可能是数字，也可能是「良好」，**不做任何折算**。
+ * @typedef {object} GradeComponent
+ * @property {string} label '平时' / '期末' / '期中'
+ * @property {number|null} weight 权重百分数（教务没标就是 null）
+ * @property {string} score 分项得分原文
  */
 
 /**

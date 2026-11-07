@@ -54,6 +54,13 @@ export const ENDPOINTS = Object.freeze({
   /** ✅ 学生角色真实数据接口；空 xnm/xqm = 全部学期，需 zd_fzdm=N305005-xs */
   gradesData: '/cjcx/cjcx_cxXsgrcj.html?doType=query',
   /**
+   * ✅ 实测 N305007：信息查询 → 学生成绩明细查询（页面 `/cjcx/cjcx_cxDgXsxmcj.html`）。
+   * 一行 = 一门课的一个分项：`xmblmc`=平时(40%)/期末(60%)/总评，`xmcj`=分项得分。
+   * 成绩查询只给总评，平时/期末只有这里才有 —— 这是本 App 唯一的分项来源。
+   * 参数同成绩查询但不带 zd_fzdm（那是 N305005 的过滤码），空 xnm/xqm = 全部学期。
+   */
+  gradesDetail: '/cjcx/cjcx_cxXsKccjList.html?gnmkdm=N305007',
+  /**
    * ✅ N253512 自主选课链（2026-11-06 按唐师真实结构重写，铁证见 docs/diagnostics/：
    * Index 样本 + 教务官方 zzxkYzb.js + 真机 logcat）。与 zfn_api 通用契约的差异：
    * 无 role=tab 板块，闸门是 hidden input iskxk；教学班补全前缀是 zzxkyzbjk_；

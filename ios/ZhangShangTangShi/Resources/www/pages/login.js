@@ -19,6 +19,7 @@ import { icon } from '../core/icons.js';
 import { setBusy, toast } from '../core/toast.js';
 import * as storage from '../core/storage.js';
 import { createSheet } from '../components/sheet.js';
+import { XUEGONG_URL } from '../data/externalLinks.js';
 
 /** 教务学号规则（与 demoProvider 的校验保持一致） */
 const STUDENT_NO_RE = /^\d{10,12}$/;
@@ -85,6 +86,31 @@ function build(ctx) {
     submitBtn,
   ]);
 
+  /**
+   * 仅登录学工系统：不是 App 的登录，而是「绕开教务」的侧门。
+   * 走和首页学工入口同一个 data-action（open-external → NativeBridge.openWebView），
+   * 因此不建立会话、不需要学号密码，也不改变 App 的登录态 —— 关掉 WebView 仍停在登录页。
+   */
+  const xuegongOnly = h(
+    'button',
+    {
+      className: 'p-login__alt',
+      type: 'button',
+      dataset: { action: `open-external:${XUEGONG_URL}` },
+    },
+    [
+      h('span', { className: 'p-login__alt-icon', 'aria-hidden': 'true', html: icon('external', 20) }),
+      h('span', { className: 'p-login__alt-text' }, [
+        h('span', { className: 'p-login__alt-title', text: '仅登录学工系统' }),
+        h('span', {
+          className: 'p-login__alt-desc',
+          text: '奖助贷、请假、综合素质 · 免教务登录',
+        }),
+      ]),
+      h('span', { className: 'p-login__alt-arrow', 'aria-hidden': 'true', html: icon('chevronRight', 18) }),
+    ]
+  );
+
   const el = h('div', { className: 'page p-login' }, [
     h('div', { className: 'p-login__brand' }, [
       h('img', {
@@ -96,6 +122,7 @@ function build(ctx) {
       h('p', { className: 'p-login__slogan', text: '唐山师范学院 · 教务数据随身看' }),
     ]),
     card,
+    xuegongOnly,
     h('p', {
       className: 'p-login__privacy',
       text: '账号密码只用于本次登录，不上传、不保存。',

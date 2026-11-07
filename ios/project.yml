@@ -42,8 +42,8 @@ targets:
         INFOPLIST_FILE: ZhangShangTangShi/Resources/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.tstc.zstangshi
         PRODUCT_NAME: "$(TARGET_NAME)"
-        MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: "5"
+        MARKETING_VERSION: "1.5.0"
+        CURRENT_PROJECT_VERSION: "9"
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic

@@ -125,6 +125,18 @@
   color: var(--text-secondary);
 }
 
+/* 成绩构成（平时 90 · 期末 85）：比 meta 更弱一档，明确是注脚不是主信息；
+   用同一行内省略，长分项名不会把课程名挤掉 */
+.c-grade__split {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
 .c-grade__remark {
   align-self: flex-start;
   margin-top: 2px;
@@ -164,6 +176,16 @@
   font-size: var(--fs-caption);
   font-weight: var(--fw-medium);
   color: var(--text-secondary);
+}
+
+/* 文字成绩（良好/优秀/中等）：真实结果，但字比数字宽，降一级字号并换回正文字体，
+   让它和上下行对齐、不被裁掉；颜色仍用正文色，和「未录入」的灰字区分开 */
+.c-grade__score-value.is-text {
+  font-family: var(--font-sans);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  letter-spacing: 0;
 }
 
 /* 不及格才标红；60 分是及格线，不在此列 */

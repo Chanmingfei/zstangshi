@@ -389,6 +389,7 @@ App 用到的关键项（**页面地址**）：
 | 个人课表查询 | `N2151` / `N253508` | `/kbcx/xskbcx_cxXskbcxIndex.html` |
 | 学生学业情况查询 | `N105515` | `/xsxy/xsxyqk_cxXsxyqkIndex.html?echarts=1` |
 | 学生成绩查询 | `N305005` | `/cjcx/cjcx_cxDgXscj.html` |
+| 学生成绩明细查询 | `N305007` | `/cjcx/cjcx_cxDgXsxmcj.html` |
 | 自主选课 | `N253512` | `/xsxk/zzxkyzb_cxZzxkYzbIndex.html` |
 | 推荐选课 | `N253511` | `/xsxk/tjxkyzb_cxTjxkYzbIndex.html` |
 | 查询个人信息 | `N100801` | `/xsxxxggl/xsgrxxwh_cxXsgrxx.html` |
@@ -407,6 +408,7 @@ App 用到的关键项（**页面地址**）：
 |---|---|---|---|---|
 | 个人课表 | `N2151` 页面 | `POST /kbcx/xskbcx_cxXsKb.html` | `xnm=2026&xqm=3` | ✅ 10692 字节，`kbList` 5 条 + `xsxx` 学生信息 |
 | 学生成绩 | `N305005` 页面 | `POST /cjcx/cjcx_cxXsgrcj.html?doType=query` | `xnm=&xqm=&zd_fzdm=N305005-xs` + `queryModel.showCount/limit=200` | ✅ `totalResult=82`，`items` 82 条 |
+| **成绩分项明细** | `N305007` 页面 | `POST /cjcx/cjcx_cxXsKccjList.html` | `xnm=&xqm=` + `queryModel.showCount/limit=1000`（**不带** `zd_fzdm`） | ✅ `totalResult=216`，`items` 216 条（76 门课） |
 | 推荐课表清单 | `N214505` 页面 | `POST /kbdy/bjkbdy_cxBjkbdyTjkbList.html` | `xnm=2026&xqm=3` | ✅ 467 个班级的推荐课表**目录**（不是课表本体） |
 | 自主选课 | `N253512` 页面 | ⛔ 课池 AJAX 未实测 | — | 保持 `NOT_IMPLEMENTED` |
 
@@ -417,6 +419,14 @@ App 用到的关键项（**页面地址**）：
 - 成绩字段：`kch / kcmc / cj / jd / xf / kcxzmc / kclbmc / khfsmc / ksxz / cjsfzf /
   xnmmc / xqmmc / jxb_id / key`。`cj` 可能是文字成绩（优秀/缓考/缺考），映射时
   **不伪装成数字**；`semesterId` 用 `xnmmc-xqmmc` 原文拼，不自己换算。
+- **成绩分项明细**（`N305007`，2026-11-07 真机实测）：一行 = 一门课的一个分项，
+  字段 `jxb_id / kch / kcmc / xf / xmblmc / xmcj / xnm / xqm`。`xmblmc` 形如
+  `平时(40%)` / `期末(60%)` / `总评`，`xmcj` 是对应得分（也可能给成「良好」）。
+  - `总评` 行与成绩查询的 `cj` **逐条一致**（76/76），所以解析时丢弃，避免同一数字两处来源；
+  - 该接口**比成绩查询少 6 门课**（全是「网络学习」类纯总分课，本来就没有分项），
+    所以它只能**附加**在成绩查询之上，不能替代 —— 否则 82 条会掉成 76 条；
+  - 它没有 `jd / kcxzmc / khfsmc / ksxz`，绩点与课程性质仍以 `N305005` 为准；
+  - 默认只回 10 条，`queryModel.showCount=1000` 才能一次拿全 216 行（≈180 KB，可与成绩查询并行）。
 - 推荐课表清单再往下还有「按 `tjkbzdm` 预览 → `bjkbdy_ylBjkbdyIndex.html` → 周课表网格」
   一段未实测，所以 `ENDPOINTS.recommend` **仍保持 `null`**，不把 467 条班级目录冒充成 `Course[]`。
 

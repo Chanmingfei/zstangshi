@@ -17,12 +17,36 @@ import { countUp } from '../core/animate.js';
 import { playShared } from '../core/shared.js';
 import { syncText } from '../core/format.js';
 import { emptyState } from '../components/emptyState.js';
+import { GRADE_KIND, gradeResultOf } from '../data/gradeText.js';
 
 /** 课程类型 / 考核方式中文（与 gradeRow 同口径，组件之间不互相 import） */
 const TYPE_LABEL = { required: '必修', elective: '选修', public: '公共', practice: '实践' };
 const ASSESS_LABEL = { exam: '考试', check: '考查' };
 /** 教务没给的值（教师、学时）—— 明说「教务未提供」，不留空白也不摆「--」 */
 const NOT_PROVIDED = '教务未提供';
+
+/** 分项得分可能是汉字（`良好`），不用数字字体渲染，否则会撑破格子 */
+function isTextScore(value) {
+  return !/^-?\d+(?:\.\d+)?$/.test(String(value).trim());
+}
+
+/**
+ * 取一门课的成绩构成。
+ * 首选 `components`（教务成绩明细查询的原样分项，带权重）；
+ * 兜底兼容早期的 `scoreDetail: {usual, midterm, final}`（老缓存 / 演示数据）。
+ * @param {object} grade
+ * @returns {Array<{label: string, weight: number|null, score: string|number}>}
+ */
+function componentsOf(grade) {
+  if (Array.isArray(grade.components) && grade.components.length) return grade.components;
+  const legacy = grade.scoreDetail;
+  if (!legacy) return [];
+  return [
+    { label: '平时', weight: null, score: legacy.usual },
+    { label: '期中', weight: null, score: legacy.midterm },
+    { label: '期末', weight: null, score: legacy.final },
+  ].filter((item) => item.score !== null && item.score !== undefined && item.score !== '');
+}
 
 /**
  * 从已加载的课表里补齐教师与学时。
@@ -58,12 +82,6 @@ function kvRow(label, value) {
       text,
     }),
   ]);
-}
-
-/** 未录入与缓考都要说清楚「为什么这里没有数字」，但两者是不同的状态，措辞必须分开 */
-function pendingOf(grade) {
-  if (grade.remark === '缓考' || grade.remark === '缺考') return grade.remark;
-  return '未录入';
 }
 
 export default {
@@ -172,18 +190,13 @@ export default {
     }
 
     /**
-     * 成绩构成。数据里没有就整块不显示 —— 摆三个「--」比不摆更糟。
+     * 成绩构成。教务「学生成绩明细查询」给什么就摆什么（平时/期末/期中，带权重），
+     * 没给就整块不显示 —— 摆三个「--」比不摆更糟。
      * @param {object} grade
      */
     function paintBreakdown(grade) {
-      const detail = grade.scoreDetail;
-      const rows = [
-        ['平时', detail && detail.usual],
-        ['期中', detail && detail.midterm],
-        ['期末', detail && detail.final],
-      ].filter(([, value]) => value !== null && value !== undefined);
-
-      if (rows.length === 0) {
+      const comps = componentsOf(grade);
+      if (comps.length === 0) {
         view.breakdown.hidden = true;
         view.breakdown.replaceChildren();
         return;
@@ -193,14 +206,26 @@ export default {
         h('h2', { className: 'p-gd__section-title', text: '成绩构成' }),
         h(
           'div',
-          { className: 'p-gd__breakdown-grid' },
-          rows.map(([label, value]) =>
+          {
+            className: 'p-gd__breakdown-grid'
+              + (comps.length === 1 ? ' is-single' : comps.length === 2 ? ' is-compact' : ''),
+          },
+          comps.map((item) =>
             h('div', { className: 'p-gd__breakdown-cell' }, [
-              h('span', { className: 'p-gd__breakdown-value', text: String(value) }),
-              h('span', { className: 'p-gd__breakdown-label', text: label }),
+              h('span', {
+                className: `p-gd__breakdown-value${isTextScore(item.score) ? ' is-text' : ''}`,
+                text: String(item.score),
+              }),
+              h('span', {
+                className: 'p-gd__breakdown-label',
+                text: item.weight === null || item.weight === undefined
+                  ? item.label
+                  : `${item.label} ${item.weight}%`,
+              }),
             ])
           )
-        )
+        ),
+        h('p', { className: 'p-gd__breakdown-label', text: '来自教务「学生成绩明细查询」' })
       );
     }
 
@@ -221,31 +246,36 @@ export default {
         playShared(`grade:${grade.id}`, view.title);
       }
 
-      const missing = grade.score === null || grade.score === undefined;
-      const failed = !missing && Number(grade.score) < 60;
+      // 三种形态统一判定：数字分 / 文字成绩（良好、优秀）/ 还没有结果（未录入、缓考）
+      const result = gradeResultOf(grade);
+      const missing = result.kind === GRADE_KIND.PENDING;
+      const isText = result.kind === GRADE_KIND.TEXT;
       view.scoreValue.classList.toggle('is-missing', missing);
-      view.scoreValue.classList.toggle('is-fail', failed);
+      view.scoreValue.classList.toggle('is-text', isText);
+      view.scoreValue.classList.toggle('is-fail', result.failed);
 
       if (missing) {
-        view.scoreValue.textContent = pendingOf(grade);
+        view.scoreValue.textContent = result.value;
         view.gp.textContent = '';
         // 缓考不是「没出分」，是「考了但顺延」，说明也要跟着变
         view.note.textContent =
-          grade.remark === '缓考'
+          grade.remark === '缓考' || result.value === '缓考'
             ? '已办理缓考，成绩通常在考后 2-4 周公布'
             : '成绩通常在考后 2-4 周公布';
       } else {
-        if (!counted) countUp(view.scoreValue, grade.score, { duration: 350 });
+        // 文字成绩（良好/优秀）没有数字可滚，直接落字，不能让它从 0 滚到「良好」
+        if (isText) view.scoreValue.textContent = result.value;
+        else if (!counted) countUp(view.scoreValue, grade.score, { duration: 350 });
         else view.scoreValue.textContent = String(grade.score);
         counted = true;
         view.gp.textContent =
           grade.gradePoint === null || grade.gradePoint === undefined
             ? '绩点 --'
             : `绩点 ${grade.gradePoint}`;
-        view.note.textContent = '';
+        // 文字成绩单独占了大字位，不再重复「· 良好」；只有数字分才需要这层标注
+        view.note.textContent = isText ? '五级制成绩，由教务按等第记载' : '';
       }
-      // 文字成绩（优秀 / 良好）与分数并列，不与大号数字抢位置
-      view.scoreTag.textContent = !missing && grade.scoreText ? `· ${grade.scoreText}` : '';
+      view.scoreTag.textContent = !missing && !isText && grade.scoreText ? `· ${grade.scoreText}` : '';
 
       const extra = enrichFromTimetable(grade, store);
       const rows = [

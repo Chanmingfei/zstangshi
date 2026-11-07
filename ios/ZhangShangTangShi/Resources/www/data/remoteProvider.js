@@ -20,7 +20,8 @@
  */
 
 import { ok, fail, makeError } from './provider.js';
-import { parseKbList, parseGpaPage, htmlToText, readSelectValue, parseGradeList } from './jwxtParse.js';
+import { parseKbList, parseGpaPage, htmlToText, readSelectValue, parseGradeList,
+  parseGradeComponents, mergeGradeComponents } from './jwxtParse.js';
 import {
   SOURCE, request, loginOnce,
   configureRemote, missingEndpoints, getEndpoints, getSemesterCode,
@@ -295,18 +296,33 @@ export function createRemoteProvider(options = {}) {
      * 成绩：页面 N305005 只是壳，真实数据在 `/cjcx/cjcx_cxXsgrcj.html?doType=query`。
      * 空 xnm/xqm = 全部学期；queryModel.showCount / limit 用来一次取全（默认只给 10 条）。
      * 学年第几学期用 xnmmc + xqmmc 原文拼，不自己换算。
+     *
+     * 【分项】总评之外还要平时/期末，那部分只在「学生成绩明细查询」（N305007）里。
+     * 两个接口并行拉：成绩查询给完整 82 条（含绩点/性质/考核方式）+ 明细给 216 行分项。
+     * 明细少 6 门课（网络学习类纯总分课），所以是**附加**不是替代；明细失败也不影响
+     * 成绩页 —— 用户照样能看到总评，只是没有构成，绝不因为加分项把主功能拖垮。
      */
     async getGrades() {
       if (!ep.gradesData) return notMeasured('学生成绩查询');
-      const res = await request(ep.gradesData, {
-        method: 'POST',
-        body: {
-          xnm: '', xqm: '', zd_fzdm: 'N305005-xs',
-          page: '1', rows: '200', limit: '200',
-          'queryModel.showCount': '200', 'queryModel.pageSize': '200',
-          sidx: '', sord: 'asc',
-        },
-      });
+      const baseBody = {
+        xnm: '', xqm: '', zd_fzdm: 'N305005-xs',
+        page: '1', rows: '200', limit: '200',
+        'queryModel.showCount': '200', 'queryModel.pageSize': '200',
+        sidx: '', sord: 'asc',
+      };
+      /** 明细接口不接受 zd_fzdm（那是 N305005 的过滤码），其余分页参数同口径放大到 1000 */
+      const detailBody = {
+        xnm: '', xqm: '',
+        page: '1', rows: '1000', limit: '1000',
+        'queryModel.showCount': '1000', 'queryModel.pageSize': '1000',
+        sidx: '', sord: 'asc',
+      };
+      const [res, detail] = await Promise.all([
+        request(ep.gradesData, { method: 'POST', body: baseBody }),
+        ep.gradesDetail
+          ? request(ep.gradesDetail, { method: 'POST', body: detailBody })
+          : Promise.resolve(null),
+      ]);
       if (!res.ok) return res;
       let payload;
       try { payload = JSON.parse(res.text); } catch {
@@ -315,6 +331,11 @@ export function createRemoteProvider(options = {}) {
       const grades = parseGradeList(payload);
       if (grades.length === 0) {
         return fail(makeError('PARSE', { detail: '成绩接口 items 为空或字段与预期不符，需校准解析器' }), { source: SOURCE });
+      }
+      if (detail && detail.ok) {
+        try {
+          mergeGradeComponents(grades, parseGradeComponents(JSON.parse(detail.text)));
+        } catch { /* 明细解析失败就只显示总评，不报错 */ }
       }
       gradeCache = grades;
       return ok(gradeCache, { source: SOURCE });

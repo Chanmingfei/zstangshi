@@ -56,11 +56,12 @@ function sectionText(sections) {
  *   courseType?: 'required'|'elective'|'public'|'practice', weeksText?: string
  * }} course
  * @param {{
- *   conflict?: boolean,  // 同格多课：只加语义类 + 读屏标记，三角由网格容器画（CSS）
+ *   conflict?: boolean,  // 真撞课：读屏标记（三角由 multi 决定，两者分开）
+ *   multi?: boolean,     // 同格还有别的课可翻：在卡片内画右下角三角
  *   dim?: boolean,       // 非本周课程半透明（当前无使用者，见 CSS 注释）
  *   compact?: boolean,
  *   showTime?: boolean,  // false = 网格卡，不渲染节次时间
- *   parity?: string,     // 'odd' / 'even'：写进读屏标签；网格上的可见角标由容器画
+ *   parity?: string,     // 'odd' / 'even'：写进读屏标签，详情层标「单周 / 双周」
  *   action?: string
  * }} [options]
  * @returns {HTMLElement}
@@ -89,6 +90,7 @@ export function courseCard(course, options = {}) {
     COURSE_TYPE_LABEL[type],
     parityText,
     options.conflict ? '与另一门课时间冲突' : '',
+    options.multi && !options.conflict ? '这一格还有其它周次的课程' : '',
     sections,
     metaLine,
   ];
@@ -112,6 +114,8 @@ export function courseCard(course, options = {}) {
       showTime && (sections || timeText)
         ? h('span', { className: 'c-course__time', text: [sections, timeText].filter(Boolean).join(' ') })
         : null,
+      // 卡片自己的子节点 → 跟 stagger() 入场动画一起动，不是贴在格子上的静态伪元素
+      options.multi ? h('span', { className: 'c-course__corner', 'aria-hidden': 'true' }) : null,
     ]
   );
 }

@@ -314,11 +314,11 @@ export default {
       if (!source) return;
       const day = Number(holder.dataset.day);
       const start = Number(holder.dataset.start);
-      const { active, rotating, relation } = coursesInCell(source.courses, day, start, weekNo);
+      const { active, rotating } = coursesInCell(source.courses, day, start, weekNo);
       const courses = active.concat(rotating);
       if (courses.length === 0) return;
       const at = Math.max(0, courses.findIndex((c) => c.id === holder.dataset.courseId));
-      detail.open(courses, at, relation);
+      detail.open(courses, at);
     };
     view.body.addEventListener('click', onBodyClick);
 

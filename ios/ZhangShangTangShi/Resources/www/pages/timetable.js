@@ -260,13 +260,13 @@ export default {
       // （含本周不上、隔周才来的单/双周轮换课）
       const day = Number(holder.dataset.day);
       const start = Number(holder.dataset.start);
-      const { active, rotating, relation } = coursesInCell(data.courses, day, start, weekNo);
+      const { active, rotating } = coursesInCell(data.courses, day, start, weekNo);
       const courses = active.concat(rotating);
       if (courses.length === 0) return;
 
       const primaryId = holder.dataset.courseId;
       const startIndex = Math.max(0, courses.findIndex((course) => course.id === primaryId));
-      detail.open(courses, startIndex, relation);
+      detail.open(courses, startIndex);
     };
     view.body.addEventListener('click', onBodyClick);
 

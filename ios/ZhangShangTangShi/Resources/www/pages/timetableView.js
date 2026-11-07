@@ -142,14 +142,13 @@ export function buildGrid(courses, view) {
     const card = courseCard(
       // 教师不上网格卡：36px 宽的列放不下，而且学生扫课表找的是「在哪上」（理由见 courseCard.js）
       { ...primary, teacher: '' },
-      { showTime: false, conflict, parity: primary.weekParity }
+      { showTime: false, conflict, parity: primary.weekParity, multi: relation !== 'single' }
     );
     card.classList.add('p-tt__card');
     cards.push(card);
 
-    const parityMark = primary.weekParity === 'odd' ? '单' : primary.weekParity === 'even' ? '双' : '';
     const holder = h('div', {
-      className: `p-tt__gridcard${conflict ? ' is-conflict' : ''}${relation === 'alternating' ? ' is-alternating' : ''}${parityMark ? ' is-parity' : ''}`,
+      className: `p-tt__gridcard${conflict ? ' is-conflict' : ''}${relation !== 'single' ? ' is-multi' : ''}`,
       dataset: {
         day: String(cell.day),
         start: String(start),
@@ -157,7 +156,6 @@ export function buildGrid(courses, view) {
         courseId: String(primary.id),
         conflictCount: String(cell.list.length),
         relation,
-        parity: parityMark,
       },
       style: { gridRow: `${start + 1} / span ${span}`, gridColumn: String(cell.day + 1) },
     }, [
@@ -206,10 +204,12 @@ export function markNow(grid, section, todayIndex) {
  */
 export function detailNodes(course) {
   const info = periodInfo(course.sections);
+  const parity = course.weekParity === 'odd' ? '单周' : course.weekParity === 'even' ? '双周' : '';
   const nodes = [
     h('p', {
       className: 'p-tt__detail-meta',
       text: [
+        parity,
         COURSE_TYPE_LABEL[course.courseType] || '课程',
         `${course.credits} 学分`,
         course.assessment === 'exam' ? '考试' : '考查',
@@ -234,11 +234,11 @@ export function detailNodes(course) {
       text: `本周无课 · ${weeksText(course.weeks)} 上课`,
     }));
   }
-  // 板块课占位行：教务只说「这个时段有板块」，没排具体地点，不能当成撞课
+  // 板块课占位行：教务只说「这个时段有板块」，没排具体地点
   if (course.isPlaceholder) {
     nodes.unshift(h('p', {
       className: 'p-tt__notice',
-      text: '板块课占位 · 地点未排，具体上课模块以自选结果为准',
+      text: '板块课 · 具体模块以自选结果为准',
     }));
   }
   return nodes;

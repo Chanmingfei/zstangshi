@@ -351,6 +351,14 @@ check('I29 详情层把真实课排在占位行前面',
   coursesInCell(withBlock, 1, 6, 10).active[0].name === 'Java编程开发');
 check('I30 两门真实课同周重叠仍然判冲突',
   coursesInCell([...clash, { ...clash[0], id: 'C' }], 3, 5, 2).relation === 'conflict');
+// 三角必须是课程卡的真实子节点，否则卡片有 stagger 入场动画、角标却静止贴在格子上
+const cardSrc = readFileSync(new URL('../web/components/courseCard.js', import.meta.url), 'utf8');
+const cardCss = readFileSync(new URL('../web/styles/componentsItem.css', import.meta.url), 'utf8');
+const gridCss = readFileSync(new URL('../web/styles/pagesTimetable.css', import.meta.url), 'utf8');
+check('I31 多课三角由卡片内部节点渲染', cardSrc.includes("className: 'c-course__corner'")
+  && cardSrc.includes('options.multi') && cardCss.includes('.c-course__corner {'));
+check('I32 格子上不再画静态角标伪元素', !gridCss.includes('.is-parity')
+  && !gridCss.includes('is-conflict::after') && !gridCss.includes('data-parity'));
 
 /* ── 结论 ─────────────────────────────────────────────────────────────── */
 if (failures.length) {

@@ -1,6 +1,8 @@
 # 课表解析器适配规格（用户提供代码 → `web/data/parse.js`）
 
-> 输入源：`reference/wakeup-parser-tstc.js`（用户本人为唐山师范学院写的 WakeUp 课程表学校解析器，277 行）
+> 输入源：`reference/wakeup-parser-tstc.js`（用户本人为唐山师范学院写给**小米小爱课程表**的学校适配脚本，277 行）
+> 说明：项目同时参考了 WakeUp 课程表与小米小爱课程表的数据；本文分析的是后者中的适配脚本。
+> 文件名沿用早期 `wakeup-` 前缀，容易误解 —— 它**不是** WakeUp 课程表的解析器。
 > 目标：并入 `web/data/parse.js`，作为 `remoteProvider` 的课表解析实现
 > 结论：**解析逻辑可整体复用，只需替换 DOM 适配层 + 修 3 处缺陷 + 补 1 个数据字段**
 
@@ -10,7 +12,7 @@
 
 ### 1.1 它是什么
 
-这是 **小米 WakeUp 课程表**的「学校解析器」规范实现（源码第 268 行注释指向官方 parser 文档）。入口函数签名：
+这是 **小米小爱课程表**的「学校解析器」规范实现（源码第 268 行注释指向小爱开放平台的 parser 文档）。入口函数签名：
 
 ```js
 scheduleHtmlParser(html) → { courseInfos, sectionTimes }
@@ -43,7 +45,7 @@ scheduleHtmlParser(html) → { courseInfos, sectionTimes }
 let $ = cheerio.load(jss.html, { decodeEntities: false })
 ```
 
-`cheerio` 是 WakeUp 运行时注入的。**我们的零依赖环境没有它**，这是唯一的移植障碍。
+`cheerio` 是小爱课程表解析器运行时注入的。**我们的零依赖环境没有它**，这是唯一的移植障碍。
 
 ---
 
@@ -126,7 +128,7 @@ function createQuery(htmlString) {
 export function parseTimetable(raw, opts) { … }
 ```
 
-**映射规则（WakeUp 格式 → 本项目 `Course`）**：
+**映射规则（小爱课程表输出格式 → 本项目 `Course`）**：
 
 | 源字段 | 目标字段 | 说明 |
 |---|---|---|
@@ -139,7 +141,7 @@ export function parseTimetable(raw, opts) { … }
 | （由 `sections` 查 `sectionTimes`） | `startTime` / `endTime` | 查不到时置 `'--:--'`，不抛错 |
 | — | `credits` / `courseType` / `code` | 课表页**不提供**，置 `0` / `'required'` / `''`；真实学分从成绩页或教学计划页补全 |
 
-`sectionTimes` 来自 `jss.sj`，WakeUp 规范为 `[{section:1,startTime:'08:00',endTime:'08:45'}, …]`。**格式未验证**（无真实样本），实现时做容错：数组元素可能是 `{section,startTime,endTime}` 或 `{n,s,e}` 或纯字符串，统一归一化。
+`sectionTimes` 来自 `jss.sj`，小爱课程表规范为 `[{section:1,startTime:'08:00',endTime:'08:45'}, …]`。**格式未验证**（无真实样本），实现时做容错：数组元素可能是 `{section,startTime,endTime}` 或 `{n,s,e}` 或纯字符串，统一归一化。
 
 ---
 

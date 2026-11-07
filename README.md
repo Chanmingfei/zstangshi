@@ -154,7 +154,7 @@ flowchart TB
 ├── ios/           iOS 工程（WKWebView 壳、桥接层、本地 HTTP 服务、Xcode 工程与云构建配置）
 ├── docs/          架构设计、PRD、接口实测记录、验收与解析器适配规格
 ├── tools/         纯函数单测与规则守卫脚本
-├── reference/     WakeUp 课程表学校解析器（设计参考，不参与构建）
+├── reference/     小爱课程表学校适配脚本（设计参考，不参与构建；文件名沿用早期前缀）
 ├── server.js      本地预览服务器 + /jwxt/ 正向代理（仅开发时用）
 └── .github/       GitHub Actions：macOS runner 编译 iOS
 ```
@@ -177,17 +177,18 @@ node ios/scripts/test-shell-smoke.mjs          # 按 iPhone 视口逐 Tab 冒烟
 
 ## 第三方来源与致谢
 
-**先说结论：本项目没有 fork、复制或 vendoring 任何 GitHub 仓库的代码**，没有 git submodule，运行时零 npm 依赖。下列是被引用、参考或作为分析素材的外部来源，按性质分别列出：
+**先说结论：本项目没有 fork、复制或 vendoring 任何 GitHub 仓库的代码**，没有 git submodule，运行时零 npm 依赖。课表数据与交互**同时参考了 WakeUp 课程表与小米小爱课程表**——这是两个不同产品：前者是独立第三方课程表 App，后者是小米的课程表服务。下列是被引用、参考或作为分析素材的外部来源，按性质分别列出：
 
 | 来源 | 关系 | 说明 |
 | --- | --- | --- |
-| **WakeUp 课程表**（小米）· [官网](http://www.wakeup.fun/) · [学校解析器格式文档](https://open-schedule-prod.ai.xiaomi.com/docs/#/help/?id=parser) | 规范与交互设计参考 | `reference/wakeup-parser-tstc.js` 是**本项目作者本人**为唐山师范学院写的 WakeUp 学校解析器（277 行），遵循其 `scheduleHtmlParser(html) → {courseInfos, sectionTimes}` 规范；它只作为设计参考保留，**不参与构建与运行**。适配分析见 [docs/parser-adapter-spec.md](docs/parser-adapter-spec.md)。课程卡配色思路、长按 500 ms 判定、详情层左右滑动切换、复制课表文案的字段顺序，均是对照 WakeUp 课表后的设计取舍（见 `courseCard.js` / `clipboard.js` / `timetableView.js` / `timetableDetail.js` 注释）。 |
+| **WakeUp 课程表** · [官网](http://www.wakeup.fun/) | 数据与交互参考 | 独立的第三方课程表 App，**不是小米产品**。项目对照了它的课表数据与交互手感：课程卡配色思路、长按 500 ms 判定、详情层左右滑动切换、复制课表文案的字段顺序等（见 `courseCard.js` / `clipboard.js` / `timetableView.js` / `timetableDetail.js` 注释）。 |
+| **小爱课程表**（小米）· [解析器格式文档](https://open-schedule-prod.ai.xiaomi.com/docs/#/help/?id=parser) | 解析器规范参考 | `reference/wakeup-parser-tstc.js` 是**本项目作者本人**为唐山师范学院写给小爱课程表的学校适配脚本（277 行），遵循小爱 `scheduleHtmlParser(html) → {courseInfos, sectionTimes}` 规范（出处见该文件 L268 注释）。**文件名沿用早期 `wakeup-` 前缀，容易误解：它不是 WakeUp 课程表的解析器。** 该文件只作设计参考，不参与构建与运行；移植分析见 [docs/parser-adapter-spec.md](docs/parser-adapter-spec.md)。 |
 | **正方教务系统** `jwxt.tstc.edu.cn` | 页面样本与接口分析素材 | `docs/diagnostics/` 下的 jQuery 插件与页面 JS 是从教务站点抓取的原文样本，仅用于逆向确认端点与字段口径，**不参与 App 构建或运行**，版权归原系统所有。 |
 | **唐山师范学院公开资料** | 数据／素材来源 | 校历来自教务处 [校历查询](https://jwc.tstc.edu.cn/xlcx.htm)，作息时间来自 [教务处公告](https://jwc.tstc.edu.cn/info/1247/2699.htm)，校徽为学校官网公开素材；校历 JSON 副本在 `docs/school-calendar.json` 与 `web/data/school-calendar.json`。 |
 | **学工系统** `sws.tstc.edu.cn` | 外链入口 | 仅在 App 内 WebView 打开原页面，不解析、不复制其代码。 |
 | **工具链** | 构建／分发工具，非代码引用 | Android SDK build-tools（`aapt2` / `d8` / `zipalign` / `apksigner`）、Xcode、Node.js、[Codemagic](https://codemagic.io)、[Sideloadly](https://sideloadly.io)、GitHub Actions。 |
 
-「掌上唐师」及校徽为说明性使用，本项目与学校、正方软件、小米 WakeUp 课程表均无官方关联。
+「掌上唐师」及校徽为说明性使用，本项目与学校、正方软件、WakeUp 课程表、小米（小爱课程表）均无官方关联。
 
 ---
 

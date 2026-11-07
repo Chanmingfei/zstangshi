@@ -69,8 +69,12 @@
   color: var(--text-secondary);
 }
 
+/* base.css 的 button 重置是 text-align: inherit（左对齐），且 44px 热区里
+   display:block 的文字会贴顶；用 flex 把文字在横竖两个方向都摆正。 */
 .p-tt__show-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-height: var(--hit-min);
   border-radius: var(--r-sm);
@@ -79,6 +83,7 @@
   font-size: var(--fs-body-strong);
   line-height: var(--lh-body-strong);
   font-weight: var(--fw-semibold);
+  text-align: center;
 }
 
 /* 长按复制的可见提示：不加这一行，没有人会想到去长按一段静态文本 */

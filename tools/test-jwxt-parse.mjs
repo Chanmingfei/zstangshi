@@ -359,6 +359,13 @@ check('I31 多课三角由卡片内部节点渲染', cardSrc.includes("className
   && cardSrc.includes('options.multi') && cardCss.includes('.c-course__corner {'));
 check('I32 格子上不再画静态角标伪元素', !gridCss.includes('.is-parity')
   && !gridCss.includes('is-conflict::after') && !gridCss.includes('data-parity'));
+// base.css 把 button 重置成 text-align: inherit，按钮文字必须显式摆正
+const sheetCss = readFileSync(new URL('../web/styles/pagesTimetableSheet.css', import.meta.url), 'utf8');
+const showBtnCss = /\.p-tt__show-btn\s*\{([^}]*)\}/.exec(sheetCss);
+check('I33 「显示这门课」按钮文字横竖居中', Boolean(showBtnCss
+  && showBtnCss[1].includes('justify-content: center')
+  && showBtnCss[1].includes('align-items: center')
+  && showBtnCss[1].includes('text-align: center')));
 
 /* ── 结论 ─────────────────────────────────────────────────────────────── */
 if (failures.length) {

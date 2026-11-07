@@ -1,103 +1,207 @@
 # 掌上唐师
 
-唐山师范学院教务系统移动端。同一套 H5 业务代码，两个原生壳：Android（WebView）与 iOS（WKWebView）。
+面向唐山师范学院在校生的校园服务 App（个人开发，**非学校官方发布**）。用一套原生壳把教务系统与学工系统的常用功能装进手机：成绩、绩点、课表、推荐课表、选课、校历、奖助贷与请假。
 
-当前版本 **v1.5.3**（`versionCode 12`）：课表单双周精确周次（zcds / oldzc）与冲突判定修正；1.5.2 含成绩分项明细、文字成绩、应用内返回栈、校外 http 协议自适应、冷启动加载页。
+**当前版本 v1.5.3（versionCode 12）** · 零第三方运行时依赖 · 纯静态 ESM，无打包步骤 · `npm run verify` 全绿
+
+---
+
+## 下载与安装
+
+> **Android 用户直接去 Releases 下载，不需要自己编译。**
+>
+> - 始终拿最新版：<https://github.com/Chanmingfei/zstangshi/releases/latest>
+> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v1.5.3>
+> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v1.5.3/ZhangShangTangShi-1.5.3.apk>
+
+| 项目 | 值 |
+| --- | --- |
+| 版本 | 1.5.3（versionCode 12） |
+| 文件 | `ZhangShangTangShi-1.5.3.apk`，917,109 字节（约 896 KiB） |
+| 系统要求 | Android 8.0（API 26）及以上，目标 Android 14（API 34） |
+| 权限 | 仅 `INTERNET`、`ACCESS_NETWORK_STATE` |
+| 签名 | 本地调试密钥，与近期版本一致，**可直接覆盖安装** |
+| SHA-256 | `60d35412f97c8e37e5297667ece424cf941089e953c2fb3d796406532e19d797` |
+
+**安装步骤**
+
+1. 从上面的 Releases 页面下载 APK，在手机上点开。
+2. 系统提示「未知来源」时，允许当前浏览器／文件管理器安装即可（调试签名、未上架应用商店，属正常现象）。
+3. 已装旧版可直接覆盖，登录状态与本地数据会保留；若提示「应用未安装」，卸载旧版后重装。
+
+校验下载完整性（可选）：
+
+```bash
+certutil -hashfile ZhangShangTangShi-1.5.3.apk SHA256   # Windows 终端
+sha256sum ZhangShangTangShi-1.5.3.apk                   # macOS / Linux
+```
+
+**iOS 没有预编译包。** iOS 的可执行文件必须由 Xcode 编译，且免费 Apple ID 只能自签 7 天。两条路：
+
+- 有 Mac：`bash ios/scripts/build-ipa.sh`，再用 Sideloadly 重签。
+- 无 Mac：用 [Codemagic](https://codemagic.io) 导入本仓库，自动识别根目录 `codemagic.yaml` 产出未签名 ipa；也可用 `.github/workflows/ios-ipa.yml`。详见 [ios/README.md](ios/README.md)。
+
+---
+
+## 这个 App 解决什么问题
+
+学校教务系统（正方）和学工系统都是为 PC 浏览器设计的页面：手机上要缩放、要反复登录、课表与成绩散在多个菜单里。这个 App 做三件事：
+
+1. **把页面变成接口。** 由原生层代发 HTTP 请求，把教务返回的页面解析成结构化数据，再按手机端的信息层级重新呈现，而不是把网页塞进一个小窗口。
+2. **把多系统合成一个入口。** 首页 7 个宫格直达常用功能；登录页可「仅登录学工系统」，只想办奖助贷、请假时不必登录教务；「更多功能」则在 App 内 WebView 打开原教务系统，覆盖尚未适配的长尾功能。
+3. **处理移动端特有的网络问题。** 校外移动数据下教务的 443 端口常常被阻断而 80 可用，App 会自动探测并选用可用协议，避免「浏览器能开、App 登不上」。
+
+### 功能清单
+
+| 场景 | 功能 |
+| --- | --- |
+| 首页 | 今日课程、常用功能 7 宫格、下拉刷新、深浅色主题 |
+| 成绩 | 按学期成绩列表、五级制文字成绩（优秀／良好…）、平时分／期末分明细、已获学分与绩点 |
+| 课表 | 个人课表（周视图）、单双周精确周次、同格多课切换、板块课占位行、推荐课表、选课 |
+| 日历 | 教学周换算、学期校历、自定义学期 |
+| 学工 | 奖助贷、请假、综合素质（App 内 WebView 打开原站点） |
+| 体验 | 冷启动加载页、应用内返回栈、骨架屏、多级字号、读屏标签、对比度 ≥ 4.5 |
+
+**数据来源与账号**：正式数据来自 `jwxt.tstc.edu.cn`（正方教务）与 `sws.tstc.edu.cn`（学工系统），需要本人学号与密码；App 不保存明文密码，凭据交给系统安全区（Android `SecurePrefs` / iOS Keychain），会话 Cookie 由原生层维护。仓库内还带一套**演示数据**，浏览器里跑 `node server.js` 无需账号即可预览全部界面；演示数据是抓取失败时的降级副本，不是默认数据源。
+
+---
+
+## 技术逻辑
+
+### 1. 总体架构：一套 H5，两个原生壳
+
+```mermaid
+flowchart TB
+    subgraph H5["web/ — 唯一真源（93 个文件，纯静态 ESM）"]
+        P["pages/ 页面 · components/ 组件"]
+        C["core/ 路由 / store / transport / animate"]
+        D["data/ Provider / 解析器 / 演示集"]
+        P --> C --> D
+    end
+    subgraph A["Android 壳"]
+        AW["WebView + AssetLoader<br/>http://app.local/ → assets/www"]
+        AB["NativeBridge（10 个 @JavascriptInterface）"]
+        AW --- AB
+    end
+    subgraph I["iOS 壳"]
+        IW["WKWebView + LocalHTTPServer<br/>http://127.0.0.1:18765"]
+        IB["NativeBridge（WKScriptMessageHandler）"]
+        IW --- IB
+    end
+    H5 -.同步副本.-> AW
+    H5 -.同步副本.-> IW
+    D <-->|双通道 HTTP| AB
+    D <-->|双通道 HTTP| IB
+    AB --> J["正方教务 / 学工系统"]
+    IB --> J
+```
+
+- **`web/` 是唯一真源**，改功能只改这里。Android 的 `android/app/src/main/assets/www/` 是构建产物、不入库，由 `android/build-manual.sh` 第 0 步同步；iOS 的 `ios/ZhangShangTangShi/Resources/www/` 是已提交的同步副本，用 `bash ios/scripts/sync-web.sh` 刷新。
+- **为什么需要虚拟源**：直接用 `file://` 加载时 origin 为 null，ESM 模块、`localStorage`、`crypto.subtle` 全部受限。Android 用 `AssetLoader`（`shouldInterceptRequest`）把 `http://app.local/` 映射到 assets，首屏用 `loadDataWithBaseURL` 灌入 HTML 以保证 origin 正确；`.js/.mjs` 的 MIME 必须是 `text/javascript`，否则 Chromium 会拒绝 `<script type="module">` 导致白屏，且找不到文件时必须返回 404 而不能 `return null`。iOS 用 Network.framework 起一个只监听 `127.0.0.1` 的本地 HTTP 服务，**固定优先端口 18765**——`localStorage` 按「scheme + host + port」隔离，端口一变主题、记住的学号、课表缓存全丢。
+- `detectEnv()` 只判断 `window.NativeBridge.httpRequest` 是否为函数，因此**协议自适应、原生通道等逻辑在 iOS 壳里自动生效**，H5 不需要写 iOS 分支。
+
+### 2. 数据层：Provider 契约与降级
+
+`web/data/provider.js` 是「数据 → 界面」的唯一通道，页面只认 `ProviderResult`（`{ok:true,data,meta?}` / `{ok:false,error:{code,message,retryable}}`），不关心数据来自哪里。
+
+- 所有异步方法**永不 throw**，失败一律归一成结果对象，上层不用 `try/catch`，一次网络抖动不会白屏。
+- `demoProvider` 每次带 120–320 ms 随机延迟，保证骨架屏与转场在演示模式下也能被验收；`remoteProvider` 的每个异步方法对应教务的一个功能模块：`loadSlot(name)` → 抓该模块页面 → 解析 → 映射成 App 模型。
+- `withFallback()` 在远程失败时降级到演示数据，并置 `meta.degraded = true`，页面据此标注「当前为缓存／演示数据」，不把编造的结论冒充实时数据。
+
+### 3. 网络层：双通道、原生桥与协议自适应
+
+| 环境 | 通道 | 说明 |
+| --- | --- | --- |
+| 浏览器预览 | `fetch` + `server.js` 的 `/jwxt/` 正向代理 | 否则跨域必被拦 |
+| Android WebView | `NativeBridge.httpRequest()` | 原生代发，走系统证书／明文策略，Cookie 由 `CookieJar` 维护 |
+| iOS WKWebView | `WKScriptMessageHandler` → `HTTPClient` | 等价桥协议，`reqId` 配对 Promise |
+
+- 桥协议：JS 调 `httpRequest(reqId, url, method, headersJson, body)`，原生回 `window.__nativeHttpCallback({reqId, status, headers, body})`。超时 20 s（实测校外移动数据下教务单次请求要 15–16 s，15 s 会把「慢」误判成「不通」）。
+- **手动跟随重定向**，不交给系统自动跟随：正方教务登录是两级 302，POST 会换发新的 `JSESSIONID`，自动跟随沿用旧 Cookie 会被静默踢回登录页。
+- **登录**：`yhm` + RSA（PKCS#1 v1.5）加密的 `mm` + `csrftoken(uuid,uuid)` + `language`；RSA 由原生 `rsaEncrypt` 完成。多节点负载均衡会让同一凭据前两次误报「密码不正确」，重试放在 Provider 层。
+- **协议自适应**（`data/jwxtOrigin.js`）：只探 `https`，通就用、不通直接降 `http`；探针用 favicon 这类静态小文件（404 也算连通），避免用 19 KB 登录页当探针时被 3 s 上限误杀。结果缓存 3 天，全失败后冷却 60 s。`WebActivity` 在主框架加载失败时也会做 http/https 互换重试。
+- **端点不猜**：`data/jwxtClient.js` 维护已实测端点表（成绩、课表、推荐课表打印、选课等），未实测的一律留 `null`，命中即明确报 `NOT_IMPLEMENTED`。全部实测记录见 [docs/remote-api-map.md](docs/remote-api-map.md)。
+
+### 4. 教务解析：纯函数、精确周次、冲突判定
+
+`data/jwxtParse.js` 系列是零 DOM 依赖的纯解析器，页面 → 模型全靠它，因而可以脱离浏览器单测。
+
+- **周次是课表正确性的根**。正方 `kbList` 每行同时带三份周次：`zcd`（中文文案，如 `10-16周(双)`）、`zcds`（精确列表，如 `10,12,14,16`）、`oldzc`（位掩码，第 w 周 = 第 `w-1` 位）。`data/jwxtWeekParse.js` 的 `weeksFromRow()` 按 `zcds → oldzc → zcd` 取用，生成精确 `Course.weeks`；`weekRange` / `weekParity` 一律由 `weeks` 现算，不从中文文案反推。
+- `mergeSplitRows()` 合并教务按周次拆成多行的同一门课；`isPlaceholder` 标记 `pkbj === '-1'` 的板块课占位行（未排地点、0 学分）。
+- `pages/timetableUtils.js` 的 `coursesInCell()` 把同格课程分成 `active`（本周有课）与 `rotating`（本周无课、周次互补的另一半），得出 `relation = single | conflict | alternating | placeholder`：**只有两门以上真实课在同一周重叠才算时间冲突**。本周该时段无课时不画任何课程卡。
+
+### 5. 路由、返回栈与 UI 系统
+
+- `core/router.js` 是 hash 路由，按路由 `import()` 懒加载页面；页面契约固定为 `{name, title, tab, requiresAuth, render(ctx), mount(el,ctx), unmount()}`——`render` 必须同步返回骨架保证首屏不白屏，数据在 `mount` 里异步填充。
+- WebView 里 hash 导航不是可靠的「一页一条记录」：`history.back()` 会让成绩详情直接跳回 App 首页。因此用 `core/navStack.js` 的应用内返回栈实现「谁打开我，返回就回谁」，浏览器历史只作兜底。
+- 样式以 `styles/tokens.css` 为**唯一颜色来源**，`base.css` 的分层重置配合组件／页面样式；动效集中在 `core/animate.js`（`stagger()` 入场、可打断转场）。课表右下角三角是课程卡的真实子节点 `.c-course__corner` 而不是格子伪元素，这样才能跟着卡片一起淡入。
+- 无障碍：所有前景/背景组合对比度 ≥ 4.5（最低 4.71），读屏标签包含课程类型与单／双周信息，交互热区不小于 44 px。
+
+### 6. 构建链与质量保障
+
+- **Android**：`bash android/build-manual.sh` 绕过 AGP，直接用 `aapt2 + javac + d8 + zipalign + apksigner` 产出 `android/build/app-debug.apk`，零 Gradle 依赖。版本号从 `android/app/build.gradle` 读取（单一真源），`debug.keystore` 沿用同一签名以支持覆盖安装。
+- **iOS**：Xcode 工程 + `project.yml`，`ios/scripts/sync-web.sh` 同步 H5 副本，云端 macOS 编译出未签名 ipa。
+- **测试**：`npm run verify` 串起 5 组脚本 —— 教学周算法 214 项、绩点解析 53 项、教务解析器 144 项、页面契约 44 项（10 页 / 20 样式 / 68 个 ESM，import 图零断链）、五条规则守卫（颜色字面量、外链白名单、单文件 400 行上限、校历副本一致性、对比度）。测试以纯函数为主，因此解析规则改动能被逐条断言锁住。
+
+---
+
+## 仓库结构
 
 ```
 .
-├── web/           H5 业务代码（唯一真源，两端共用，一行未改）
-├── android/       原 Android 工程（WebView 壳 + 9 个 @JavascriptInterface）
-├── ios/           iOS 工程（WKWebView 壳 + 等价桥接层）
-├── docs/          架构、接口、验收文档
-├── tools/         解析器测试与规则守卫脚本
-└── .github/       GitHub Actions：在 macOS runner 上编译 ios
+├── web/           H5 业务代码（唯一真源：core / data / pages / components / styles / assets）
+├── android/       Android 工程（WebView 壳、10 个 @JavascriptInterface、手动构建脚本）
+├── ios/           iOS 工程（WKWebView 壳、桥接层、本地 HTTP 服务、Xcode 工程与云构建配置）
+├── docs/          架构设计、PRD、接口实测记录、验收与解析器适配规格
+├── tools/         纯函数单测与规则守卫脚本
+├── reference/     WakeUp 课程表学校解析器（设计参考，不参与构建）
+├── server.js      本地预览服务器 + /jwxt/ 正向代理（仅开发时用）
+└── .github/       GitHub Actions：macOS runner 编译 iOS
 ```
 
-> `web/` 是唯一真源，改功能只改这里。
-> `ios/ZhangShangTangShi/Resources/www/` 是它的同步副本（用 `ios/scripts/sync-web.sh` 刷新）；
-> `android/app/src/main/assets/www/` 是构建产物，不入库，由 `android/build-manual.sh` 第 0 步自动生成。
-
-## 快速开始
-
-浏览器里直接调试 H5（演示数据，不需要教务账号）：
+## 本地开发
 
 ```bash
-node server.js                 # 默认 http://127.0.0.1:5173，可用 PORT=8080 改端口
+node server.js          # http://127.0.0.1:5173，可用 PORT=8080 改端口；演示数据，无需账号
+npm run verify          # 全部单测 + 规则守卫
+bash android/build-manual.sh                    # 产出 APK
+bash ios/scripts/sync-web.sh --check           # 检查 iOS 副本与 web/ 是否一致
+node ios/scripts/verify-project.mjs            # 校验 Xcode 工程结构
+node ios/scripts/test-bridge.mjs               # 桥协议断言
+node ios/scripts/test-shell-smoke.mjs          # 按 iPhone 视口逐 Tab 冒烟
 ```
 
-跑完全部规则守卫与单测：
+`package.json` 的 `dependencies` 与 `devDependencies` 都是空的；Node.js ≥ 18 只用于本地服务器和测试脚本，不参与 App 运行时。
 
-```bash
-node tools/test-week.mjs && node tools/test-gpa.mjs && \
-node tools/test-jwxt-parse.mjs && node tools/test-pages.mjs && \
-node tools/check-rules.mjs
-```
+---
 
-## 构建 Android 安装包
+## 第三方来源与致谢
 
-```bash
-bash android/build-manual.sh
-```
+**先说结论：本项目没有 fork、复制或 vendoring 任何 GitHub 仓库的代码**，没有 git submodule，运行时零 npm 依赖。下列是被引用、参考或作为分析素材的外部来源，按性质分别列出：
 
-脚本会自动同步 `web/` → `assets/www/`，再用本机的 aapt2 / javac / d8 / apksigner 产出
-`android/build/app-debug.apk`（首次运行会在同目录生成 `debug.keystore`，后续沿用同一签名，
-因此可以直接覆盖安装）。环境变量与 Windows 下的 SDK 路径见 [`android/README.md`](android/README.md)。
+| 来源 | 关系 | 说明 |
+| --- | --- | --- |
+| **WakeUp 课程表**（小米）· [官网](http://www.wakeup.fun/) · [学校解析器格式文档](https://open-schedule-prod.ai.xiaomi.com/docs/#/help/?id=parser) | 规范与交互设计参考 | `reference/wakeup-parser-tstc.js` 是**本项目作者本人**为唐山师范学院写的 WakeUp 学校解析器（277 行），遵循其 `scheduleHtmlParser(html) → {courseInfos, sectionTimes}` 规范；它只作为设计参考保留，**不参与构建与运行**。适配分析见 [docs/parser-adapter-spec.md](docs/parser-adapter-spec.md)。课程卡配色思路、长按 500 ms 判定、详情层左右滑动切换、复制课表文案的字段顺序，均是对照 WakeUp 课表后的设计取舍（见 `courseCard.js` / `clipboard.js` / `timetableView.js` / `timetableDetail.js` 注释）。 |
+| **正方教务系统** `jwxt.tstc.edu.cn` | 页面样本与接口分析素材 | `docs/diagnostics/` 下的 jQuery 插件与页面 JS 是从教务站点抓取的原文样本，仅用于逆向确认端点与字段口径，**不参与 App 构建或运行**，版权归原系统所有。 |
+| **唐山师范学院公开资料** | 数据／素材来源 | 校历来自教务处 [校历查询](https://jwc.tstc.edu.cn/xlcx.htm)，作息时间来自 [教务处公告](https://jwc.tstc.edu.cn/info/1247/2699.htm)，校徽为学校官网公开素材；校历 JSON 副本在 `docs/school-calendar.json` 与 `web/data/school-calendar.json`。 |
+| **学工系统** `sws.tstc.edu.cn` | 外链入口 | 仅在 App 内 WebView 打开原页面，不解析、不复制其代码。 |
+| **工具链** | 构建／分发工具，非代码引用 | Android SDK build-tools（`aapt2` / `d8` / `zipalign` / `apksigner`）、Xcode、Node.js、[Codemagic](https://codemagic.io)、[Sideloadly](https://sideloadly.io)、GitHub Actions。 |
 
-## 拿到 iOS 安装包（不需要 Mac）
+「掌上唐师」及校徽为说明性使用，本项目与学校、正方软件、小米 WakeUp 课程表均无官方关联。
 
-`.ipa` 里的可执行文件是 arm64 Mach-O，只能由 Apple 的 iOS SDK 编译，而 SDK 只随 Xcode 发布、Xcode 只有 macOS 版。所以用云端 macOS 机器代编译。
+---
 
-**已在 Codemagic 上跑通**（2026-11-07，Build `6aeec032`）：产出 `ZhangShangTangShi-1.5.2-unsigned.ipa`，515 KB，内含 92 个 H5 资源（与 `web/` 逐字节一致）+ arm64 Mach-O 可执行文件。
+## 隐私与安全提示
 
-用法：
+- **本仓库是公开仓库**，`web/data/demo/user.js`、`web/pages/mine.js`、`docs/remote-api-map.md`、`docs/diagnostics/`、`tools/test-gpa.mjs` 与 `reference/wakeup-parser-tstc.js` 中含演示用的真实姓名、学号、班级、成绩统计与联系方式。若要对外分发，请先脱敏或把仓库转为私有。
+- Release 中的 APK 使用本地调试密钥签名，**仅供自用／测试**，不要当作官方包传播；正式发布需更换签名。
+- 演示数据与真实成绩统计仅用于界面和算法验收，**不作为学业认定依据**，一切以学校系统为准。
+- 仓库尚未添加开源许可证（LICENSE），默认保留所有权利；如需开源授权请单独声明。
 
-1. [codemagic.io](https://codemagic.io) → 用 GitHub 登录 → **Add application** → 选本仓库
-2. 它会自动识别根目录 `codemagic.yaml`（workflow `iOS 未签名 ipa`，`mac_mini_m2` 免费档 500 分钟/月）
-3. **Start new build** → 等排队（免费档共享机器，峰期 10–40 分钟）+ 编译约 2 分钟
-4. 构建页 **Artifacts** 下载 `ZhangShangTangShi-1.5.2-unsigned.ipa`
+## 相关文档
 
-> 也可以用 GitHub Actions（`.github/workflows/ios-ipa.yml`，`macos-15`），但本账号目前被计费锁挡住，见下。
-
-> **如果 Actions 起不来**，报 `The job was not started because your account is locked due to a billing issue`：
-> 这是 GitHub 账号的计费锁（连免费的 ubuntu runner 都会被拒），与本仓库无关。
-> 两种解法：
-> - 去 [github.com/settings/billing](https://github.com/settings/billing) 处理付款信息（公开仓库的 macOS 分钟数本身是免费的，只是需要有有效的付款方式）
-> - 或者完全绕开 GitHub Actions：用 [codemagic.io](https://codemagic.io)（GitHub 登录，免费档 500 分钟/月 macOS，不需信用卡）导入本仓库，它会自动识别根目录的 `codemagic.yaml`，点 Start new build 即可，产物同样在构建页下载
-
-
-## 装到 iPhone 上
-
-下载的 ipa 是**未签名**的，iOS 不允许安装未签名可执行文件，需要用你自己的 Apple ID 重签一次。Windows 上做这件事：
-
-1. 装 [Sideloadly](https://sideloadly.io/)（Windows 版）；它依赖 iTunes 的驱动，没装 iTunes 就装 [Apple 设备驱动](https://support.apple.com/zh-cn/106372)
-2. iPhone 用数据线连电脑，首次连接在手机上点「信任」
-3. Sideloadly 里把 ipa 拖进去，Apple ID 填你的，点 Start，输入密码（如开了双重认证，用 App 专用密码）
-4. 手机上 **设置 → 通用 → VPN 与设备管理** → 信任该开发者
-5. 免费 Apple ID 签的包 **7 天到期**，到期重签一次即可；开发者账号（￥688/年）可签 1 年
-
-> 只有 7 天是因为免费账号的限制，与本 App 无关。想长期用可以考虑 AltStore（自动续签）。
-
-## 本地构建（有 Mac 时）
-
-```bash
-bash ios/scripts/build-ipa.sh                          # 未签名 ipa
-bash ios/scripts/build-ipa.sh --team <TEAM_ID>         # 已签名 ipa（需开发者账号）
-bash ios/scripts/build-ipa.sh --simulator              # 只看效果，不产 ipa
-```
-
-## 校验
-
-```bash
-bash ios/scripts/sync-web.sh --check   # Resources/www 与 web/ 是否一致
-node ios/scripts/verify-project.mjs    # Xcode 工程结构：对象引用 / 编译阶段 / 磁盘路径
-node ios/scripts/test-bridge.mjs       # 桥协议 43 项（含 RSA 与 node:crypto 互通）
-node ios/scripts/test-shell-smoke.mjs  # 真实浏览器按 iPhone 视口渲染，逐 Tab 断言
-```
-
-## 两点必须知道的实现约束
-
-- **本地服务端口固定 18765**。`localStorage` 按「scheme + host + port」隔离，端口一变，主题、记住的学号、课表缓存全丢。
-- **HTTP 请求手动跟随重定向**，不能交给 URLSession。正方教务登录是两级 302、POST 会换发新 `JSESSIONID`，自动跟随会沿用旧 Cookie 被静默踢回登录页。
-
-更多 iOS 侧细节见 [`ios/README.md`](ios/README.md)。
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 完整架构、数据结构、时序图与动效系统
+- [docs/remote-api-map.md](docs/remote-api-map.md) — 教务接口实测记录（端点、字段、周次、协议可达性）
+- [docs/PRD.md](docs/PRD.md) / [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md) — 产品需求与验收口径
+- [android/README.md](android/README.md) / [ios/README.md](ios/README.md) — 双端构建细节
+- [Releases](https://github.com/Chanmingfei/zstangshi/releases) — 各版本安装包与更新说明

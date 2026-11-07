@@ -16,14 +16,14 @@
 
 `.ipa` 里的可执行文件是 arm64 Mach-O，只能由 Apple 的 iOS SDK 编译，而 SDK 只随 Xcode 发布、Xcode 只有 macOS 版。所以用云端 macOS 机器代编译。
 
-**已在 Codemagic 上跑通**（2026-11-06，Build `6aedef2d`）：产出 `ZhangShangTangShi-1.2.0-unsigned.ipa`，494 KB，内含 84 个 H5 资源（与 `web/` 逐字节一致）+ arm64 Mach-O 可执行文件。
+**已在 Codemagic 上跑通**（2026-11-06，Build `6aedef2d`）：产出 `ZhangShangTangShi-1.5.0-unsigned.ipa`，507 KB，内含 90 个 H5 资源（与 `web/` 逐字节一致）+ arm64 Mach-O 可执行文件。
 
 用法：
 
 1. [codemagic.io](https://codemagic.io) → 用 GitHub 登录 → **Add application** → 选本仓库
 2. 它会自动识别根目录 `codemagic.yaml`（workflow `iOS 未签名 ipa`，`mac_mini_m2` 免费档 500 分钟/月）
 3. **Start new build** → 等排队（免费档共享机器，峰期 10–40 分钟）+ 编译约 2 分钟
-4. 构建页 **Artifacts** 下载 `ZhangShangTangShi-1.2.0-unsigned.ipa`
+4. 构建页 **Artifacts** 下载 `ZhangShangTangShi-1.5.0-unsigned.ipa`
 
 > 也可以用 GitHub Actions（`.github/workflows/ios-ipa.yml`，`macos-15`），但本账号目前被计费锁挡住，见下。
 

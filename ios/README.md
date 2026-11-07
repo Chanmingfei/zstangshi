@@ -16,7 +16,7 @@ Android 源码（`android/` + `web/`）到 iOS 的完整移植。**H5 业务代�
 
 | 你的条件 | 怎么做 | 产出 |
 | --- | --- | --- |
-| 有一台 Mac | `bash ios/scripts/build-ipa.sh` | `ios/build/ZhangShangTangShi-1.2.0-unsigned.ipa` |
+| 有一台 Mac | `bash ios/scripts/build-ipa.sh` | `ios/build/ZhangShangTangShi-1.5.0-unsigned.ipa` |
 | 有 Mac + 开发者账号 | `build-ipa.sh --team <TEAM_ID>` | 已签名 ipa，可直接装到登记过的设备 |
 | 没有 Mac，有 GitHub 账号 | 推仓库 → Actions 里点 `Build iOS IPA` | 从 Actions 页面下载 ipa |
 | 只想看界面 | 用浏览器打开 `Resources/www/index.html` | 无（数据层会走 web 通道，教务接口被 CORS 拦） |
@@ -45,7 +45,7 @@ ios/
 │   │   ├── CredentialStore.swift        # Keychain 存凭据（对应 SecurePrefs）
 │   │   └── InAppBrowser.swift           # 应用内浏览器（对应 WebActivity）
 │   └── Resources/
-│       ├── Info.plist                   # 版本 1.2.0(5)、ATS、启动页、方向
+│       ├── Info.plist                   # 版本 1.5.0(9)、ATS、启动页、方向
 │       ├── Assets.xcassets/             # AppIcon（1024，按 Android 矢量重绘）
 │       └── www/                         # H5 资源，由 sync-web.sh 生成，不要手改
 └── scripts/
@@ -75,7 +75,7 @@ ios/
 | `WebActivity`（应用内浏览器） | `InAppBrowserViewController` | 同样共享 Cookie，关闭即回主页 |
 | `onBackPressed` → `window.__appBack()` | 左边缘右滑 → `window.__appBack()` | 见「平台差异」 |
 | `splash_bg` 品牌深蓝 | `UILaunchScreen` + `LaunchBackground` 色 | 冷启动全程无白屏 |
-| `versionName 1.2.0 / versionCode 5` | `CFBundleShortVersionString 1.2.0 / CFBundleVersion 5` | 双端版本号对齐 |
+| `versionName 1.5.0 / versionCode 9` | `CFBundleShortVersionString 1.5.0 / CFBundleVersion 9` | 双端版本号对齐（`verify-project.mjs` 会动态比对，不一致直接失败）|
 | 自适应图标（深蓝 + 白书） | 1024 图标，同一矢量重绘 | 按 iOS 遮罩特性换算可见占比 |
 
 ---
@@ -164,7 +164,7 @@ cd ios && xcodegen generate    # 读取 project.yml，覆盖生成 .xcodeproj
 
 ## 云端构建已打通（Codemagic）
 
-2026-11-06 首次跑通，产物 `ZhangShangTangShi-1.2.0-unsigned.ipa`（494 KB，arm64）。
+2026-11-06 首次跑通，产物 `ZhangShangTangShi-1.5.0-unsigned.ipa`（507 KB，arm64）。
 前三次失败都是**脚本层**问题，与 Swift 代码无关，记在这里免得下次重踩：
 
 | 报错 | 根因 | 修法 |

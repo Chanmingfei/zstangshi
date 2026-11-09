@@ -123,6 +123,7 @@ flowchart TB
 │  │  ├─ transport.js                         # 网络抽象：detectEnv() + httpRequest()；web 走 fetch，android 走 NativeBridge（reqId ↔ Promise 注册表）
 │  │  ├─ storage.js                           # localStorage 命名空间封装：命名空间前缀、TTL、JSON 容错、体积统计、清空；凭据不落本地（除 rememberId）
 │  │  ├─ icons.js                             # 手写内联 SVG 图标注册表：icon(name, size) 返回 SVG 字符串；30+ 图标，无字体无 CDN
+│  │  ├─ slideTo.js                           # 指示块滑移（WAAPI）：起点取当前渲染矩阵、按剩余距离缩时长、打断不过冲、宽度不变时不进关键帧（留给合成器）
 │  │  └─ toast.js                             # Toast（顶部滑入）/ Confirm（二次确认）/ setBusy（按钮级 loading）
 │  ├─ data/
 │  │  ├─ types.js                             # 全部 JSDoc typedef（Semester/Course/Grade/GPA/…/DataSlot/ProviderError），零运行时代码
@@ -146,7 +147,7 @@ flowchart TB
 │  │     └─ recommended.js                    # 推荐课表演示快照（1 张周课表 10 门，与个人课表同构）
 │  ├─ components/
 │  │  ├─ appBar.js                            # 顶部栏：学年学期+教学周（caption 13px/600，不换行）、演示提示条（36px，可关）、滚动 64→56 收缩
-│  │  ├─ tabBar.js                            # 底部悬浮胶囊 Dock（照搬烫梨 CapsuleDock）：图标在上文字在下、内缩小胶囊选中块 320ms 回弹滑移、按住拖动跟手+1.06 拉伸+吸附、44px 热区
+│  │  ├─ tabBar.js                            # 底部悬浮胶囊 Dock（照搬烫梨 CapsuleDock）：图标在上文字在下、选中块滑移走 core/slideTo.js、按住拖动跟手+1.06 拉伸+吸附、44px 热区；宿主 #tabbar 指针穿透，只有胶囊接手势
 │  │  ├─ card.js                              # 通用卡片 / 分区标题 / 键值行 / 进度条（原子分子复用件）
 │  │  ├─ chip.js                              # 横向滚动 chip 选择器（学期筛选、选课筛选），选中态插值
 │  │  ├─ skeleton.js                          # 骨架屏三种形态：列表行 / 卡片 / 图表；1200ms 微光扫过（linear）
@@ -167,7 +168,8 @@ flowchart TB
 │  │  ├─ recommend.js                         # P08 推荐课表：复用 timetableView.buildGrid 的周网格、周次切换、来源说明条、课程详情
 │  │  ├─ calendarPage.js                      # P10 校历：月份切换、月历网格+第 N 周角标、今日高亮、节点色点+图例、当日事件浮层、原图全屏
 │  │  ├─ affairs.js                           # P11 学工：说明卡+地址+打开按钮；Android 走 WebView 承载页（返回/刷新/关闭）；Web 提示需在 App 内打开
-│  │  └─ mine.js                              # P12 我的：账号卡、数据源切换、清缓存（体积+二次确认）、深色模式、关于、退出登录
+│  │  ├─ mine.js                              # P12 我的：账号卡、数据源切换、清缓存（体积+二次确认）、深色模式、关于、退出登录
+│  │  └─ mineTheme.js                         # 外观三联段控：选中块是与底栏同语言的滑动胶囊（外框 16px 内块 12px 同心圆角）
 │  ├─ styles/
 │  │  ├─ tokens.css                           # 设计 token 唯一来源：亮/暗双套 CSS 变量（色彩/字号/间距/圆角/阴影/缓动/时长）+ 安全区变量
 │  │  ├─ base.css                             # reset、系统字体栈、排版阶梯、滚动条隐藏、点击高亮去除、reduce-motion 全局降级

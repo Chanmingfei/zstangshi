@@ -142,6 +142,7 @@ table {
 
 /* —— 应用外壳 —— */
 #app {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -170,12 +171,20 @@ table {
   overscroll-behavior-y: contain;
   /* 转场时需要相对定位容器来容纳离场页的绝对定位 */
   isolation: isolate;
+  /* 悬浮 Dock 不占布局高度：内容能滚到它下面，靠这条留白保证最后一项
+     停在胶囊上方、不会被永久遮住。 */
+  padding-bottom: var(--dock-band);
 }
 
 #tabbar {
-  flex: 0 0 auto;
-  /* 宿主保持透明：底部留白让胶囊「浮」在页面底色上，而不是从屏幕底边长出来。
-     离底距离叠加安全区（手势条），左右留白与胶囊内边距由 --dock-* 统一给。 */
+  /* 浮在内容之上而不是占据布局高度：页面滚到最底时能看见内容从胶囊下面穿过。
+     宿主整体不接触摸（pointer-events:none）—— 胶囊左右留白、上下留白全部镂空，
+     只有 .c-dock 本体接住手势，这就是「dock 栏外的元素仍可触碰」。 */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
   background-color: transparent;
   padding: var(--space-12) var(--dock-gutter) calc(var(--dock-gap) + var(--safe-b));
   z-index: var(--z-tabbar);

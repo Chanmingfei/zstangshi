@@ -131,6 +131,7 @@
 /* ── 主题三态分段控件 ─────────────────────────────────────────────────── */
 
 .p-mine__segment {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
@@ -139,7 +140,25 @@
   background-color: var(--bg-sunken);
 }
 
+/* 选中块：与底栏同一套语言的滑动小胶囊（位移由 core/slideTo.js 驱动，无 transition）。
+   圆角按外框做同心适配 —— 外框 16px 减掉 4px 内边距取 12px，弧线才与外框平行；
+   用 --r-full 会顶到外框的直线段，看起来像贴了块方片。 */
+.p-mine__seg-pill {
+  position: absolute;
+  top: var(--space-4);
+  bottom: var(--space-4);
+  left: 0;
+  width: 0;
+  border-radius: var(--r-sm);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  pointer-events: none;
+  will-change: transform;
+}
+
 .p-mine__segment-btn {
+  position: relative;
+  z-index: 1;
   min-height: var(--hit-min);
   padding: var(--space-8) var(--space-4);
   border: 0;
@@ -152,14 +171,12 @@
   /* base.css 的 button 重置是 text-align: inherit（左对齐），这里显式居中 */
   text-align: center;
   cursor: pointer;
-  transition: background-color var(--dur-press) var(--ease-standard),
-    color var(--dur-press) var(--ease-standard);
+  /* 底色改由滑动胶囊承担，按钮只负责文字颜色 */
+  transition: color var(--dur-press) var(--ease-standard);
 }
 
 .p-mine__segment-btn.is-active {
-  background-color: var(--bg-surface);
   color: var(--brand-primary);
-  box-shadow: var(--e1);
 }
 
 .p-mine__segment-btn:focus-visible { outline: 2px solid var(--brand-primary); }

@@ -21,6 +21,7 @@ import { sizeBytes } from '../core/storage.js';
 import { APP_VERSION } from '../appState.js';
 import { readCustom, parseSemesterId, displayYearOf } from '../data/customTerm.js';
 import { createTermSheet, TERM_LABELS } from './mineTermSheet.js';
+import { createThemeSwitch } from './mineTheme.js';
 
 /** 学工系统与教务处地址：只作为文本展示 + 点击打开，不写成 src/href 远程资源 */
 const LINKS = Object.freeze({
@@ -74,13 +75,9 @@ function build() {
     className: 'c-btn c-btn--ghost p-mine__action', type: 'button', text: '学期与教学周设置',
   });
 
-  const themeButtons = THEME_OPTIONS.map((option) => h('button', {
-    className: 'p-mine__segment-btn',
-    type: 'button',
-    text: option.label,
-    dataset: { theme: option.key },
-    'aria-pressed': 'false',
-  }));
+  // 选中态是滑动小胶囊（与底栏同一套语言），DOM 与对位逻辑在 mineTheme.js
+  const themeSwitch = createThemeSwitch({ items: THEME_OPTIONS, label: '主题模式' });
+  const themeButtons = themeSwitch.buttons;
 
   const cacheValue = h('span', { className: 'p-mine__row-value', text: bytesText(sizeBytes()) });
   const clearBtn = h('button', {
@@ -156,7 +153,7 @@ function build() {
 
     h('section', { className: 'p-mine__card' }, [
       h('h2', { className: 'p-mine__card-title', text: '外观' }),
-      h('div', { className: 'p-mine__segment', role: 'group', 'aria-label': '主题模式' }, themeButtons),
+      themeSwitch.el,
       h('p', { className: 'p-mine__hint', text: '切换后立即生效，刷新不会闪回亮色' }),
     ]),
 
@@ -186,7 +183,7 @@ function build() {
 
   el.__view = {
     studentNo, userNo, avatar, sessionTag, heroSub, sourceValue, termValue, termBtn,
-    themeButtons, cacheValue, clearBtn, logoutBtn, aboutBtn, linkRow, addWidgetBtn,
+    themeButtons, themeSwitch, cacheValue, clearBtn, logoutBtn, aboutBtn, linkRow, addWidgetBtn,
   };
   return el;
 }
@@ -241,12 +238,7 @@ export default {
         ? `${label} · 第1周 ${custom.startDate}（自定义）`
         : `${label}（校历）`;
 
-      const choice = readThemeChoice();
-      for (const btn of view.themeButtons) {
-        const active = btn.dataset.theme === choice;
-        btn.classList.toggle('is-active', active);
-        btn.setAttribute('aria-pressed', String(active));
-      }
+      view.themeSwitch.setActive(readThemeChoice());
       view.cacheValue.textContent = bytesText(sizeBytes());
     }
 
@@ -365,6 +357,7 @@ export default {
       view.termBtn.removeEventListener('click', onTermSettings);
       view.addWidgetBtn.removeEventListener('click', onAddWidget);
       termSheet.destroy();
+      view.themeSwitch.destroy();
       unsubSession();
       unsubSource();
     };

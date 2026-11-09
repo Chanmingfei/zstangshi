@@ -22,6 +22,7 @@
 
 import { h } from '../core/dom.js';
 import { icon } from '../core/icons.js';
+import { slideTo, forgetSlide } from '../core/slideTo.js';
 
 /** 四个 Tab 的定义（顺序即渲染顺序）。`icon` 是 core/icons.js 里的图标名。 */
 export const TAB_ITEMS = [
@@ -118,6 +119,11 @@ export function createTabBar(options = {}) {
 
   /**
    * 把胶囊摆到 pos（单位「格」，可以是小数）。
+   *
+   * 位移交给 core/slideTo.js 的 WAAPI 实现：起点取当前渲染位置、按剩余距离
+   * 缩短时长，所以连点两下时胶囊从半路直接换向，不会排完上一段再走。
+   * 拖动时走 instant（跟手，不能有过渡）。
+   *
    * @param {number} pos
    * @param {{instant?: boolean, stretch?: number}} [opts]
    */
@@ -128,16 +134,7 @@ export function createTabBar(options = {}) {
     const width = geo.cell * stretch;
     // 拉长时左右各溢出一点，视觉重心仍落在格心
     const x = geo.base + geo.cell * pos - (width - geo.cell) / 2;
-    pill.style.width = `${width.toFixed(2)}px`;
-    if (opts.instant) {
-      pill.style.transition = 'none';
-      pill.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
-      // 读一次布局，让「无过渡」这一帧真正落定，再把过渡还回去
-      void pill.offsetWidth;
-      pill.style.transition = '';
-      return;
-    }
-    pill.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
+    slideTo(pill, { x, width }, { instant: opts.instant, unit: geo.cell });
   }
 
   /** 幽灵胶囊：按在别的格上时预告松手落点 */
@@ -204,7 +201,8 @@ export function createTabBar(options = {}) {
       dock.classList.add('is-dragging');
     }
     const pos = slotAt(event.clientX);
-    placePill(pos, { stretch: STRETCH });
+    // 拖动必须跟手：instant 跳过动画，直接跟着手指落位
+    placePill(pos, { stretch: STRETCH, instant: true });
     const hover = Math.round(pos);
     if (hover !== lastHover) {
       lastHover = hover;
@@ -274,6 +272,7 @@ export function createTabBar(options = {}) {
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
       window.removeEventListener('resize', onResize);
+      forgetSlide(pill);
       dock.remove();
     },
   };

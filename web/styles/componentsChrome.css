@@ -153,6 +153,9 @@
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-dock);
   box-sizing: border-box;
+  /* 宿主 #tabbar 是 pointer-events:none（整条留白要能穿透到页面），
+     只有胶囊本体接住触摸：左右留白、上方 12px 与下方 14px 都是「镂空」的 */
+  pointer-events: auto;
   /* 只接管纵向滚动：横向留给拖动手势，否则一划就被浏览器当成页面横滑吃掉 */
   touch-action: pan-y;
 }
@@ -169,16 +172,12 @@
   pointer-events: none;
 }
 
-/* 320ms 回弹：先冲过头一点再落位（烫梨的 OvershootInterpolator(1.4)） */
+/* 320ms 回弹：先冲过头一点再落位（烫梨的 OvershootInterpolator(1.4)）。
+   位移由 core/slideTo.js 用 WAAPI 驱动，**刻意不写 transition**：
+   transition 被打断只会重跑完整时长，连点两下就会越点越迟（用户实测不跟手）。 */
 .c-dock__pill {
   background-color: var(--brand-primary-soft);
-  transition: transform var(--dur-dock) var(--ease-spring);
   will-change: transform;
-}
-
-/* 拖动时跟手，不能有过渡，否则会拖出一条延迟的残影 */
-.c-dock.is-dragging .c-dock__pill {
-  transition: none;
 }
 
 /* 按在别的格上时先浮出来，预告松手会落到哪 */

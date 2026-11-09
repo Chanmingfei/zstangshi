@@ -205,6 +205,9 @@
   --dock-gutter: 22px;
   --dock-gap: 14px;
   --dock-pad: 5px;
+  /* 整条 Dock 占掉的画面高度：上留白 + 胶囊 + 离底距离（含手势条）。
+     Dock 是浮在内容上的（不占布局），滚动区靠这条留白让最后一项停在胶囊上方。 */
+  --dock-band: calc(var(--space-12) + var(--dock-h) + var(--dock-gap) + var(--safe-b));
   --hit-min: 44px;
 
   /* —— 层级 ——

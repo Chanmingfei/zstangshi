@@ -234,3 +234,31 @@
     padding: 0 var(--space-4);
   }
 }
+
+/* 左上角「重新与教务同步」：占住原本的等宽空位（保证周次切换器居中）。
+   它是次要操作 —— 明确的描边方块 + 次级文字色，不跟右侧「+」抢主色；
+   点下去还要二次确认，所以放在角落也安全。 */
+.p-tt__sync {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  border-radius: var(--r-sm);
+  background-color: transparent;
+  color: var(--text-tertiary);
+}
+
+.p-tt__sync:active:not([disabled]) {
+  background-color: var(--bg-surface);
+  color: var(--brand-primary);
+}
+
+.p-tt__sync[disabled] { opacity: 0.5; }
+
+.p-tt__sync.is-busy svg { animation: p-tt-spin 900ms linear infinite; }
+
+@keyframes p-tt-spin {
+  to { transform: rotate(360deg); }
+}

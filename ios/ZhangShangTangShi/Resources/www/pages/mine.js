@@ -282,7 +282,7 @@ export default {
     };
 
     const onClear = async () => {
-      const yes = await confirm('清除本地缓存？', '只清除查询结果缓存，不影响账号与主题设置。', {
+      const yes = await confirm('清除本地缓存？', '只清除查询结果缓存，不影响账号、主题与本地课表。', {
         confirmText: '清除', danger: true,
       });
       if (!yes) return;
@@ -293,7 +293,7 @@ export default {
     };
 
     const onLogout = async () => {
-      const yes = await confirm('退出登录？', '会清空本次会话与本机缓存，下次需要重新登录教务。', {
+      const yes = await confirm('退出登录？', '会退出教务并清除查询缓存；本地课表保留，不登录也能查看。', {
         confirmText: '退出', danger: true,
       });
       if (!yes) return;

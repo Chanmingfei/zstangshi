@@ -25,8 +25,10 @@ import { createTimetableEditor } from './timetableEditor.js';
 import { createWeekPicker } from './timetableWeekPicker.js';
 import { bindWeekSwipe } from './timetableSwipe.js';
 import { bindCellPress } from './timetablePress.js';
+import { bindResync } from './timetableResync.js';
 import {
   readLocal,
+  readLatestLocal,
   writeLocal,
   saveImported,
   makeCustomCourse,
@@ -69,6 +71,14 @@ export default {
       html: PLUS_ICON,
     });
 
+    // 「重新与教务同步」：改错了想恢复时的后悔药。次要样式，不跟「新建课程」抢主色
+    const syncBtn = h('button', {
+      className: 'p-tt__sync',
+      type: 'button',
+      'aria-label': '重新与教务同步',
+      html: icon('refresh', 20),
+    });
+
     const body = h('div', { className: 'p-tt__body' }, skeletonList({ rows: 4, withTrailing: false }));
     const fab = h('button', { className: 'p-tt__fab', type: 'button', hidden: true }, [
       h('span', { className: 'p-tt__fab-icon', 'aria-hidden': 'true', html: icon('target', 16) }),
@@ -77,6 +87,7 @@ export default {
 
     const el = h('div', { className: 'page p-tt' }, [
       h('div', { className: 'p-tt__head' }, [
+        syncBtn, // 占住原本的等宽空位：三列 44/1fr/44 不变，周次切换器才会真的居中
         h('div', { className: 'p-tt__switch' }, [prevBtn, pickBtn, nextBtn]),
         addBtn,
       ]),
@@ -84,7 +95,7 @@ export default {
       h('div', { className: 'p-tt__fab-wrap' }, fab),
     ]);
 
-    el.__view = { weekText, prevBtn, nextBtn, pickBtn, addBtn, body, fab };
+    el.__view = { weekText, prevBtn, nextBtn, pickBtn, addBtn, syncBtn, body, fab };
     return el;
   },
 
@@ -102,6 +113,20 @@ export default {
     let weekNo = Math.min(totalWeeks, Math.max(1, Number(store.getState().ui.weekNo) || currentWeek));
     /** 本地课表（可写真源） */
     let local = readLocal(semesterId);
+    /**
+     * 这份数据该写回哪个学期的 key。
+     * 当前学期没有本地课表、但别的学期存过时（校历刚跨学期、或校历没加载出来导致
+     * semesterId 是 undefined），沿用最近那份，并写回它自己的键 —— 否则每次保存都会
+     * 复制出一份新 key，越用越乱。
+     */
+    let dataSemester = semesterId;
+    if (!local.courses.length) {
+      const latest = readLatestLocal();
+      if (latest) {
+        local = latest.data;
+        dataSemester = latest.semesterId;
+      }
+    }
     /** 上次吸收的教务快照时间戳，避免同一份数据反复合并落盘 */
     let lastSync = null;
     /** 正在编辑的课程（编辑态保存时用） */
@@ -114,7 +139,7 @@ export default {
 
     /** 保存并重绘（`next` 是 localTimetable 的纯函数返回值） */
     function save(next, message) {
-      local = writeLocal(semesterId, next);
+      local = writeLocal(dataSemester, next);
       paint(false);
       // 课表变了就要让桌面小组件跟着变：改课最常见的原因就是「老师临时调课」，
       // 用户第二天看桌面时以为什么都没发生，才是最糟的体验
@@ -272,6 +297,12 @@ export default {
     view.prevBtn.addEventListener('click', onPrev);
     view.nextBtn.addEventListener('click', onNext);
 
+    const unbindResync = bindResync(view.syncBtn, {
+      store,
+      actions,
+      onSynced(next) { local = next; paint(false); },
+    });
+
     const picker = createWeekPicker({ totalWeeks, onPick: (week) => setWeek(week) });
 
     const onPickOpen = () => picker.open(weekNo);
@@ -346,6 +377,7 @@ export default {
       unsubscribe();
       unbindSwipe();
       unbindPress();
+      unbindResync();
       window.clearInterval(nowTimer);
       document.removeEventListener('visibilitychange', onVisible);
       view.prevBtn.removeEventListener('click', onPrev);

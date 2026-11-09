@@ -198,12 +198,18 @@
   --tabbar-h: 56px;
   --hit-min: 44px;
 
-  /* —— 层级 —— */
+  /* —— 层级 ——
+     浮层是三个**独立的宿主节点**（#sheet-root / #toast-root + 直接挂 body 的
+     confirm 遮罩），它们的相对顺序只能靠 z-index 说清楚，DOM 顺序不可依赖：
+       sheet 60 < 二次确认 70 < 轻提示 80
+     曾经的坑：toast-root 与 sheet-root 都是 70，而 sheet-root 写在后面，
+     于是「本周停课」的确认框和 toast 全被课程详情弹窗盖住了。 */
   --z-appbar: 30;
   --z-tabbar: 40;
   --z-mask: 50;
   --z-sheet: 60;
-  --z-toast: 70;
+  --z-dialog: 70;
+  --z-toast: 80;
 }
 
 /* ============================================================================

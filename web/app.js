@@ -36,7 +36,7 @@ import {
 import { createInitialState } from './appState.js';
 import { createActions, readFlag, SS_BANNER, SS_DEMO, SS_IS_DEMO } from './appActions.js';
 import { errorPage } from './pages/errorPage.js';
-import { hasLocal } from './data/localTimetable.js';
+import { hasLocal, hasAnyLocal } from './data/localTimetable.js';
 import { syncWidget } from './data/widget.js';
 
 const store = createStore(createInitialState());
@@ -315,10 +315,11 @@ async function boot() {
   syncWidget(store.getState());
 
   if (!window.location.hash) {
-    // 免登录查看：本地存过课表就直接进课表页，不必先登录；
-    // 连本地数据都没有才回登录页（否则新用户会看到一个空课表，比登录页更费解）。
+    // 免登录查看：本地存过课表就直接进课表页，不必先登录。
+    // 只看「当前学期那一个 key」不够 —— 校历跨学期后 semesterId 变了、校历没加载出来时
+    // semesterId 还是 undefined，这两种情况都会误判成「没有本地课表」打回登录页。
     const semesterId = store.getState().term.context && store.getState().term.context.semesterId;
-    const start = resumed || resumedRemote ? '#/home' : hasLocal(semesterId) ? '#/timetable' : '#/login';
+    const start = resumed || resumedRemote ? '#/home' : hasLocal(semesterId) || hasAnyLocal() ? '#/timetable' : '#/login';
     window.history.replaceState(null, '', start);
   }
   // 首次渲染前就把外壳形态定下来，避免登录页先闪一下底部 Tab

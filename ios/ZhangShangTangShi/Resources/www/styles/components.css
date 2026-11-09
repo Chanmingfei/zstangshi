@@ -150,7 +150,9 @@
 
 .c-toast--danger { background-color: var(--danger); color: var(--text-inverse); }
 
-/* —— 二次确认弹窗（toast.js 的 confirm）—— */
+/* —— 二次确认弹窗（toast.js 的 confirm）——
+   它经常是从某个 sheet 里点出来的（「本周停课」就在课程详情里），
+   所以层级必须**高于 sheet 宿主**，否则用户只看见弹窗背后的遮罩。 */
 .c-confirm-mask {
   position: fixed;
   inset: 0;
@@ -159,7 +161,7 @@
   justify-content: center;
   padding: var(--space-24);
   background-color: var(--bg-mask);
-  z-index: var(--z-sheet);
+  z-index: var(--z-dialog);
 }
 
 .c-confirm {

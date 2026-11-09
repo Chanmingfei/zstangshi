@@ -29,7 +29,11 @@ import {
   saveImported,
   resetLocal,
   hasLocal,
+  readLatestLocal,
+  hasAnyLocal,
 } from '../web/data/localTimetable.js';
+import * as storage from '../web/core/storage.js';
+import { importCourses, restoreFromJwxt, saveBulkImport, saveRestored } from '../web/data/timetableBulk.js';
 
 let passed = 0;
 const failures = [];
@@ -165,10 +169,73 @@ check('G8 导入后仍是有效结构', readLocal(SEM).courses.length === 2);
 resetLocal(SEM);
 check('G9 reset 后回到空', hasLocal(SEM) === false);
 
+/* ── H. 免登录查看：跨学期兜底 + 清缓存不误删 ───────────────────────────── */
+
+const A = 'test-2025-2';
+const B = 'test-2026-1';
+resetLocal(A);
+resetLocal(B);
+writeLocal(A, { courses: [{ ...jwxtCourse('a1'), source: SOURCE.Jwxt }] });
+writeLocal(B, { courses: [{ ...jwxtCourse('b1'), source: SOURCE.Custom }] });
+check('H1 两个学期各自独立', readLocal(A).courses[0].id === 'a1' && readLocal(B).courses[0].id === 'b1');
+check('H2 最近一份是刚写的那学期', readLatestLocal().semesterId === B);
+check('H3 任意学期有课表即可免登录', hasAnyLocal() === true);
+check('H4 当前学期为空时也能取到兜底数据', readLatestLocal().data.courses.length === 1);
+
+// 清缓存 / 退出登录走 storage.clearAll —— 课表必须活得下来，别的缓存照删
+storage.set('grades.all', { any: true });
+storage.set('theme', 'dark');
+const removed = storage.clearAll({ keep: ['theme', 'rememberId', 'source'] });
+check('H5 clearAll 之后本地课表仍在', hasLocal(A) === true && hasLocal(B) === true);
+check('H6 clearAll 照删普通缓存键', storage.has('grades.all') === false && removed >= 1);
+check('H7 clearAll 保留 keep 名单里的键', storage.get('theme') === 'dark');
+
+resetLocal(A);
+resetLocal(B);
+check('H8 清干净后 hasAnyLocal 为 false', hasAnyLocal() === false);
+
+/* ── I. 批量导入 / 以教务为准恢复 ───────────────────────────────────────── */
+
+// 推荐课表「一键导入」：只增不改
+const mine = { courses: [{ ...jwxtCourse('m1'), name: '我改过的课', source: SOURCE.Edited }] };
+const bulk = importCourses(mine, [jwxtCourse('m1'), jwxtCourse('m2')]);
+check('I1 已存在的课不被推荐课表覆盖', bulk.local.courses.find((c) => c.id === 'm1').name === '我改过的课');
+check('I2 本地没有的课被追加', bulk.local.courses.some((c) => c.id === 'm2'));
+check('I3 统计新增 1 门 / 跳过 1 门', bulk.added === 1 && bulk.skipped === 1);
+check('I4 新导入的标记为 jwxt（个人课表同步时可接管）', bulk.local.courses.find((c) => c.id === 'm2').source === SOURCE.Jwxt);
+
+// 重复导入不会翻倍
+const again = importCourses(bulk.local, [jwxtCourse('m1'), jwxtCourse('m2')]);
+check('I5 重复导入零新增', again.added === 0 && again.local.courses.length === 2);
+
+// 「重新与教务同步」：手改的被覆盖、教务取消的被删、手动新建的保留
+const messy = {
+  courses: [
+    { ...jwxtCourse('r1'), weeks: [9], source: SOURCE.Edited },
+    { ...jwxtCourse('r2'), source: SOURCE.Jwxt },
+    { ...jwxtCourse('r3'), source: SOURCE.Custom },
+  ],
+};
+const restored = restoreFromJwxt(messy.courses, [jwxtCourse('r1')]);
+check('I6 手改的课被教务版本覆盖', restored.courses.find((c) => c.id === 'r1').weeks.join() === '1,2,3,4');
+check('I7 教务已取消的课被删掉', !restored.courses.some((c) => c.id === 'r2'));
+check('I8 手动新建的课保留', restored.courses.some((c) => c.id === 'r3' && c.source === SOURCE.Custom));
+check('I9 恢复统计口径正确', restored.stats.updated === 1 && restored.stats.removed === 1 && restored.stats.kept === 1);
+
+// 落盘往返
+const SEM2 = 'test-2026-2';
+resetLocal(SEM2);
+saveBulkImport(SEM2, [jwxtCourse('b1'), jwxtCourse('b2')]);
+check('I10 批量导入已落盘', readLocal(SEM2).courses.length === 2);
+const reSaved = saveRestored(SEM2, [jwxtCourse('b1')]);
+check('I11 恢复后落盘只剩教务口径的课', readLocal(SEM2).courses.length === 1);
+check('I12 恢复返回新的 local 供页面重绘', reSaved.local.courses.length === 1);
+resetLocal(SEM2);
+
 /* ── 汇总 ──────────────────────────────────────────────────────────────── */
 
 if (failures.length) {
   console.error(`\n  [FAIL] 本地课表 ${failures.length} 条断言失败（通过 ${passed} 条）`);
   process.exit(1);
 }
-console.log(`\n  [PASS] 本地课表 ${passed} 条断言全部通过（合并规则 / 编辑 / 单周停课 / 存储往返）`);
+console.log(`\n  [PASS] 本地课表 ${passed} 条断言全部通过（合并规则 / 编辑 / 单周停课 / 批量导入 / 按教务恢复 / 存储往返）`);

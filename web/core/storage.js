@@ -19,6 +19,15 @@ export const NS = 'zsts.';
 /** 允许持久化的凭据类键名（白名单）。其余含凭据语义的键一律拒绝写入。 */
 export const CREDENTIAL_ALLOWLIST = Object.freeze(['rememberId']);
 
+/**
+ * **学生自己产出的数据**（键名前缀）。
+ *
+ * 「清除缓存」「退出登录」都走 `clearAll`，但本地课表不是缓存 —— 它装着老师调课后
+ * 学生手改的结果、以及教务压根没同步的课，删掉就再也找不回来。所以这两个入口默认
+ * 对它网开一面；真要清（重装式重置）只有 `clearEverything()` 这一条路。
+ */
+export const USER_DATA_PREFIXES = Object.freeze(['timetable.']);
+
 /** 键名里出现这些片段即视为凭据，直接拒绝写入 */
 const FORBIDDEN_KEY_PATTERN = /(pass(word)?|pwd|token|secret|credential|session|cookie)/i;
 
@@ -248,14 +257,18 @@ export function sizeBytes() {
 
 /**
  * 清空业务键。
- * @param {{keep?: string[]}} [options] `keep` 里的短键名会被保留（默认保留主题与记住学号）
+ * @param {{keep?: string[], keepPrefixes?: string[]}} [options]
+ *   `keep` 精确保留的短键名（默认保留主题与记住学号）；
+ *   `keepPrefixes` 前缀保留（默认保留本地课表这类学生自产数据）。
  * @returns {number} 实际删除的键数量
  */
 export function clearAll(options = {}) {
   const keep = Array.isArray(options.keep) ? options.keep : ['theme', 'rememberId'];
+  const keepPrefixes = Array.isArray(options.keepPrefixes) ? options.keepPrefixes : USER_DATA_PREFIXES;
   let removed = 0;
   for (const name of keys()) {
     if (keep.includes(name)) continue;
+    if (keepPrefixes.some((prefix) => name.startsWith(prefix))) continue;
     remove(name);
     removed += 1;
   }
@@ -263,9 +276,10 @@ export function clearAll(options = {}) {
 }
 
 /**
- * 清空**全部**业务键（连主题与记住学号一起清，用于「退出登录」）。
+ * 清空**全部**业务键（连主题、记住学号、本地课表一起清）。
+ * 只给「彻底重置」用；退出登录与清缓存一律走 `clearAll`，别在这里图省事。
  * @returns {number}
  */
 export function clearEverything() {
-  return clearAll({ keep: [] });
+  return clearAll({ keep: [], keepPrefixes: [] });
 }

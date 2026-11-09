@@ -22,7 +22,7 @@
  * 本文件零 DOM、零 UI 依赖，所有函数「输入 → 输出」，可直接单测。
  */
 
-import { get, set, remove } from '../core/storage.js';
+import { get, set, remove, keys } from '../core/storage.js';
 
 export const SCHEMA_VERSION = 1;
 
@@ -95,6 +95,40 @@ export function writeLocal(semesterId, data) {
  */
 export function hasLocal(semesterId) {
   return readLocal(semesterId).courses.length > 0;
+}
+
+/**
+ * 找**最近改过的那份**本地课表（跨学期）。
+ *
+ * 为什么需要：免登录能不能看课表，不能只认「当前学期码」这一个 key。
+ *   · 校历跨到新学期（`semesterId` 从 2026-2027-1 变成 -2），旧课表还在旧 key 里；
+ *   · 校历没加载出来时 `semesterId` 是 undefined，会去查 `timetable.default`；
+ * 这两种情况下若只查当前 key，「明明存过课表却打不开」——正是免登录失效的观感来源。
+ *
+ * @returns {{semesterId: string, data: object}|null}
+ */
+export function readLatestLocal() {
+  let best = null;
+  for (const name of keys()) {
+    if (!name.startsWith(KEY_PREFIX)) continue;
+    const semesterId = name.slice(KEY_PREFIX.length);
+    const data = readLocal(semesterId);
+    if (!data.courses.length) continue;
+    // updatedAt 是 ISO 串，字典序即时间序；没写过的排最末。
+    // 用 `>=` 而不是 `>`：同一毫秒内连写两份（自动化测试、连续保存）时，后写的那份才算「最近」
+    if (!best || String(data.updatedAt || '') >= String(best.data.updatedAt || '')) {
+      best = { semesterId, data };
+    }
+  }
+  return best;
+}
+
+/**
+ * 任意学期是否存过课表（免登录首屏判断用）。
+ * @returns {boolean}
+ */
+export function hasAnyLocal() {
+  return readLatestLocal() !== null;
 }
 
 /** 周次归一化：去重、升序、只留 1-30 的整数 */

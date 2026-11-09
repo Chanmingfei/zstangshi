@@ -21,9 +21,8 @@ import { skeletonList } from '../components/skeleton.js';
 import { currentSemester, weekDates, coursesInCell } from './timetableUtils.js';
 import { buildGrid } from './timetableView.js';
 import { createCourseDetail } from './timetableDetail.js';
-
-const SWIPE_THRESHOLD = 48;
-const AXIS_RATIO = 1.2;
+import { createImportBar } from './recommendImport.js';
+import { bindWeekSwipe } from './timetableSwipe.js';
 
 /** 用 options 填一个 select；value 空串为首项（「全部/请选择」语义） */
 function fillSelect(select, options, placeholder, picked) {
@@ -107,6 +106,13 @@ export default {
       },
     });
     const picker = createSheet({ title: '选择周次' });
+
+    // 「一键导入我的课表」：推荐课表常比个人课表先出炉，整份导过去免得手抄
+    const importBar = createImportBar({
+      root: el,
+      store,
+      getCourses: () => (local && local.data ? local.data.courses : null),
+    });
 
     function updateHead() {
       view.weekText.textContent = `第 ${weekNo} 周`;
@@ -195,6 +201,7 @@ export default {
       view.queryBtn.disabled = busy;
       if (active && active.dictionaries && !filterReady) initFilter(active);
       paintSource(active);
+      importBar.update();
 
       if (busy) {
         view.body.replaceChildren(skeletonList({ rows: 4, withTrailing: false }));
@@ -322,35 +329,8 @@ export default {
     };
     view.body.addEventListener('click', onBodyClick);
 
-    /* ── 左右滑切周（与个人课表同一套主轴判定）─────────────────────────── */
-    let tracking = false;
-    let axis = null;
-    let startX = 0;
-    let startY = 0;
-    const onTouchStart = (event) => {
-      const t = event.touches[0];
-      if (!t) return;
-      tracking = true; axis = null; startX = t.clientX; startY = t.clientY;
-    };
-    const onTouchMove = (event) => {
-      if (!tracking) return;
-      const t = event.touches[0];
-      if (!t) return;
-      const dx = t.clientX - startX;
-      const dy = t.clientY - startY;
-      if (!axis) {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        axis = Math.abs(dx) > Math.abs(dy) * AXIS_RATIO ? 'x' : 'y';
-      }
-      if (axis !== 'x' || Math.abs(dx) < SWIPE_THRESHOLD) return;
-      tracking = false;
-      setWeek(weekNo + (dx < 0 ? 1 : -1));
-    };
-    const onTouchEnd = () => { tracking = false; axis = null; };
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: true });
-    el.addEventListener('touchend', onTouchEnd);
-    el.addEventListener('touchcancel', onTouchEnd);
+    /* ── 左右滑切周（与个人课表同一套主轴判定，复用 timetableSwipe）───────── */
+    const unbindSwipe = bindWeekSwipe(el, { onSwipe: (dir) => setWeek(weekNo + dir) });
 
     /* ── 订阅 + 首次取数 ────────────────────────────────────────────────── */
     const unsub = store.subscribe((s) => s.slots.recommend, () => paint());
@@ -382,11 +362,9 @@ export default {
       view.queryBtn.removeEventListener('click', runQuery);
       view.body.removeEventListener('click', onBodyClick);
       picker.el.removeEventListener('click', onPickClick);
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
+      unbindSwipe();
       detail.destroy();
+      importBar.destroy();
       picker.destroy();
     };
   },

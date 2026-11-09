@@ -2,11 +2,18 @@
 <!--
   「今日课程」小组件的声明。
 
-  · minWidth/minHeight 按「4×3 个格子」给（每格约 70dp 减去间距）：
-    4 行课 + 标题 + 底部一行，2 格高放不下；
-  · minResizeHeight 放到 110dp，缩到 4×2 时只显示 1 行课（代码里按实际高度算行数）；
+  · **默认 4×2**（原烫梨那套比例）：minWidth/minHeight 按「4 列 × 2 行格子」给，
+    每格约 70dp 减间距 —— 4 列 250dp、2 行 110dp；
+  · 4×2 下能放「标题 + 日期 + 2 门课」；用户把组件拉大后代码按实际高度自动多画几行
+    （ClassWidget.maxRows 按 26dp 行高现算），拉到 4×3 就是 4 行；
+  · minResizeHeight 与 minHeight 同为 110dp：**不允许缩到 4×2 以下**，
+    否则只剩一行课 + 底部提示，信息量还不如不放；
   · updatePeriodMillis 30 分钟是系统允许的最小值，纯粹兜底 —— 真正的刷新靠
     AlarmManager 在「上课 / 下课 / 零点」这些边界上重画；
+  · **previewImage 才是选择器里看到的那张封面**：ColorOS / HyperOS 这类 ROM 并不认
+    `previewLayout`，只认 previewImage，没给就退化成应用图标（一个校徽），看起来像
+    没做完。这张图是从真机渲染结果上裁下来的（drawable-nodpi，1218×494 缩到 1084×510，
+    四角做了透明圆角），和实际添加后的样子 1:1；
   · initialLayout / previewLayout 用同一份静态示例：从桌面添加的那一刻就有内容，
     不会先闪一下空白（真实数据由 onEnabled / onUpdate 立刻覆盖）。
 -->
@@ -14,12 +21,13 @@
     android:description="@string/widget_desc"
     android:initialLayout="@layout/widget_today_preview"
     android:previewLayout="@layout/widget_today_preview"
+    android:previewImage="@drawable/widget_preview"
     android:minWidth="250dp"
-    android:minHeight="190dp"
+    android:minHeight="110dp"
     android:minResizeWidth="180dp"
     android:minResizeHeight="110dp"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="4"
-    android:targetCellHeight="3"
+    android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen" />

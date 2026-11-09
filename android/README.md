@@ -81,10 +81,16 @@ C:/Android/sdk/platform-tools/adb.exe install -r android/build/app-debug.apk
 ClassWidget.java   AppWidgetProvider：RemoteViews 渲染 + 四条刷新路径
 WidgetData.java    快照的存取与版本校验（版本不认就整条作废，不画半截）
 res/layout/widget_today.xml          真实布局（固定 4 行，靠 setViewVisibility 控制）
-res/layout/widget_today_preview.xml  initialLayout + 桌面选择器预览（静态示例）
-res/xml/widget_today_info.xml        4×3、可缩放、updatePeriodMillis=30min
+res/layout/widget_today_preview.xml  initialLayout + previewLayout（静态示例，2 行课）
+res/xml/widget_today_info.xml        **默认 4×2**、可缩放、updatePeriodMillis=30min
+res/drawable-nodpi/widget_preview.png 选择器封面（previewImage，真机渲染裁图）
 res/values{,-night}/widget_colors.xml 亮/深色两套色（与 tokens.css 同值）
 ```
+
+尺寸口径：默认 4×2（4 列 250dp × 2 行 110dp，与主流课程表组件一致），
+`maxRows()` 按实际高度现算行数（`(height-70)/26`），用户拉高就多画几行，拉到 4×3 即 4 行。
+`widget_preview.png` 是**必须**的：ColorOS / HyperOS 不认 `previewLayout`，只认
+`previewImage`，不给就退化成应用图标（一个校徽），看起来像没做完。
 
 四条刷新路径，都不依赖精确闹钟权限：系统 onUpdate / H5 推完立刻重画 /
 `updatePeriodMillis` 30 分钟兜底 / `AlarmManager.set`（**非精确**）在下一个

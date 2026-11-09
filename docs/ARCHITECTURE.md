@@ -131,6 +131,11 @@ flowchart TB
 │  │  ├─ demoProvider.js                      # 演示实现：内存数据 + 120~320ms 人工延迟 + 可注入失败（?fail=grades 供验收降级）
 │  │  ├─ remoteProvider.js                    # 真实实现：探测→登录（GET 登录页取 hidden 参数→POST）→Cookie 会话→分页抓取→parse
 │  │  ├─ parse.js                             # 教务 HTML/JSON → 结构化：表格解析、成绩行解析、课表解析、错误页特征识别（纯函数，可单测）
+│  │  ├─ localTimetable.js                    # 本地课表真源（可写）：三态来源 jwxt/custom/edited + mergeImported 五条规则 + weeks 唯一真源
+│  │  ├─ timetableBulk.js                     # 本地课表批量写：importCourses（推荐课表导入，只增不改）/ restoreFromJwxt（以教务为准恢复，手改被覆盖、custom 保留）
+│  │  ├─ timetableSync.js                     # 教务课表 → 本地 → 小组件 的同步泵：只认 ok 且非降级、非空的结果才落盘
+│  │  ├─ slotFetchers.js                      # 数据槽 → provider 方法的对照表（业务口径集中在数据层，action 只喊槽名）
+│  │  ├─ widget.js                            # 「今日课程」快照：节次换算 / 今日筛选 / 下发（纯函数 + NativeBridge 桥接）
 │  │  └─ demo/
 │  │     ├─ index.js                          # demo 数据集汇总出口（唯一被 demoProvider import 的文件）
 │  │     ├─ user.js                           # 学生档案 + 3 个学期元数据（2025-2026-1/2、2026-2027-1）

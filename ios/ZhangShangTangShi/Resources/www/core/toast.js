@@ -11,7 +11,7 @@
 
 import { h } from './dom.js';
 import { prefersReducedMotion } from './animate.js';
-import { sheetIn, sheetOut } from './animateFeedback.js';
+import { dialogIn, dialogOut } from './animateFeedback.js';
 
 /** 单条 toast 的停留时长（含入场） */
 const TOAST_DURATION = 2400;
@@ -105,6 +105,12 @@ export function toast(message, type = 'info', opts = {}) {
 /**
  * 二次确认弹窗。
  *
+ * 动效用 `dialogIn/dialogOut`（缩放淡入）而不是底部弹层那套上滑：
+ * 它是**居中**的卡片，从屏幕底部滑上来会先穿过整页内容，看着像走错了地方。
+ *
+ * 层级：`.c-confirm-mask` 用 `--z-dialog`（70），高于 `#sheet-root`（60）——
+ * 它经常是从某个 sheet 里点出来的（「本周停课」就在课程详情里），低一层就会被盖住。
+ *
  * @param {string} title 标题
  * @param {string} [message] 说明文案
  * @param {{confirmText?: string, cancelText?: string, danger?: boolean}} [opts]
@@ -149,7 +155,7 @@ export function confirm(title, message = '', opts = {}) {
       if (settled) return;
       settled = true;
       document.removeEventListener('keydown', onKeydown);
-      sheetOut(panel, mask).then(() => {
+      dialogOut(panel, mask).then(() => {
         mask.remove();
         resolve(value);
       });
@@ -169,7 +175,7 @@ export function confirm(title, message = '', opts = {}) {
     document.addEventListener('keydown', onKeydown);
 
     document.body.appendChild(mask);
-    sheetIn(panel, mask);
+    dialogIn(panel, mask);
     const confirmBtn = panel.querySelector('[data-role="confirm"]');
     if (confirmBtn) confirmBtn.focus();
   });

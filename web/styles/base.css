@@ -187,10 +187,12 @@ body[data-shell='auth'] #tabbar {
   display: none;
 }
 
-#toast-root,
+/* 弹层宿主单独成层：#sheet-root 在 DOM 里先于 #toast-root，但层级必须更低，
+   否则 toast / 二次确认会被课程详情这类 sheet 盖住（层级阶梯见 tokens.css）。
+   toast 自身的定位与层级写在 components.css（它是 fixed 浮层，不属于外壳布局）。 */
 #sheet-root {
   position: relative;
-  z-index: var(--z-toast);
+  z-index: var(--z-sheet);
 }
 
 /* —— 排版阶梯（直接对应 PRD §8.2）—— */

@@ -121,6 +121,7 @@ public class ClassWidget extends AppWidgetProvider {
 
         if (snapshot == null || !snapshot.hasData) {
             views.setViewVisibility(R.id.w_rows, android.view.View.GONE);
+            views.setViewVisibility(R.id.w_none, android.view.View.GONE);
             views.setViewVisibility(R.id.w_empty, android.view.View.VISIBLE);
             // 底部那行在这时候是废话：w_empty 已经写了「打开 App 同步」，
             // 两行近义提示叠在一起只会显得没做完（真机截图确认过）
@@ -131,14 +132,21 @@ public class ClassWidget extends AppWidgetProvider {
         }
 
         views.setViewVisibility(R.id.w_empty, android.view.View.GONE);
-        views.setViewVisibility(R.id.w_rows, android.view.View.VISIBLE);
-        views.setViewVisibility(R.id.w_foot, android.view.View.VISIBLE);
         views.setTextViewText(R.id.w_week, snapshot.weekNo > 0 ? "第 " + snapshot.weekNo + " 周" : "");
         views.setTextViewText(R.id.w_sub, subText(snapshot, snapshot.courses.size()));
 
         int now = minutesOfDay();
         List<WidgetData.Course> courses = snapshot.courses;
         int shown = Math.min(Math.min(courses.size(), maxRows), ROW_IDS.length);
+
+        // 今天一门课都没有：行区域整块换成一个居中提示。
+        // 若只是把 4 行都设成 GONE，w_rows 的 weight=1 还在，会把标题和底部那行顶到
+        // 上下两头，中间留出一大片白 —— 4×2 下尤其像没画完。
+        boolean noneToday = shown == 0;
+        views.setViewVisibility(R.id.w_rows, noneToday ? android.view.View.GONE : android.view.View.VISIBLE);
+        views.setViewVisibility(R.id.w_none, noneToday ? android.view.View.VISIBLE : android.view.View.GONE);
+        views.setViewVisibility(R.id.w_foot, noneToday ? android.view.View.GONE : android.view.View.VISIBLE);
+
         int accent = context.getColor(R.color.w_accent);
         int subColor = context.getColor(R.color.w_sub);
         int ink = context.getColor(R.color.w_ink);
@@ -227,8 +235,10 @@ public class ClassWidget extends AppWidgetProvider {
         } catch (Exception ignored) {
             // 拿不到就用默认值
         }
-        if (height <= 0) return 3;
-        int rows = (height - 84) / 34;
+        if (height <= 0) return 2;
+        // 4×2 默认高度（约 146dp）下要放得下 2 行课：头部（标题 + 日期）约 44dp、
+        // 底部提示约 16dp、上下内边距 18dp，剩下每行 26dp（与 widget_today.xml 的行高一致）
+        int rows = (height - 70) / 26;
         return Math.max(1, Math.min(ROW_IDS.length, rows));
     }
 

@@ -70,3 +70,33 @@
 
 .p-rec__query:active { transform: scale(0.97); }
 .p-rec__query:disabled { opacity: 0.55; }
+
+/* ── 「一键导入我的课表」操作条 ─────────────────────────────────────────────
+   推荐课表常比个人课表先出炉，整份导过去免得手抄。查询出结果后才出现，
+   所以默认 hidden，由 recommendImport.js 按课程数显隐。 */
+.p-rec__actions {
+  display: flex;
+  gap: var(--space-8);
+  margin: var(--space-12) var(--page-gutter) 0;
+}
+
+.p-rec__actions[hidden] { display: none; }
+
+.p-rec__import {
+  flex: 1 1 auto;
+  min-height: var(--hit-min);
+  padding: 0 var(--space-16);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--r-sm);
+  background-color: transparent;
+  color: var(--brand-primary);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption-strong);
+}
+
+.p-rec__import:active:not([disabled]) {
+  transform: scale(0.98);
+  background-color: var(--brand-primary-soft);
+}
+
+.p-rec__import[disabled] { opacity: 0.55; }

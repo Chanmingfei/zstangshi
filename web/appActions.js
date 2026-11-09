@@ -6,9 +6,13 @@
  */
 
 import * as storage from './core/storage.js';
-import { getSemesters, pickSemester, buildTermHeader, weekOfDate } from './data/calendar.js';
+import { getSemesters, pickSemester, buildTermHeader } from './data/calendar.js';
 import { readCustom, applyCustomTerm, xnmXqmOf } from './data/customTerm.js';
 import { configureRemote } from './data/jwxtClient.js';
+import { createSlotFetchers } from './data/slotFetchers.js';
+import { absorbTimetable } from './data/timetableSync.js';
+import { saveRestored } from './data/timetableBulk.js';
+import { syncWidget } from './data/widget.js';
 /** sessionStorage：有会话（演示态与正式登录都写；冷启动消失） */
 export const SS_DEMO = 'zsts.demoSession';
 /**
@@ -74,40 +78,7 @@ export function createActions(deps) {
     return list.find((item) => item.id === (term.context && term.context.semesterId)) || list[0] || null;
   }
 
-    /**
-     * 数据槽 → provider 方法的对照表。页面只喊 `loadSlot('todayCourses')`。
-     * 口径：`gpa` 零计算（教务权威快照，App 侧加权平均只得 3.07 会错报）；`selection`
-     * 一次取全（22 门，筛选在本地做）；`recommend` 一张课表，方案切换纯前端。
-     */
-  const FETCHERS = {
-    todayCourses() {
-      const term = store.getState().term;
-      const week = weekOfDate(term.todayIso, currentSemester()) || (term.context && term.context.week) || 1;
-      return provider.getTodayCourses(term.todayIso, week);
-    },
-    /** 整学期课表：一次取全，周次切换在本地筛（教务也只有这一个粒度） */
-    timetable() {
-      const term = store.getState().term;
-      return provider.getTimetable(term.context && term.context.semesterId);
-    },
-    /**
-     * 全部成绩：一次取 `all`，学期切换与搜索都在本地筛（切 chip 要瞬时响应；教务
-     * 一次导出的就是整份成绩单，分学期请求反而多打三次）。
-     */
-    grades() {
-      return provider.getGrades('all');
-    },
-    gpa() {
-      return provider.getGPA();
-    },
-    selection() {
-      return provider.getCourseSelection();
-    },
-    /** `recommend` 也是一张课表：教务「推荐课表打印」，与个人课表同构，复用同一套网格渲染。 */
-    recommend() {
-      return provider.getRecommendedTimetable();
-    },
-  };
+  const FETCHERS = createSlotFetchers({ store, provider });
 
   const actions = {
     /** 合并 ui 子树的局部状态 */
@@ -216,6 +187,7 @@ export function createActions(deps) {
           fromCache: Boolean(result.meta && result.meta.fromCache),
           degraded: Boolean(result.meta && result.meta.degraded),
         });
+        if (name === 'timetable') absorbTimetable(store.getState(), result);
       } else {
         const error = (result && result.error) || { code: 'UNKNOWN', message: '取数失败' };
         const hadData = before.data !== null && before.data !== undefined;
@@ -224,6 +196,34 @@ export function createActions(deps) {
         if (error.code === 'NETWORK' && !app.offline) store.patch({ app: { ...app, offline: true } });
       }
       return result || null;
+    },
+
+    /**
+     * 以教务为准重写个人课表（改错了想恢复时用）。
+     * 与 `loadSlot('timetable', { force: true })` 不同：那条路规则③会**保留**手改的课，
+     * 这里要的正是丢掉手改，所以走 saveRestored。三道闸：教务没连上 / 降级到演示 /
+     * 返回空课表，任一成立都不碰本地 —— 宁可不同步，也不清空。
+     *
+     * @returns {Promise<{ok: boolean, stats?: object, local?: object, error?: object}>}
+     */
+    async resyncTimetable() {
+      const context = store.getState().term.context;
+      const semesterId = context && context.semesterId;
+      const result = await provider.getTimetable(semesterId);
+      const fail = (message) => ({ ok: false, error: { message } });
+      if (!result || !result.ok) return fail('没能连上教务系统，本地课表未改动');
+      if (result.meta && result.meta.degraded) return fail('教务暂不可达，同步已取消');
+      const courses = result.data && Array.isArray(result.data.courses) ? result.data.courses : [];
+      if (courses.length === 0) return fail('教务返回空课表，已取消同步');
+
+      const saved = saveRestored(semesterId, courses);
+      patchSlot('timetable', {
+        status: 'ready', data: result.data, error: null,
+        updatedAt: (result.meta && result.meta.fetchedAt) || new Date().toISOString(),
+        fromCache: Boolean(result.meta && result.meta.fromCache), degraded: false,
+      });
+      syncWidget(store.getState());
+      return { ok: true, stats: saved.stats, local: saved.local };
     },
 
     /**

@@ -118,17 +118,26 @@ export function createCourseDetail(options = {}) {
 
     nodes.push(h('p', { className: 'p-tt__copy-hint', text: '长按此区域可复制课程信息' }));
 
-    // 本地编辑入口：老师调课不一定回教务系统更新，学期初排课也可能不全，
-    // 所以每门课都要能就地改。板块占位行不是真实课程，不给编辑/停课。
+    // 编辑入口：老师调课不一定回教务系统更新，学期初排课也可能不全，所以每门课都要能就地改。
+    //
+    // **但只有个人课表能改**。推荐课表（recommend.js）复用的就是这个弹层 —— 它是教务给的
+    // 建议方案，改它没有落点也没有意义，所以按钮一律「回调存在才渲染」：
+    //   onEdit → 编辑 / onSkipWeek → 本周停课 / onDelete → 删除
+    // 推荐课表一个都不传，弹层里自然只剩信息和「显示这门课」。
+    // 板块占位行不是真实课程，同样不给操作。
+    const acts = [];
     if (!current().isPlaceholder) {
-      nodes.push(h('div', { className: 'p-tt__actions' }, [
-        h('button', { className: 'p-tt__act', type: 'button', dataset: { act: 'edit' }, text: '编辑' }),
-        current().offWeek
-          ? null
-          : h('button', { className: 'p-tt__act', type: 'button', dataset: { act: 'skip' }, text: '本周停课' }),
-        h('button', { className: 'p-tt__act is-danger', type: 'button', dataset: { act: 'delete' }, text: '删除' }),
-      ]));
+      if (typeof options.onEdit === 'function') {
+        acts.push(h('button', { className: 'p-tt__act', type: 'button', dataset: { act: 'edit' }, text: '编辑' }));
+      }
+      if (typeof options.onSkipWeek === 'function' && !current().offWeek) {
+        acts.push(h('button', { className: 'p-tt__act', type: 'button', dataset: { act: 'skip' }, text: '本周停课' }));
+      }
+      if (typeof options.onDelete === 'function') {
+        acts.push(h('button', { className: 'p-tt__act is-danger', type: 'button', dataset: { act: 'delete' }, text: '删除' }));
+      }
     }
+    if (acts.length) nodes.push(h('div', { className: 'p-tt__actions' }, acts));
 
     sheet.setContent(nodes);
     if (animate && typeof body.animate === 'function') {

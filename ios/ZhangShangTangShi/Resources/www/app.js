@@ -36,6 +36,7 @@ import {
 import { createInitialState } from './appState.js';
 import { createActions, readFlag, SS_BANNER, SS_DEMO, SS_IS_DEMO } from './appActions.js';
 import { errorPage } from './pages/errorPage.js';
+import { hasLocal } from './data/localTimetable.js';
 
 const store = createStore(createInitialState());
 
@@ -88,7 +89,7 @@ const routes = [
   { path: '/login', title: '登录', transition: 'fade', requiresAuth: false, load: () => import('./pages/login.js') },
   { path: '/home', tab: 'home', title: '首页', transition: 'fade', requiresAuth: true, load: () => import('./pages/home.js') },
   {
-    path: '/timetable', tab: 'timetable', title: '我的课表', transition: 'fade', requiresAuth: true,
+    path: '/timetable', tab: 'timetable', title: '我的课表', transition: 'fade', requiresAuth: false,
     load: () => import('./pages/timetable.js'),
   },
   {
@@ -308,7 +309,11 @@ async function boot() {
   await bootTerm();
 
   if (!window.location.hash) {
-    window.history.replaceState(null, '', (resumed || resumedRemote) ? '#/home' : '#/login');
+    // 免登录查看：本地存过课表就直接进课表页，不必先登录；
+    // 连本地数据都没有才回登录页（否则新用户会看到一个空课表，比登录页更费解）。
+    const semesterId = store.getState().term.context && store.getState().term.context.semesterId;
+    const start = resumed || resumedRemote ? '#/home' : hasLocal(semesterId) ? '#/timetable' : '#/login';
+    window.history.replaceState(null, '', start);
   }
   // 首次渲染前就把外壳形态定下来，避免登录页先闪一下底部 Tab
   document.body.dataset.shell = window.location.hash.startsWith('#/login') ? 'auth' : 'app';

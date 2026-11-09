@@ -27,8 +27,11 @@ const SWIPE_MIN = 40;
  * 建详情层。
  *
  * @param {{
- *   onShowCourse?: ((course: object) => void)|null
- * }} [options] `onShowCourse`：用户点「显示这门课」时回调，由页面把该课设为主显
+ *   onShowCourse?: ((course: object) => void)|null,
+ *   onEdit?: ((course: object) => void)|null,
+ *   onDelete?: ((course: object) => void)|null,
+ *   onSkipWeek?: ((course: object, weekNo: number) => void)|null
+ * }} [options] 回调都由页面处理「确认 / 落盘 / 重绘」，弹层本身不碰数据
  * @returns {{
  *   open: (courses: object[], index?: number) => Promise<void>,
  *   close: () => Promise<void>,
@@ -41,6 +44,8 @@ export function createCourseDetail(options = {}) {
   /** @type {object[]} */
   let list = [];
   let index = 0;
+  /** 当前正在看的是第几周（「本周停课」需要知道摘掉哪一周） */
+  let weekNo = 1;
 
   const body = sheet.panel.querySelector('.c-sheet__body');
 
@@ -113,6 +118,18 @@ export function createCourseDetail(options = {}) {
 
     nodes.push(h('p', { className: 'p-tt__copy-hint', text: '长按此区域可复制课程信息' }));
 
+    // 本地编辑入口：老师调课不一定回教务系统更新，学期初排课也可能不全，
+    // 所以每门课都要能就地改。板块占位行不是真实课程，不给编辑/停课。
+    if (!current().isPlaceholder) {
+      nodes.push(h('div', { className: 'p-tt__actions' }, [
+        h('button', { className: 'p-tt__act', type: 'button', dataset: { act: 'edit' }, text: '编辑' }),
+        current().offWeek
+          ? null
+          : h('button', { className: 'p-tt__act', type: 'button', dataset: { act: 'skip' }, text: '本周停课' }),
+        h('button', { className: 'p-tt__act is-danger', type: 'button', dataset: { act: 'delete' }, text: '删除' }),
+      ]));
+    }
+
     sheet.setContent(nodes);
     if (animate && typeof body.animate === 'function') {
       body.animate(
@@ -148,6 +165,22 @@ export function createCourseDetail(options = {}) {
       const course = current();
       if (course && typeof options.onShowCourse === 'function') options.onShowCourse(course);
       sheet.close('api');
+      return;
+    }
+
+    const actBtn = target.closest('.p-tt__act');
+    if (actBtn) {
+      const course = current();
+      if (!course) return;
+      const act = actBtn.dataset.act;
+      if (act === 'edit' && typeof options.onEdit === 'function') {
+        sheet.close('api');
+        options.onEdit(course);
+      } else if (act === 'delete' && typeof options.onDelete === 'function') {
+        options.onDelete(course);
+      } else if (act === 'skip' && typeof options.onSkipWeek === 'function') {
+        options.onSkipWeek(course, weekNo);
+      }
     }
   };
   body.addEventListener('click', onClick);
@@ -190,10 +223,12 @@ export function createCourseDetail(options = {}) {
     /**
      * @param {object[]} courses 同格的全部课程（1 门时就是普通详情）
      * @param {number} [startIndex] 从哪一门开始看
+     * @param {{weekNo?: number}} [context] 当前周次（「本周停课」用）
      */
-    async open(courses, startIndex = 0) {
+    async open(courses, startIndex = 0, context = {}) {
       list = Array.isArray(courses) ? courses.filter(Boolean) : [];
       index = Math.min(Math.max(0, startIndex), Math.max(0, list.length - 1));
+      weekNo = Math.max(1, Number(context.weekNo) || 1);
       render(false);
       await sheet.open();
     },

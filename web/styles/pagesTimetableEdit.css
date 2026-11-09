@@ -1,0 +1,236 @@
+/* ============================================================================
+ * pagesTimetableEdit.css —— 课表本地编辑（详情操作行 + 新建/编辑表单）
+ *
+ * 从 pagesTimetable.css 拆出来：那边已经 370 行，再加表单必然顶破 400 行守卫。
+ * 选择器统一以 .p-tt__（详情操作）和 .p-te（编辑器）开头，互不冲突。
+ * 颜色只用 var(--…)，本文件不出现色值字面量（check-rules 守卫①）。
+ * ========================================================================== */
+
+/* ── 课程详情底部操作行：编辑 / 本周停课 / 删除 ─────────────────────────── */
+
+.p-tt__actions {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+
+.p-tt__act {
+  /* base.css 把 button 重置成 text-align: inherit，不写 flex 文字会贴在左上角 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-height: var(--hit-min);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-semibold);
+}
+
+.p-tt__act.is-danger {
+  background-color: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ── 编辑器表单 ────────────────────────────────────────────────────────── */
+
+.p-te {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.p-te__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.p-te__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+}
+
+.p-te__label {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+.p-te__input,
+.p-te__select {
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  box-sizing: border-box;
+}
+
+.p-te__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.p-te__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.p-te__block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+/* 星期：7 个等分小按钮，选中态用品牌色实心 */
+.p-te__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-4);
+}
+
+.p-te__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--hit-min);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-page);
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+.p-te__day.is-active {
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+  font-weight: var(--fw-semibold);
+}
+
+/* 节次：两个下拉 + 右侧实时时间，省得用户自己算 08:00-09:40 */
+.p-te__sections {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.p-te__select {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.p-te__dash,
+.p-te__time {
+  flex: 0 0 auto;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 周次快捷：全部 / 单周 / 双周 / 清除 */
+.p-te__quick {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.p-te__quick-btn {
+  min-height: 32px;
+  padding: 0 var(--space-8);
+  border-radius: var(--r-full);
+  background-color: var(--bg-page);
+  color: var(--text-secondary);
+  font-size: var(--fs-micro);
+  line-height: 1;
+}
+
+/* 周次格子：7 列，19 周刚好三行 */
+.p-te__weeks {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-4);
+}
+
+.p-te__week {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border-radius: var(--r-xs);
+  background-color: var(--bg-page);
+  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.p-te__week.is-active {
+  background-color: var(--brand-primary-soft);
+  color: var(--brand-primary-on-soft);
+  font-weight: var(--fw-semibold);
+}
+
+.p-te__week-hint {
+  font-size: var(--fs-micro);
+  line-height: 1.3;
+  color: var(--text-tertiary);
+}
+
+/* 底部：删除（编辑态）/ 取消（新建态）+ 保存 */
+.p-te__actions {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+
+.p-te__save,
+.p-te__delete,
+.p-te__cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--hit-min);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-body-strong);
+  line-height: var(--lh-body-strong);
+  font-weight: var(--fw-semibold);
+  text-align: center;
+}
+
+.p-te__save {
+  flex: 2 1 0;
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+}
+
+.p-te__delete {
+  flex: 1 1 0;
+  background-color: var(--danger-soft);
+  color: var(--danger);
+}
+
+.p-te__cancel {
+  flex: 1 1 0;
+  background-color: var(--bg-page);
+  color: var(--text-secondary);
+}
+
+/* 窄屏（320px）下星期与周次按钮会挤到 34px 左右，字号降一档但热区不缩 */
+@media (max-width: 359px) {
+  .p-te__day,
+  .p-te__week {
+    font-size: var(--fs-micro);
+  }
+
+  .p-te__quick-btn {
+    padding: 0 var(--space-4);
+  }
+}

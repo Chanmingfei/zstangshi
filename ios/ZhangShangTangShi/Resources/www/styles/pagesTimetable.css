@@ -10,9 +10,16 @@
  * ========================================================================== */
 
 .p-tt {
-  --tt-gutter: 30px;
+  /* 时间轴列宽 40px：每节要放「编号 + 开始 + 结束」三行，30px 装不下（用户反馈时间被截）。
+     7 个星期列仍然是 1fr，窄屏 320px 时每列还有 (320-40)/7 ≈ 40px，比旧版更宽。 */
+  --tt-gutter: 40px;
   --tt-row: 46px;
   --tt-head: 42px;
+  /* base.css 的 .page 有左右 --page-gutter（20px），会把课表挤窄 40px、看起来没铺满。
+     这一页要的是「表格贴边」，所以把父级左右内边距抵消掉：
+     顶部周次条和「回到本周」各自带 --page-gutter，文字不会贴边。 */
+  padding-left: 0;
+  padding-right: 0;
   /* 纵向滚动/下拉交给浏览器，横向留给「滑动切周」自己判 —— 见 timetable.js 文件头第 4 条 */
   touch-action: pan-y;
   padding-bottom: var(--space-24);
@@ -24,15 +31,35 @@
   position: sticky;
   top: 0;
   z-index: 2;
+  display: grid;
+  /* 左列留一个与「+」等宽的空位，周次切换器才能真的居中；
+     直接把按钮塞进 flex 居中会整体右偏 44px，看着像没对齐。 */
+  grid-template-columns: var(--hit-min) 1fr var(--hit-min);
+  align-items: center;
   padding: var(--space-8) var(--page-gutter);
   background-color: var(--bg-page);
 }
 
 .p-tt__switch {
+  grid-column: 2;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-8);
+}
+
+/* 右上角「新建课程」：长按空白格也能建，但长按是隐藏操作，必须给一个看得见的入口 */
+.p-tt__add {
+  grid-column: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  border-radius: var(--r-full);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  color: var(--brand-primary);
 }
 
 .p-tt__nav {
@@ -97,7 +124,10 @@
   grid-template-columns: var(--tt-gutter) repeat(7, minmax(0, 1fr));
   /* 表头 42px + 12 节各 46px；全部显式行，不依赖 auto-rows */
   grid-template-rows: var(--tt-head) repeat(12, var(--tt-row));
-  padding: 0 var(--page-gutter) var(--space-16);
+  /* 左右不再留 --page-gutter：课表要铺满整屏（用户反馈「表格两端没铺满」）。
+     时间轴自己占 40px，已经形成天然的左内边距；右侧贴边由最后一列的 1px 卡片 margin 兜住。
+     底部保留一点留白，避免最后一行贴着「回到本周」悬浮按钮。 */
+  padding: 0 0 var(--space-16);
 }
 
 .p-tt__corner {
@@ -139,12 +169,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 编号列必须钉在同一条水平线上：奇数节是「编号+时间」整块居中，偶数节只有编号，
-     若两处都用 center，偶数节的编号会比奇数节低 5px，整列数字上下抖（用户报的对齐 bug）。
-     改成顶部对齐 + 固定 padding：22px = 顶边框 1 + 编号 11 + 间隙 1 + 时间 9，
-     奇数节整块高度。这样奇数节位置与旧版逐像素一致，偶数节编号上移 5px 与之对齐。 */
+  /* 编号列必须钉在同一条水平线上：每节都是「编号 + 开始 + 结束」三行整块居中的话，
+     行高不一致会让整列数字上下抖。统一顶部对齐 + 固定 padding：
+     30px = 编号 10 + 开始 9 + 结束 9 + 行距 2，剩下的上下均分，12 节位置完全对齐。
+     （旧版奇数节多一行时间，所以偶数节要用 22px 补偿，现在三行结构一致，不再需要那种补丁。） */
   justify-content: flex-start;
-  padding-top: calc((var(--tt-row) - 22px) / 2);
+  padding-top: calc((var(--tt-row) - 30px) / 2);
   gap: 1px;
   border-top: 1px solid var(--border-subtle);
   color: var(--text-tertiary);
@@ -157,8 +187,10 @@
 }
 
 .p-tt__slot-time {
+  /* 9px 是 40px 栏宽里放得下「08:00」且两行不糊的最小字号；tabular-nums 保证每行等宽，
+     否则 1 和 8 的字宽差会让整列时间看起来参差不齐。 */
   font-size: 9px;
-  line-height: 1;
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 

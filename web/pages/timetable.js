@@ -3,69 +3,70 @@
  *
  * 几个不能想当然的点：
  *   1. **周次判定只认 `course.weeks`**（唯一真源）。`weekRange` / `weekParity` 是派生字段，
- *      本页一次都不读、也绝不会反写 —— 单双周课（书写技能训练 / 普通话训练）一读派生字段就会错周。
+ *      本页一次都不读、也绝不会反写 —— 单双周课一读派生字段就会错周。
  *   2. **节次是 12 小节，但分三段**：上午 1-4、下午 5-9（是 5 节，不是 4 节）、晚间 10-12。
- *      所以网格必须 12 行，不能按「上午 4 + 下午 4」想当然排。
- *   3. **考试周不做特殊态**（2026-11-06 用户口径）：18/19 周也可能因调课排课，教务给什么展示什么
- *      「复习考试周」，否则用户会以为数据丢了。
- *   4. 横向滑动才切周，纵向一律让给原生滚动（将来这页挂下拉刷新时也不用改判定）：
- *      第一次位移就定主轴，`|dx| > |dy| * 1.2` 才算横滑，之后不再改判。
- *   5. 周次存在 `ui.weekNo`：切到第 15 周 → 去「我的」→ 回来仍是第 15 周（验收 ⑤）。
- *   6. **「进行中」不重建网格**：定时器只调 `markNow()` 加减一个类名。整格重绘会打断
- *      入场动画与滚动位置，而这件事每分钟都要发生一次。定时器在 cleanup 里必须清掉。
- *
- * 卡片直接复用 `courseCard`（四类配色、44px 热区、读屏标签都在组件里），只补一个类把它压紧。
+ *   3. **本地课表优先**（v1.6）：老师调课不一定回教务更新、学期初排课也可能不全，
+ *      学生改过的课存在本地。渲染顺序是「本地 → 教务快照」，教务同步只做合并，不覆盖手改。
+ *   4. **免登录可看**：有本地课表时不需要登录态；没登录也没有本地数据才引导登录 / 新建。
+ *   5. **「进行中」不重建网格**：定时器只调 `markNow()` 加减一个类名，整格重绘会打断动画。
+ *   6. 横向滑动才切周（见 timetableSwipe.js），长按空白格新建课程（500ms，位移 >10px 取消）。
  */
 
 import { h } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { stagger } from '../core/animate.js';
-import { createSheet } from '../components/sheet.js';
+import { toast, confirm } from '../core/toast.js';
 import { emptyState } from '../components/emptyState.js';
 import { skeletonList } from '../components/skeleton.js';
 import { currentSection, currentSemester, weekDates, coursesInCell } from './timetableUtils.js';
 import { buildGrid, markNow } from './timetableView.js';
 import { createCourseDetail } from './timetableDetail.js';
+import { createTimetableEditor } from './timetableEditor.js';
+import { createWeekPicker } from './timetableWeekPicker.js';
+import { bindWeekSwipe } from './timetableSwipe.js';
+import { bindCellPress } from './timetablePress.js';
+import {
+  readLocal,
+  writeLocal,
+  saveImported,
+  makeCustomCourse,
+  upsertCourse,
+  updateCourse,
+  deleteCourse,
+  skipWeek,
+} from '../data/localTimetable.js';
 
-/** 横滑判定：位移阈值 + 主轴比例（见文件头第 4 条） */
-const SWIPE_THRESHOLD = 48;
-const AXIS_RATIO = 1.2;
-/** 「进行中」的重算间隔：一节 45 分钟，60s 足够，跨边界最多晚一分钟但不会漏 */
+/** 「进行中」的重算间隔：一节 45 分钟，60s 足够 */
 const NOW_TICK_MS = 60000;
+
+const PLUS_ICON =
+  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
 export default {
   name: 'timetable',
   title: '我的课表',
   tab: 'timetable',
-  requiresAuth: true,
+  // 有本地课表就能看，不再要求登录（未登录时的引导由页面自己给）
+  requiresAuth: false,
 
-  /**
-   * 同步出骨架（周次切换器 + 占位），数据在 mount 里填。
-   * @param {object} ctx
-   * @returns {HTMLElement}
-   */
   render(ctx) {
     const state = ctx.store.getState();
     const weekNo = Number(state.ui.weekNo) || Number(state.term.context && state.term.context.week) || 1;
 
     const weekText = h('span', { className: 'p-tt__week-text', text: `第 ${weekNo} 周` });
-    const prevBtn = h('button', {
-      className: 'p-tt__nav',
-      type: 'button',
-      'aria-label': '上一周',
-      html: icon('back', 20),
-    });
-    const nextBtn = h('button', {
-      className: 'p-tt__nav',
-      type: 'button',
-      'aria-label': '下一周',
-      html: icon('forward', 20),
-    });
+    const prevBtn = h('button', { className: 'p-tt__nav', type: 'button', 'aria-label': '上一周', html: icon('back', 20) });
+    const nextBtn = h('button', { className: 'p-tt__nav', type: 'button', 'aria-label': '下一周', html: icon('forward', 20) });
     const pickBtn = h(
       'button',
       { className: 'p-tt__week-pick', type: 'button', 'aria-haspopup': 'dialog', 'aria-label': '选择周次' },
       [weekText, h('span', { className: 'p-tt__week-caret', 'aria-hidden': 'true', html: icon('chevronDown', 16) })]
     );
+    const addBtn = h('button', {
+      className: 'p-tt__add',
+      type: 'button',
+      'aria-label': '新建课程',
+      html: PLUS_ICON,
+    });
 
     const body = h('div', { className: 'p-tt__body' }, skeletonList({ rows: 4, withTrailing: false }));
     const fab = h('button', { className: 'p-tt__fab', type: 'button', hidden: true }, [
@@ -74,48 +75,117 @@ export default {
     ]);
 
     const el = h('div', { className: 'page p-tt' }, [
-      h('div', { className: 'p-tt__head' }, [h('div', { className: 'p-tt__switch' }, [prevBtn, pickBtn, nextBtn])]),
+      h('div', { className: 'p-tt__head' }, [
+        h('div', { className: 'p-tt__switch' }, [prevBtn, pickBtn, nextBtn]),
+        addBtn,
+      ]),
       body,
       h('div', { className: 'p-tt__fab-wrap' }, fab),
     ]);
 
-    el.__view = { weekText, prevBtn, nextBtn, pickBtn, body, fab };
+    el.__view = { weekText, prevBtn, nextBtn, pickBtn, addBtn, body, fab };
     return el;
   },
 
-  /**
-   * @param {HTMLElement} el
-   * @param {object} ctx
-   * @returns {() => void} cleanup
-   */
   mount(el, ctx) {
     const view = el.__view;
     const { store, actions } = ctx;
 
     const semester = currentSemester(store.getState());
-    const totalWeeks = (semester && Number(semester.totalWeeks)) || 19;
+    const semesterId = semester && semester.id;
+    const totalWeeks = Math.min(30, Math.max(1, (semester && Number(semester.totalWeeks)) || 19));
     const currentWeek = Number(store.getState().term.context && store.getState().term.context.week) || 1;
     const todayIso = store.getState().term.todayIso;
     const todayWeekday = new Date(`${todayIso}T12:00:00`).getDay() || 7;
 
     let weekNo = Math.min(totalWeeks, Math.max(1, Number(store.getState().ui.weekNo) || currentWeek));
+    /** 本地课表（可写真源） */
+    let local = readLocal(semesterId);
+    /** 上次吸收的教务快照时间戳，避免同一份数据反复合并落盘 */
+    let lastSync = null;
+    /** 正在编辑的课程（编辑态保存时用） */
+    let editing = null;
 
-    /** 冲突格里用户手动选过「显示这门课」的课程：key = `day-start` */
     const shown = {};
-    /** 当前时间命中的节次（0 = 不在任何节次内）；只在「本周」时有意义 */
     let nowSection = currentSection(new Date());
+
+    /* ── 本地课表读写 ─────────────────────────────────────────────────── */
+
+    /** 保存并重绘（`next` 是 localTimetable 的纯函数返回值） */
+    function save(next, message) {
+      local = writeLocal(semesterId, next);
+      paint(false);
+      if (message) toast(message, 'success');
+    }
+
+    /** 把教务快照并进本地（手改的课不会被覆盖，手动新建的课不会被删） */
+    function absorbSlot() {
+      const slot = store.getState().slots.timetable;
+      if (!slot || slot.status !== 'ready' || !slot.data || !Array.isArray(slot.data.courses)) return false;
+      const stamp = slot.updatedAt || 'ready';
+      if (stamp === lastSync) return false;
+      lastSync = stamp;
+      local = saveImported(semesterId, slot.data.courses).local;
+      return true;
+    }
+
+    /** 当前要画的课程：本地优先，本地为空才用教务快照 */
+    function coursesNow() {
+      if (local.courses.length) return local.courses;
+      const slot = store.getState().slots.timetable;
+      return slot && slot.data && Array.isArray(slot.data.courses) ? slot.data.courses : null;
+    }
+
+    /* ── 编辑 / 详情 ──────────────────────────────────────────────────── */
+
+    async function removeCourse(course) {
+      const ok = await confirm('删除这门课？', `「${course.name}」会从本地课表移除；重新同步教务可以恢复导入的课程。`, {
+        confirmText: '删除',
+        danger: true,
+      });
+      if (!ok) return false;
+      save(deleteCourse(local, course.id), '已删除');
+      return true;
+    }
+
+    const editor = createTimetableEditor({
+      onSave(input, mode) {
+        if (mode === 'create') {
+          save(upsertCourse(local, makeCustomCourse(input)), '已添加到课表');
+          return true;
+        }
+        if (!editing) return false;
+        save(updateCourse(local, editing.id, input), '已保存修改');
+        editing = null;
+        return true;
+      },
+      onDelete: removeCourse,
+    });
 
     const detail = createCourseDetail({
       onShowCourse(course) {
-        const key = `${course.dayOfWeek}-${Math.min(...course.sections)}`;
-        shown[key] = course.id;
-        // 重画但不重新入场：用户刚在弹层里做过选择，网格再「飞一次」会显得没完没了
+        shown[`${course.dayOfWeek}-${Math.min(...course.sections)}`] = course.id;
         paint(false);
       },
+      onEdit(course) {
+        editing = course;
+        editor.openEdit(course, totalWeeks);
+      },
+      async onDelete(course) {
+        if (await removeCourse(course)) detail.close();
+      },
+      async onSkipWeek(course, week) {
+        const ok = await confirm(`第 ${week} 周停课？`, `「${course.name}」只在第 ${week} 周停上，其余周次保留。`, {
+          confirmText: '停课',
+        });
+        if (!ok) return;
+        save(skipWeek(local, course.id, week), `已在第 ${week} 周停课`);
+        detail.close();
+      },
     });
-    const picker = createSheet({ title: '选择周次' });
 
-    /** 当前周如果不是本周，就不该给「今日列」高亮，也不该有「进行中」 */
+    /* ── 渲染 ─────────────────────────────────────────────────────────── */
+
     function todayIndex() {
       return weekNo === currentWeek ? todayWeekday : 0;
     }
@@ -128,32 +198,36 @@ export default {
       view.pickBtn.setAttribute('aria-label', `选择周次，当前第 ${weekNo} 周`);
     }
 
-    /** 重画整个 body（骨架 / 错误 / 考试周 / 正常网格四态） */
     function paint(animate = true) {
       const slot = store.getState().slots.timetable;
       updateHead();
+      const courses = coursesNow();
 
-      if (!slot || slot.status === 'idle' || slot.status === 'loading') {
-        view.body.replaceChildren(skeletonList({ rows: 4, withTrailing: false }));
-        return;
-      }
-
-      if (!slot.data) {
+      if (courses === null) {
+        // 只有「真的在取数」才给骨架：未登录且没有本地数据时槽位一直是 idle，
+        // 这时该给空状态（登录 / 新建），否则用户会盯着一片灰条等一个永远不会来的请求。
+        const sessionStatus = store.getState().session.status;
+        const willLoad = Boolean(slot) && slot.status === 'idle' && (sessionStatus === 'authed' || sessionStatus === 'demo');
+        if ((slot && slot.status === 'loading') || willLoad) {
+          view.body.replaceChildren(skeletonList({ rows: 4, withTrailing: false }));
+          return;
+        }
+        const failed = Boolean(slot && slot.error);
         view.body.replaceChildren(
           emptyState({
-            kind: 'error',
-            title: (slot.error && slot.error.message) || '课表没能取回来',
-            description: '周次切换仍然可用，稍后重试即可',
-            actionLabel: '重试',
-            onAction: () => actions.loadSlot('timetable', { force: true }),
+            kind: failed ? 'error' : 'empty',
+            title: failed ? (slot.error.message || '课表没能取回来') : '还没有课表',
+            description: failed ? '可以稍后重试，或直接手动新建一门课' : '登录教务同步一次，或直接手动新建课程',
+            actionLabel: failed ? '重试' : '新建课程',
+            onAction: failed
+              ? () => actions.loadSlot('timetable', { force: true })
+              : () => editor.openCreate({ totalWeeks, dayOfWeek: todayWeekday }),
           })
         );
         return;
       }
 
-      // 不做考试周特殊态：18/19 周也可能因调课排课，教务给什么就展示什么（用户口径 2026-11-06）
-
-      const { grid, cards } = buildGrid(slot.data.courses, {
+      const { grid, cards } = buildGrid(courses, {
         weekNo,
         todayIndex: todayIndex(),
         dates: weekDates(semester, weekNo),
@@ -161,14 +235,9 @@ export default {
         shown,
       });
       view.body.replaceChildren(grid);
-      // 切周后按时间顺序入场（buildGrid 已按 星期→节次 排好）
       if (animate) stagger(cards, { step: 40 });
     }
 
-    /**
-     * 每 60 秒重算一次「现在上第几节」。只在真的换了节次时才动 DOM，
-     * 否则每分钟都会引起一次样式重算（虽然只改一个类，但没必要）。
-     */
     function refreshNow() {
       const next = todayIndex() ? currentSection(new Date()) : 0;
       if (next === nowSection) return;
@@ -177,7 +246,6 @@ export default {
     }
 
     const nowTimer = window.setInterval(refreshNow, NOW_TICK_MS);
-    // 切后台回来时定时器可能已经被浏览器降频，补算一次（跨节次边界不会漏）
     const onVisible = () => {
       if (document.visibilityState === 'visible') refreshNow();
     };
@@ -187,60 +255,42 @@ export default {
       const clamped = Math.min(totalWeeks, Math.max(1, next));
       if (clamped === weekNo) return;
       weekNo = clamped;
-      // 切周时立刻重算一次，否则从别的周切回本周会沿用上一周的 nowSection（可能已过期）
       nowSection = clamped === currentWeek ? currentSection(new Date()) : 0;
       actions.setUi({ weekNo: clamped });
       paint();
     }
 
-    /* ── 周次切换器 ─────────────────────────────────────────────────────── */
+    /* ── 周次切换器 ───────────────────────────────────────────────────── */
 
     const onPrev = () => setWeek(weekNo - 1);
     const onNext = () => setWeek(weekNo + 1);
     view.prevBtn.addEventListener('click', onPrev);
     view.nextBtn.addEventListener('click', onNext);
 
-    /** 周次选择器：19 格，考试周标注出来，避免点进去发现没课以为坏了 */
-    function buildPicker() {
-      const cells = [];
-      for (let w = 1; w <= totalWeeks; w += 1) {
-        const cls = ['p-tt__week-cell'];
-        if (w === weekNo) cls.push('is-current');
-        cells.push(
-          h('button', {
-            className: cls.join(' '),
-            type: 'button',
-            dataset: { week: String(w) },
-            'aria-label': `第 ${w} 周`,
-            text: String(w),
-          })
-        );
-      }
-      return h('div', { className: 'p-tt__weeks' }, cells);
-    }
+    const picker = createWeekPicker({ totalWeeks, onPick: (week) => setWeek(week) });
 
-    const onPickOpen = async () => {
-      picker.setContent(buildPicker());
-      await picker.open();
-      const current = picker.el.querySelector('.p-tt__week-cell.is-current');
-      if (current) current.focus({ preventScroll: true });
-    };
+    const onPickOpen = () => picker.open(weekNo);
     view.pickBtn.addEventListener('click', onPickOpen);
 
-    const onPickClick = (event) => {
-      const cell = event.target.closest('.p-tt__week-cell');
-      if (!cell) return;
-      setWeek(Number(cell.dataset.week));
-      picker.close('api');
-    };
-    picker.el.addEventListener('click', onPickClick);
+    /* ── 新建：右上角 + / 长按空白格 ──────────────────────────────────── */
 
-    /* ── 回到本周 ───────────────────────────────────────────────────────── */
+    const onAdd = () => editor.openCreate({ totalWeeks, dayOfWeek: todayWeekday });
+    view.addBtn.addEventListener('click', onAdd);
+
+    const unbindPress = bindCellPress(view.body, {
+      onPress: (cell) =>
+        editor.openCreate({
+          totalWeeks,
+          dayOfWeek: Number(cell.dataset.day) || 1,
+          start: Number(cell.dataset.section) || 1,
+        }),
+    });
+
+    /* ── 回到本周 ─────────────────────────────────────────────────────── */
 
     const onFab = () => {
       if (weekNo === currentWeek) return;
       setWeek(currentWeek);
-      // 短暂高亮：让用户知道「回来了」而不是页面自己跳了一下
       view.pickBtn.classList.remove('is-flash');
       void view.pickBtn.offsetWidth;
       view.pickBtn.classList.add('is-flash');
@@ -248,97 +298,59 @@ export default {
     view.fab.addEventListener('click', onFab);
     view.pickBtn.addEventListener('animationend', () => view.pickBtn.classList.remove('is-flash'));
 
-    /* ── 卡片 → 详情层 ──────────────────────────────────────────────────── */
+    /* ── 卡片 → 详情层 ────────────────────────────────────────────────── */
 
     const onBodyClick = (event) => {
       const holder = event.target.closest('.p-tt__gridcard');
       if (!holder) return;
-      const data = store.getState().slots.timetable.data;
-      if (!data) return;
-
-      // 同格的课要现算：卡上只画了「主课」，但详情层允许左右翻出这一格的全部课
-      // （含本周不上、隔周才来的单/双周轮换课）
+      const courses = coursesNow();
+      if (!courses) return;
       const day = Number(holder.dataset.day);
       const start = Number(holder.dataset.start);
-      const { active, rotating } = coursesInCell(data.courses, day, start, weekNo);
-      const courses = active.concat(rotating);
-      if (courses.length === 0) return;
-
+      const { active, rotating } = coursesInCell(courses, day, start, weekNo);
+      const list = active.concat(rotating);
+      if (list.length === 0) return;
       const primaryId = holder.dataset.courseId;
-      const startIndex = Math.max(0, courses.findIndex((course) => course.id === primaryId));
-      detail.open(courses, startIndex);
+      const startIndex = Math.max(0, list.findIndex((course) => course.id === primaryId));
+      detail.open(list, startIndex, { weekNo });
     };
     view.body.addEventListener('click', onBodyClick);
 
-    /* ── 左右滑动切周 ───────────────────────────────────────────────────── */
+    /* ── 手势 / 订阅 / 首次取数 ───────────────────────────────────────── */
 
-    let tracking = false;
-    let axis = null;
-    let startX = 0;
-    let startY = 0;
-
-    const onTouchStart = (event) => {
-      const touch = event.touches[0];
-      if (!touch) return;
-      tracking = true;
-      axis = null;
-      startX = touch.clientX;
-      startY = touch.clientY;
-    };
-
-    const onTouchMove = (event) => {
-      if (!tracking) return;
-      const touch = event.touches[0];
-      if (!touch) return;
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
-      // 位移还太小就先不定主轴，避免手抖把一次竖滑判成横滑
-      if (!axis) {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        axis = Math.abs(dx) > Math.abs(dy) * AXIS_RATIO ? 'x' : 'y';
-      }
-      if (axis !== 'x') return; // 纵向一概不管：交给原生滚动（下拉刷新将来也在这条路上）
-      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-      tracking = false; // 一次手势只切一周
-      setWeek(weekNo + (dx < 0 ? 1 : -1));
-    };
-
-    const onTouchEnd = () => {
-      tracking = false;
-      axis = null;
-    };
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: true });
-    el.addEventListener('touchend', onTouchEnd);
-    el.addEventListener('touchcancel', onTouchEnd);
-
-    /* ── 订阅 + 首次取数 ────────────────────────────────────────────────── */
+    const unbindSwipe = bindWeekSwipe(el, { onSwipe: (direction) => setWeek(weekNo + direction) });
 
     const unsubscribe = store.subscribe(
       (state) => state.slots.timetable,
-      () => paint()
+      () => {
+        absorbSlot();
+        paint();
+      }
     );
+
+    absorbSlot();
     paint();
 
     const slot = store.getState().slots.timetable;
-    if (!slot || slot.status === 'idle') actions.loadSlot('timetable');
+    const status = store.getState().session.status;
+    if ((!slot || slot.status === 'idle') && (status === 'authed' || status === 'demo')) {
+      actions.loadSlot('timetable');
+    }
 
     return () => {
       unsubscribe();
+      unbindSwipe();
+      unbindPress();
       window.clearInterval(nowTimer);
       document.removeEventListener('visibilitychange', onVisible);
       view.prevBtn.removeEventListener('click', onPrev);
       view.nextBtn.removeEventListener('click', onNext);
       view.pickBtn.removeEventListener('click', onPickOpen);
+      view.addBtn.removeEventListener('click', onAdd);
       view.fab.removeEventListener('click', onFab);
       view.body.removeEventListener('click', onBodyClick);
-      picker.el.removeEventListener('click', onPickClick);
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
       detail.destroy();
+      editor.destroy();
       picker.destroy();
     };
   },

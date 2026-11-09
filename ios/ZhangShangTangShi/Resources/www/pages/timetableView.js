@@ -94,8 +94,10 @@ export function buildGrid(courses, view) {
         style: { gridRow: row, gridColumn: '1' },
       }, [
         h('span', { className: 'p-tt__slot-no', text: String(section) }),
-        // 偶数节次不重复标时间，避免 30px 宽的栏位塞满数字
-        section % 2 === 1 ? h('span', { className: 'p-tt__slot-time', text: PERIOD_TIMES[section - 1][0] }) : null,
+        // 每一节都给完整时间（开始 + 结束）。旧版只在奇数节标开始时间，
+        // 学生看到「第 2 节 08:50 上课」时无法判断几点下课 —— 用户反馈「时间显示不全」。
+        h('span', { className: 'p-tt__slot-time', text: PERIOD_TIMES[section - 1][0] }),
+        h('span', { className: 'p-tt__slot-time', text: PERIOD_TIMES[section - 1][1] }),
       ])
     );
     for (let day = 1; day <= 7; day += 1) {
@@ -103,6 +105,9 @@ export function buildGrid(courses, view) {
         h('div', {
           className: `p-tt__cell${day === todayIndex ? ' is-today' : ''}${seg}${zebra}`,
           role: 'gridcell',
+          // 长按空白格新建课程时要反查是「星期几、第几节」，从 style.gridRow/Column 反推
+          // 既脆弱又绕，直接把坐标写进 dataset。
+          dataset: { day: String(day), section: String(section) },
           style: { gridRow: row, gridColumn: String(day + 1) },
         })
       );

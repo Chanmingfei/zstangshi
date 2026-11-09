@@ -174,9 +174,10 @@ table {
 
 #tabbar {
   flex: 0 0 auto;
-  /* 底部安全区（手势条）同样不能露出页面底色 */
-  background-color: var(--bg-surface);
-  padding-bottom: var(--safe-b);
+  /* 宿主保持透明：底部留白让胶囊「浮」在页面底色上，而不是从屏幕底边长出来。
+     离底距离叠加安全区（手势条），左右留白与胶囊内边距由 --dock-* 统一给。 */
+  background-color: transparent;
+  padding: var(--space-12) var(--dock-gutter) calc(var(--dock-gap) + var(--safe-b));
   z-index: var(--z-tabbar);
 }
 

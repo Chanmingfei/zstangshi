@@ -195,11 +195,12 @@ node ios/scripts/test-shell-smoke.mjs          # 按 iPhone 视口逐 Tab 冒烟
 
 ## 第三方来源与致谢
 
-**先说结论：本项目没有 fork、复制或 vendoring 任何 GitHub 仓库的代码**，没有 git submodule，运行时零 npm 依赖。课表数据与交互**同时参考了 WakeUp 课程表与小米小爱课程表**——这是两个不同产品：前者是独立第三方课程表 App，后者是小米的课程表服务。下列是被引用、参考或作为分析素材的外部来源，按性质分别列出：
+**先说结论：本项目没有 fork、复制或 vendoring 任何 GitHub 仓库的代码**，没有 git submodule，运行时零 npm 依赖。课表数据与交互**同时参考了 WakeUp 课程表与小米小爱课程表**——这是两个不同产品：前者是独立第三方课程表 App，后者是小米的课程表服务；底部导航与本地课表的产品设计另参考了烫梨（tangli）。下列是被引用、参考或作为分析素材的外部来源，按性质分别列出：
 
 | 来源 | 关系 | 说明 |
 | --- | --- | --- |
 | **WakeUp 课程表** · [官网](http://www.wakeup.fun/) | 数据与交互参考 | 独立的第三方课程表 App，**不是小米产品**。项目对照了它的课表数据与交互手感：课程卡配色思路、长按 500 ms 判定、详情层左右滑动切换、复制课表文案的字段顺序等（见 `courseCard.js` / `clipboard.js` / `timetableView.js` / `timetableDetail.js` 注释）。 |
+| **烫梨（tangli）** · [GitHub](https://github.com/augustlies/tangli)（GPL-3.0） | 交互与视觉参考 | 本地课表、桌面小组件、免登录查看这几项能力的**产品思路**来自它。底部悬浮胶囊导航（`web/components/tabBar.js`）照它 `CapsuleDock` 的交互与视觉语言用 JavaScript 重写：320 ms 回弹滑移、内缩小胶囊选中块、按住左右拖跟手 + 横向 1.06 拉伸 + 松手吸附。**没有复制其源码**（对方是 Android 原生 Java，本项目是 Web 组件，且按 4 项、图标在上文字在下重新设计）；若后续要引入其任何源码，需按其 GPL-3.0 处理许可。 |
 | **小爱课程表**（小米）· [解析器格式文档](https://open-schedule-prod.ai.xiaomi.com/docs/#/help/?id=parser) | 解析器规范参考 | `reference/wakeup-parser-tstc.js` 是**本项目作者本人**为唐山师范学院写给小爱课程表的学校适配脚本（277 行），遵循小爱 `scheduleHtmlParser(html) → {courseInfos, sectionTimes}` 规范（出处见该文件 L268 注释）。**文件名沿用早期 `wakeup-` 前缀，容易误解：它不是 WakeUp 课程表的解析器。** 该文件只作设计参考，不参与构建与运行；移植分析见 [docs/parser-adapter-spec.md](docs/parser-adapter-spec.md)。 |
 | **正方教务系统** `jwxt.tstc.edu.cn` | 页面样本与接口分析素材 | `docs/diagnostics/` 下的 jQuery 插件与页面 JS 是从教务站点抓取的原文样本，仅用于逆向确认端点与字段口径，**不参与 App 构建或运行**，版权归原系统所有。 |
 | **唐山师范学院公开资料** | 数据／素材来源 | 校历来自教务处 [校历查询](https://jwc.tstc.edu.cn/xlcx.htm)，作息时间来自 [教务处公告](https://jwc.tstc.edu.cn/info/1247/2699.htm)，校徽为学校官网公开素材；校历 JSON 副本在 `docs/school-calendar.json` 与 `web/data/school-calendar.json`。 |

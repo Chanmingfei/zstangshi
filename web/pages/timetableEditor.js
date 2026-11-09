@@ -106,14 +106,6 @@ export function createTimetableEditor(options = {}) {
       placeholder: '例如：博学楼 A302',
       maxlength: '30',
     });
-    const noteInput = h('input', {
-      className: 'p-te__input p-te__note',
-      type: 'text',
-      value: (course && course.note) || '',
-      placeholder: '备注（可留空）',
-      maxlength: '40',
-    });
-
     const fromSel = h('select', { className: 'p-te__select p-te__from', 'aria-label': '开始节次' },
       PERIOD_TIMES.map((_, i) => h('option', { value: String(i + 1), text: `第 ${i + 1} 节` })));
     const toSel = h('select', { className: 'p-te__select p-te__to', 'aria-label': '结束节次' },
@@ -180,18 +172,33 @@ export function createTimetableEditor(options = {}) {
         h('div', { className: 'p-te__weeks' }, weekBtns),
         h('p', { className: 'p-te__week-hint', text: `已选 ${weeks.length} 周` }),
       ]),
-      h('label', { className: 'p-te__field' }, [
-        h('span', { className: 'p-te__label', text: '备注' }),
-        noteInput,
-      ]),
-      h('div', { className: 'p-te__actions' }, [
-        mode === 'edit'
-          ? h('button', { className: 'p-te__delete', type: 'button', text: '删除这门课' })
-          : h('button', { className: 'p-te__cancel', type: 'button', text: '取消' }),
-        h('button', { className: 'p-te__save', type: 'button', text: mode === 'edit' ? '保存修改' : '添加到课表' }),
-      ]),
     ];
   }
+
+  /**
+   * 底部主按钮（删除/取消 + 保存）。
+   *
+   * 不放在表单里、而是交给弹层的固定底部槽位：`.c-sheet__body` 是滚动容器，
+   * 按钮跟着内容滚会「填完了找不到确定」，sticky 又会在滚动时盖住周次格最后一行。
+   * 槽位在滚动区之外，两种病一起治。
+   */
+  function actionNodes() {
+    return [
+      mode === 'edit'
+        ? h('button', { className: 'p-te__delete', type: 'button', text: '删除这门课' })
+        : h('button', { className: 'p-te__cancel', type: 'button', text: '取消' }),
+      h('button', { className: 'p-te__save', type: 'button', text: mode === 'edit' ? '保存修改' : '添加到课表' }),
+    ];
+  }
+
+  /**
+   * 挂载表单。
+   *
+   * 必须包一层 `.p-te`：`.c-sheet__body` 只负责滚动、不设 `gap`，
+   * 直接平铺节点会让「教师 / 星期 / 节次」这些标签零间距贴在上一行输入框的
+   * 底边上，五组字段糊成一整块（真机截图确认过）。组间距由 `.p-te` 统一给。
+   */
+  const mount = (nodes) => body.replaceChildren(h('div', { className: 'p-te' }, nodes));
 
   /** 点某个按钮后同步同步属性（读屏与视觉都要一致） */
   const markActive = (btn, on) => {
@@ -263,7 +270,6 @@ export function createTimetableEditor(options = {}) {
         name,
         teacher: (body.querySelector('.p-te__teacher').value || '').trim(),
         location: (body.querySelector('.p-te__place').value || '').trim(),
-        note: (body.querySelector('.p-te__note').value || '').trim(),
         dayOfWeek: selectedDay(),
         sections,
         weeks,
@@ -288,8 +294,9 @@ export function createTimetableEditor(options = {}) {
     if (label) label.textContent = `${PERIOD_TIMES[sections[0] - 1][0]}-${PERIOD_TIMES[sections[sections.length - 1] - 1][1]}`;
   };
 
-  body.addEventListener('click', onClick);
-  body.addEventListener('change', onChange);
+  // 监听挂在面板上而非 body：主按钮在弹层的固定底部槽位里，不在滚动区内
+  sheet.panel.addEventListener('click', onClick);
+  sheet.panel.addEventListener('change', onChange);
 
   return {
     /**
@@ -302,7 +309,7 @@ export function createTimetableEditor(options = {}) {
       totalWeeks = Math.min(30, Math.max(1, Number(preset.totalWeeks) || 19));
       sheet.setTitle('新建课程');
       const start = Math.min(TOTAL_SECTIONS, Math.max(1, Number(preset.start) || 1));
-      body.replaceChildren(...formNodes({
+      mount(formNodes({
         name: '',
         teacher: '',
         location: '',
@@ -310,6 +317,7 @@ export function createTimetableEditor(options = {}) {
         dayOfWeek: preset.dayOfWeek || 1,
         sections: [start, Math.min(TOTAL_SECTIONS, start + 1)],
       }));
+      sheet.setActions(actionNodes());
       updateWeekHint();
       await sheet.open();
       const nameInput = body.querySelector('.p-te__name');
@@ -326,14 +334,15 @@ export function createTimetableEditor(options = {}) {
       draft = course;
       totalWeeks = Math.min(30, Math.max(1, Number(weeks) || 19));
       sheet.setTitle('编辑课程');
-      body.replaceChildren(...formNodes(course));
+      mount(formNodes(course));
+      sheet.setActions(actionNodes());
       updateWeekHint();
       await sheet.open();
     },
 
     destroy() {
-      body.removeEventListener('click', onClick);
-      body.removeEventListener('change', onChange);
+      sheet.panel.removeEventListener('click', onClick);
+      sheet.panel.removeEventListener('change', onChange);
       sheet.destroy();
     },
   };

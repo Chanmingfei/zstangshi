@@ -4,7 +4,7 @@
  *   2. c-toast     顶部提示 + 二次确认弹窗（同属「轻量反馈」一层）
  *   3. c-skeleton  骨架屏（core/animate.js 的 skeletonPulse 需要基线样式）
  *
- * 顶栏 / 底栏（c-appbar / c-tabbar，含毛玻璃材质）已拆到 componentsChrome.css：
+ * 顶栏 / 底栏（c-appbar / c-dock，含毛玻璃材质）已拆到 componentsChrome.css：
  * HIG 重设计后控件层统一管理「Liquid Glass 只给导航层」这条规矩，components.css
  * 原本 391 行也已逼近守卫③ 的 400 行上限。
  *

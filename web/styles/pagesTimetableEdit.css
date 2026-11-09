@@ -36,23 +36,29 @@
 
 /* ── 编辑器表单 ────────────────────────────────────────────────────────── */
 
+/* 五组字段（课程名 / 教师+地点 / 星期 / 节次 / 周次）之间的呼吸感。
+   ⚠️ 这个类必须真的存在于 DOM 里 —— 表单节点是平铺生成后由 `mount()` 包进来的；
+   早先版本漏了这层包装，弹层 body 自己又不带 gap，标签其实是零间距贴着上一行
+   输入框底边的，看起来「只有一条缝」。24px 才能让每组自成一块。 */
 .p-te {
   display: flex;
   flex-direction: column;
-  gap: var(--space-12);
+  gap: var(--space-24);
 }
 
+/* 标签与它自己的控件：4px 会让「课程名」几乎贴在框上，抬到 8px */
 .p-te__field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-8);
   min-width: 0;
 }
 
+/* 教师 / 地点两列：中间留 12px，避免两个框看起来像一个被切开的长框 */
 .p-te__row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-8);
+  gap: var(--space-12);
 }
 
 .p-te__label {
@@ -83,6 +89,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
+}
+
+/* 星期那一行本身也是一组「标签 + 按钮」：块间距与 .p-te__field 对齐 */
+.p-te__block > .p-te__label {
+  margin-bottom: 0;
 }
 
 .p-te__block-head {
@@ -164,7 +175,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  min-height: 40px;
   border-radius: var(--r-xs);
   background-color: var(--bg-page);
   color: var(--text-tertiary);
@@ -184,13 +195,9 @@
   color: var(--text-tertiary);
 }
 
-/* 底部：删除（编辑态）/ 取消（新建态）+ 保存 */
-.p-te__actions {
-  display: flex;
-  gap: var(--space-8);
-  margin-top: var(--space-8);
-}
-
+/* 底部：删除（编辑态）/ 取消（新建态）+ 保存。
+   位置由弹层的 `.c-sheet__actions` 槽位决定（在滚动区之外），这里只管按钮本身：
+   「删除/取消」1 份宽、保存 2 份宽 —— 主操作更容易点中。 */
 .p-te__save,
 .p-te__delete,
 .p-te__cancel {

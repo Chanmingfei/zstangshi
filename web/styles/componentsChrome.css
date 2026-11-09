@@ -1,7 +1,7 @@
 /* ============================================================================
  * componentsChrome.css —— 控件层（导航外壳）样式
  *   1. c-appbar    顶栏 + 演示提示条
- *   2. c-tabbar    底部 4 Tab + 滑动指示器
+ *   2. c-dock      底部悬浮胶囊 Dock（4 Tab，选中块是内缩小胶囊）
  *
  * 为什么单独一个文件：components.css 已逼近 400 行上限，且 HIG 重设计后控件层
  * 要用毛玻璃材质（tokens.css 的 --mat-chrome / --blur-chrome），单独成文件便于
@@ -136,23 +136,64 @@
 
 .c-appbar__notice-close svg { width: 16px; height: 16px; }
 
-/* ═══ 2. 底部导航 c-tabbar ═══════════════════════════════════════════════ */
+/* ═══ 2. 底部悬浮胶囊 Dock c-dock ═══════════════════════════════════════
+ * 照搬烫梨（github.com/augustlies/tangli）的 CapsuleDock 语言：
+ *   整条是一颗浮起来的胶囊（圆角 = 半高），选中块是内部再内缩一圈的小胶囊。
+ *   与旧版「整条通栏 + 底部下划线」的区别就在这：选中态是**一块面**，不是一根线。
+ *   位置（左右留白 / 离底距离）由 #tabbar 的 padding 给，这里只管胶囊本身。 */
 
-.c-tabbar__inner {
+.c-dock {
   position: relative;
   display: flex;
   align-items: stretch;
-  height: var(--tabbar-h);
-  /* 控件层毛玻璃 + 1px 亮顶边（光线打在材质上）+ 结构分隔线 */
-  background-color: var(--mat-chrome);
-  -webkit-backdrop-filter: var(--blur-chrome);
-  backdrop-filter: var(--blur-chrome);
-  border-top: 1px solid var(--border-subtle);
-  box-shadow: inset 0 1px 0 var(--mat-chrome-edge);
+  height: var(--dock-h);
+  padding: var(--dock-pad);
+  border-radius: var(--r-full);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-dock);
+  box-sizing: border-box;
+  /* 只接管纵向滚动：横向留给拖动手势，否则一划就被浏览器当成页面横滑吃掉 */
+  touch-action: pan-y;
 }
 
-.c-tabbar__item {
+/* 选中块与「幽灵块」共用一套几何：内缩一圈、圆角半高 */
+.c-dock__pill,
+.c-dock__ghost {
+  position: absolute;
+  top: var(--dock-pad);
+  bottom: var(--dock-pad);
+  left: 0;
+  width: 0;
+  border-radius: var(--r-full);
+  pointer-events: none;
+}
+
+/* 320ms 回弹：先冲过头一点再落位（烫梨的 OvershootInterpolator(1.4)） */
+.c-dock__pill {
+  background-color: var(--brand-primary-soft);
+  transition: transform var(--dur-dock) var(--ease-spring);
+  will-change: transform;
+}
+
+/* 拖动时跟手，不能有过渡，否则会拖出一条延迟的残影 */
+.c-dock.is-dragging .c-dock__pill {
+  transition: none;
+}
+
+/* 按在别的格上时先浮出来，预告松手会落到哪 */
+.c-dock__ghost {
+  background-color: var(--bg-sunken);
+  opacity: 0;
+  transition: opacity var(--dur-press) var(--ease-press),
+    transform var(--dur-dock) var(--ease-spring);
+}
+
+.c-dock__ghost.is-on { opacity: 1; }
+
+.c-dock__item {
   position: relative;
+  z-index: 1;
   flex: 1 1 0;
   min-width: 0;
   min-height: var(--hit-min);
@@ -161,47 +202,39 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
+  border-radius: var(--r-full);
   color: var(--text-tertiary);
-  transition: color var(--dur-press) var(--ease-standard);
+  transition: color var(--dur-pull) var(--ease-standard),
+    transform var(--dur-press) var(--ease-press);
 }
 
-.c-tabbar__item[aria-selected='true'] {
-  color: var(--brand-primary);
+/* 图标在上、文字在下：4 项也不会被文字撑宽，胶囊得以保持合理高度 */
+.c-dock__item[aria-selected='true'] {
+  color: var(--brand-primary-on-soft);
 }
 
-.c-tabbar__item:active {
-  color: var(--brand-primary-deep);
+.c-dock__item:active {
+  transform: scale(0.94);
 }
 
-.c-tabbar__icon { display: block; width: 24px; height: 24px; }
+.c-dock__icon { display: block; width: 22px; height: 22px; }
 
-.c-tabbar__icon svg { width: 24px; height: 24px; }
+.c-dock__icon svg { width: 22px; height: 22px; }
 
-.c-tabbar__label {
+.c-dock__label {
   font-size: var(--fs-micro);
   line-height: var(--lh-micro);
   font-weight: var(--fw-micro);
 }
 
-/* 指示器：CSS 宽 1px，靠 scaleX 表达宽度，位移与宽度一次插值同步完成 */
-.c-tabbar__ind {
-  position: absolute;
-  left: 0;
-  bottom: 2px;
-  width: 1px;
-  height: 3px;
-  border-radius: var(--r-full);
-  background-color: var(--brand-primary);
-  transform-origin: left center;
-  transform: translate3d(0, 0, 0) scaleX(0);
-  pointer-events: none;
-  will-change: transform;
+/* 选中项加粗（烫梨：near > 0.5 时切 bold） */
+.c-dock__item[aria-selected='true'] .c-dock__label {
+  font-weight: var(--fw-semibold);
 }
 
 /* ═══ 3. 降低透明度：毛玻璃退化为实色（iOS 同款无障碍开关）══════════════ */
 @media (prefers-reduced-transparency: reduce) {
-  .c-appbar,
-  .c-tabbar__inner {
+  .c-appbar {
     background-color: var(--bg-surface);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

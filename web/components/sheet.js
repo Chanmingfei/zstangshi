@@ -46,6 +46,7 @@ const DUR_PAGE = 250;
  *   isOpen: () => boolean,
  *   setContent: (nodes: unknown) => void,
  *   setTitle: (text: string) => void,
+ *   setActions: (nodes: unknown) => void,
  *   destroy: () => void
  * }}
  */
@@ -265,6 +266,20 @@ export function createSheet(options = {}) {
     panel.setAttribute('aria-label', text || '详情');
   }
 
+  /**
+   * 设置底部操作区（不随内容滚动）。
+   *
+   * 建弹层时没传 `actions` 会把这一块摘掉；之后再调用这里可以把它挂回去 ——
+   * 表单类弹层的主按钮必须待在滚动区之外，否则按钮要么跟着内容滚走，
+   * 要么 sticky 在滚动区底部盖住最后一行内容。
+   * @param {unknown} nodes
+   */
+  function setActions(nodes) {
+    const list = (Array.isArray(nodes) ? nodes : [nodes]).filter((node) => node !== null && node !== undefined);
+    actionsEl.replaceChildren(...list.map((node) => (node instanceof Node ? node : document.createTextNode(String(node)))));
+    if (list.length && !actionsEl.isConnected) panel.appendChild(actionsEl);
+  }
+
   if (!options.actions) actionsEl.remove();
 
   return {
@@ -275,6 +290,7 @@ export function createSheet(options = {}) {
     isOpen: () => opened,
     setContent,
     setTitle,
+    setActions,
     destroy() {
       document.removeEventListener('keydown', onKeydown);
       mask.remove();

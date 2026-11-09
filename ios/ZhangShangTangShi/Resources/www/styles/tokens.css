@@ -161,6 +161,8 @@
   /* —— 阴影：克制，最多 2 层（iOS 化后卡片主要靠底色分层，阴影更轻）—— */
   --e1: 0 1px 2px rgba(0, 0, 0, 0.05);
   --e2: 0 4px 16px rgba(0, 0, 0, 0.08);
+  /* 悬浮 Dock 专用：比 --e2 更散、更浅一层，胶囊才「浮」在页面之上而不是贴住 */
+  --shadow-dock: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.05);
 
   /* —— 控件层毛玻璃（Liquid Glass 配方，只给 appBar / tabBar 等导航层）——
      内容层一律实色，不叠 blur；prefers-reduced-transparency 时退化为实色。 */
@@ -177,6 +179,9 @@
 
   /* —— 时长档位（Fluid Interfaces：默认弹簧 ≈ 400ms 临界阻尼；sheet 300ms）—— */
   --dur-press: 100ms;
+  /* 悬浮 Dock 的选中块滑移：烫梨是 320ms + OvershootInterpolator(1.4)，
+     对应这里的 --ease-spring，冲过头再落位 */
+  --dur-dock: 320ms;
   --dur-pull: 200ms;
   --dur-page: 400ms;
   --dur-enter: 300ms;
@@ -195,7 +200,11 @@
   --appbar-h: 64px;
   --appbar-h-compact: 56px;
   --notice-h: 36px;
-  --tabbar-h: 56px;
+  /* 底部悬浮胶囊 Dock（烫梨式）：胶囊高 / 左右留白 / 离底距离 / 内部再内缩一圈 */
+  --dock-h: 64px;
+  --dock-gutter: 22px;
+  --dock-gap: 14px;
+  --dock-pad: 5px;
   --hit-min: 44px;
 
   /* —— 层级 ——
@@ -237,6 +246,7 @@
   --bg-elevated: #1D2838;
   --bg-sunken: #0B111A;
   --bg-mask: rgba(0, 0, 0, 0.55);
+  --shadow-dock: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
 
   --text-primary: #F2F2F7;
   --text-secondary: #A8B2C0;
@@ -299,6 +309,7 @@
     --bg-elevated: #1D2838;
     --bg-sunken: #0B111A;
     --bg-mask: rgba(0, 0, 0, 0.55);
+  --shadow-dock: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
 
     --text-primary: #F2F2F7;
     --text-secondary: #A8B2C0;

@@ -11,7 +11,7 @@
 import { isoOfDayNumber, todayDayNumber } from './data/calendar.js';
 
 /** 应用版本号（「我的」页与关于页展示） */
-export const APP_VERSION = '1.6.1';
+export const APP_VERSION = '2.0.1';
 
 /** 8 个数据槽的初始形状（status ∈ idle/loading/ready/stale/error） */
 function emptySlot() {

@@ -2,7 +2,7 @@
 
 面向唐山师范学院在校生的校园服务 App（个人开发，**非学校官方发布**）。用一套原生壳把教务系统与学工系统的常用功能装进手机：成绩、绩点、课表、推荐课表、选课、校历、奖助贷与请假。
 
-**当前源码 v1.6.1（versionCode 14）· 已发布 Release v1.6.0** · 零第三方运行时依赖 · 纯静态 ESM，无打包步骤 · `npm run verify` 全绿
+**当前源码 v2.0.1（versionCode 15）· 已发布 Release v2.0.1** · 零第三方运行时依赖 · 纯静态 ESM，无打包步骤 · `npm run verify` 全绿
 
 ---
 
@@ -11,17 +11,17 @@
 > **Android 用户直接去 Releases 下载，不需要自己编译。**
 >
 > - 始终拿最新版：<https://github.com/Chanmingfei/zstangshi/releases/latest>
-> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v1.6.0>
-> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v1.6.0/ZhangShangTangShi-1.6.0.apk>
+> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v2.0.1>
+> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v2.0.1/ZhangShangTangShi-2.0.1.apk>
 
 | 项目 | 值 |
 | --- | --- |
-| 版本 | 1.6.0（versionCode 13） |
-| 文件 | `ZhangShangTangShi-1.6.0.apk`，959,011 字节（约 937 KiB） |
+| 版本 | 2.0.1（versionCode 15） |
+| 文件 | `ZhangShangTangShi-2.0.1.apk`，1,025,175 字节（约 1001 KiB） |
 | 系统要求 | Android 8.0（API 26）及以上，目标 Android 14（API 34） |
 | 权限 | 仅 `INTERNET`、`ACCESS_NETWORK_STATE` |
 | 签名 | 本地调试密钥，与近期版本一致，**可直接覆盖安装** |
-| SHA-256 | `58185d827b85cf332e281580491b39e4c894d6c83bb87fbd4b1cbb22edb561cc` |
+| SHA-256 | `40947d30f09a4d14cc1460959bd3b6006246b8e86c16ef7bc0ea0bf6a8942166` |
 
 **安装步骤**
 
@@ -32,8 +32,8 @@
 校验下载完整性（可选）：
 
 ```bash
-certutil -hashfile ZhangShangTangShi-1.6.0.apk SHA256   # Windows 终端
-sha256sum ZhangShangTangShi-1.6.0.apk                   # macOS / Linux
+certutil -hashfile ZhangShangTangShi-2.0.1.apk SHA256   # Windows 终端
+sha256sum ZhangShangTangShi-2.0.1.apk                   # macOS / Linux
 ```
 
 **iOS 没有预编译包。** iOS 的可执行文件必须由 Xcode 编译，且免费 Apple ID 只能自签 7 天。两条路：

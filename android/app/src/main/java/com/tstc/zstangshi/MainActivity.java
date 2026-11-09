@@ -2,6 +2,7 @@ package com.tstc.zstangshi;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
@@ -32,6 +33,12 @@ public class MainActivity extends Activity {
      *  http:// 无此证书门槛。app.local/localhost 属「potentially trustworthy」源，
      *  仍为 secure-context，crypto.subtle / localStorage 等照常可用。 */
     static final String APP_HOST = "http://app.local/index.html";
+
+    /** 启动后要直达的页面（桌面小组件点进来时带 '/timetable'） */
+    static final String EXTRA_PATH = "com.tstc.zstangshi.PATH";
+
+    /** 待跳转的路径。onCreate 与 onNewIntent 都会写它，消费一次即清空。 */
+    private String pendingPath;
 
     private WebView webView;
 
@@ -69,9 +76,57 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient());
         webView.addJavascriptInterface(new NativeBridge(this, webView), "NativeBridge");
 
-        // JS → Native 的 9 个 API 都挂在 window.NativeBridge 上；CookieJar 在首次请求时安装
+        // JS → Native 的 10 个 API 都挂在 window.NativeBridge 上；CookieJar 在首次请求时安装
         CookieJar.install();
+        pendingPath = pathOf(getIntent());
         loadApp();
+        applyPendingPath();
+    }
+
+    /**
+     * 单实例 + singleTask：已经开着的时候再点桌面的小组件，走的不是 onCreate 而是这里。
+     * @param intent
+     */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        pendingPath = pathOf(intent);
+        if (pendingPath != null) applyPendingPath();
+    }
+
+    /** 只接受形如 /timetable 的站内路径，别的一律忽略（Intent 是外部可构造的） */
+    private static String pathOf(Intent intent) {
+        if (intent == null) return null;
+        String path = intent.getStringExtra(EXTRA_PATH);
+        if (path == null || !path.startsWith("/") || path.length() < 2) return null;
+        return path;
+    }
+
+    /**
+     * 把待跳转路径交给 Web 侧的路由。
+     *
+     * 用改写 location.hash 而不是调用某个函数：router.js 挂了 hashchange 监听，
+     * 改 hash 就是它认识的唯一入口；而 JS 桥 / 模块导出在不同版本里名字会变，
+     * 只有「#/xxx 是这张页面的地址」这条是稳定的。
+     *
+     * 800ms 延迟是给 boot() 留的：冷启动时 hash 为空，boot 会自己 replaceState 到
+     * 首页或课表页；提前改 hash 会和它抢。延迟之后改，boot 早已落定。
+     * 热启动（App 已在后台）时这 800ms 只是一次可见的路由切换，无副作用。
+     */
+    private void applyPendingPath() {
+        final String path = pendingPath;
+        if (path == null || webView == null) return;
+        pendingPath = null;
+        webView.postDelayed(() -> {
+            if (webView == null) return;
+            try {
+                String js = "if(location.hash!=='#" + path + "'){location.hash='#" + path + "';}";
+                webView.evaluateJavascript(js, null);
+            } catch (Exception ignored) {
+                // WebView 已销毁：这次跳转丢弃，用户回到桌面再点一次即可
+            }
+        }, 800);
     }
 
     /**

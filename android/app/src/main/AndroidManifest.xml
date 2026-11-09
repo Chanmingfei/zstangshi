@@ -41,6 +41,23 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|uiMode"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
+        <!-- 桌面小组件「今日课程」。
+             exported=false：APPWIDGET_UPDATE 由系统（AppWidgetService）投递，不需要对外暴露；
+             自己安排的刷新广播走 PendingIntent，同样不受 exported 影响。
+             WIDGET_TICK 也要写进 intent-filter，AlarmManager 才能把广播解析到这个 receiver。 -->
+        <receiver
+            android:name=".ClassWidget"
+            android:exported="false"
+            android:label="@string/widget_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.tstc.zstangshi.action.WIDGET_TICK" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_info" />
+        </receiver>
     </application>
 
 </manifest>

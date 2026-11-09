@@ -859,7 +859,13 @@ sequenceDiagram
 @JavascriptInterface public boolean clearCredential()
 @JavascriptInterface public void    openExternal(String url)             // Intent.ACTION_VIEW
 @JavascriptInterface public String  getPlatformInfo()                    // {sdkInt, model, webviewVersion}
+@JavascriptInterface public boolean pushWidget(String json)              // 桌面小组件快照落盘 + 重画
+@JavascriptInterface public String  addWidget()                          // requestPinAppWidget → requested|unsupported
 ```
+
+> 上面是设计稿。**以代码为准**的偏差见 `android/README.md`「NativeBridge 的 11 个 JS API」：
+> `httpRequest` 的参数顺序是 `(reqId, url, method, headersJson, body)`；第 9 个 API 是
+> `rsaEncrypt`；第 10/11 个是小组件的 `pushWidget` / `addWidget`。
 
 回调载荷结构（与 `ProviderResult` 解耦，属于 transport 层协议）：
 

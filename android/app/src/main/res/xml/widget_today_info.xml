@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  「今日课程」小组件的声明。
+
+  · minWidth/minHeight 按「4×3 个格子」给（每格约 70dp 减去间距）：
+    4 行课 + 标题 + 底部一行，2 格高放不下；
+  · minResizeHeight 放到 110dp，缩到 4×2 时只显示 1 行课（代码里按实际高度算行数）；
+  · updatePeriodMillis 30 分钟是系统允许的最小值，纯粹兜底 —— 真正的刷新靠
+    AlarmManager 在「上课 / 下课 / 零点」这些边界上重画；
+  · initialLayout / previewLayout 用同一份静态示例：从桌面添加的那一刻就有内容，
+    不会先闪一下空白（真实数据由 onEnabled / onUpdate 立刻覆盖）。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_desc"
+    android:initialLayout="@layout/widget_today_preview"
+    android:previewLayout="@layout/widget_today_preview"
+    android:minWidth="250dp"
+    android:minHeight="190dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="110dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="3"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

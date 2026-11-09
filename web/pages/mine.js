@@ -19,10 +19,8 @@ import { createSheet } from '../components/sheet.js';
 import { toast, confirm } from '../core/toast.js';
 import { sizeBytes } from '../core/storage.js';
 import { APP_VERSION } from '../appState.js';
-import { getSemesters } from '../data/calendar.js';
-import {
-  readCustom, saveCustom, clearCustom, parseSemesterId, displayYearOf,
-} from '../data/customTerm.js';
+import { readCustom, parseSemesterId, displayYearOf } from '../data/customTerm.js';
+import { createTermSheet, TERM_LABELS } from './mineTermSheet.js';
 
 /** 学工系统与教务处地址：只作为文本展示 + 点击打开，不写成 src/href 远程资源 */
 const LINKS = Object.freeze({
@@ -36,8 +34,6 @@ const THEME_OPTIONS = [
   { key: 'light', label: '亮色' },
   { key: 'dark', label: '深色' },
 ];
-
-const TERM_LABELS = Object.freeze(['第一学期', '第二学期', '第三学期']);
 
 /* 主题选择/应用与系统跟随监听在 core/theme.js（全生命周期注册，懒加载页面不再漏监听） */
 
@@ -121,6 +117,27 @@ function build() {
     className: 'c-btn p-mine__about-btn', type: 'button', text: '关于我们',
   });
 
+  /**
+   * 桌面小组件入口。
+   * 放在这里是因为「长按桌面 → 小部件」这条路大部分国产桌面藏得很深，
+   * 用户压根不知道有这个功能；点一下让系统弹添加确认框，比写一段说明有用。
+   * 没有原生壳（浏览器预览）直接整块不渲染 —— 网页版没有桌面可言。
+   */
+  const addWidgetBtn = h('button', {
+    className: 'c-btn c-btn--ghost p-mine__action', type: 'button', text: '添加到桌面',
+  });
+  const widgetCard = h('section', { className: 'p-mine__card' }, [
+    h('h2', { className: 'p-mine__card-title', text: '桌面小组件' }),
+    h('p', { className: 'p-mine__hint', text: '把今天要上的课放上桌面：第几周、几点、在哪上，不用打开 App' }),
+    h('div', { className: 'p-mine__actions' }, [addWidgetBtn]),
+  ]);
+  // 只认「这个壳真的实现了 addWidget」：浏览器预览没有桌面，iOS 壳也没做 WidgetKit，
+  // 老版本 APK 同样没有这个方法 —— 三种情况都该整块不渲染，而不是点了报错
+  const bridge = typeof window === 'undefined' ? null : window.NativeBridge;
+  if (!bridge || typeof bridge.addWidget !== 'function') {
+    widgetCard.hidden = true;
+  }
+
   const avatar = h('span', { className: 'p-mine__avatar', text: '唐', 'aria-hidden': 'true' });
   const el = h('div', { className: 'page p-mine' }, [
     h('section', { className: 'p-mine__hero' }, [
@@ -155,6 +172,8 @@ function build() {
       h('div', { className: 'p-mine__shortcuts' }, shortcuts),
     ]),
 
+    widgetCard,
+
     h('section', { className: 'p-mine__card' }, [
       h('h2', { className: 'p-mine__card-title', text: '本机数据' }),
       row('缓存占用', cacheValue),
@@ -167,7 +186,7 @@ function build() {
 
   el.__view = {
     studentNo, userNo, avatar, sessionTag, heroSub, sourceValue, termValue, termBtn,
-    themeButtons, cacheValue, clearBtn, logoutBtn, aboutBtn, linkRow,
+    themeButtons, cacheValue, clearBtn, logoutBtn, aboutBtn, linkRow, addWidgetBtn,
   };
   return el;
 }
@@ -297,76 +316,31 @@ export default {
     view.linkRow.addEventListener('click', onLink);
     view.aboutBtn.addEventListener('click', onAbout);
 
-    /* ── 学期与教学周设置弹窗：学年/学期/第一周周一，保存后全局生效并持久化 ── */
-    const termSheet = createSheet({ title: '学期与教学周' });
-    const onTermSettings = () => {
-      const term = store.getState().term;
-      // 预填：优先用户上次的自定义；否则当前生效学期（含其校历开学日）
-      const def = readCustom() || (() => {
-        const list = getSemesters(term.calendar);
-        const id = String((term.context && term.context.semesterId) || '');
-        const sem = list.find((s) => s.id === id) || list[0] || null;
-        return sem ? { semesterId: sem.id, startDate: sem.semesterStart } : null;
-      })() || { semesterId: '2026-2027-1', startDate: '' };
-      const parsedDef = parseSemesterId(def.semesterId);
-
-      const nowYear = new Date().getFullYear();
-      const base = new Date().getMonth() >= 7 ? nowYear : nowYear - 1; // 8 月起算新学年
-      const years = [];
-      for (let y = base - 2; y <= base + 1; y += 1) years.push(`${y}-${y + 1}`);
-
-      const yearSel = h('select', { className: 'p-mine__form-field', 'aria-label': '学年' },
-        years.map((y) => h('option', { value: y, text: `${y} 学年` })));
-      const termSel = h('select', { className: 'p-mine__form-field', 'aria-label': '学期' },
-        TERM_LABELS.map((label, at) => h('option', { value: String(at + 1), text: label })));
-      const dateInput = h('input', {
-        className: 'p-mine__form-field', type: 'date', 'aria-label': '第一周周一的日期',
-      });
-      if (parsedDef) {
-        if (!years.includes(parsedDef.academicYear)) {
-          yearSel.insertBefore(h('option', { value: parsedDef.academicYear, text: `${parsedDef.academicYear} 学年` }), yearSel.firstChild);
-        }
-        yearSel.value = parsedDef.academicYear;
-        termSel.value = String(parsedDef.term);
-      }
-      if (def.startDate) dateInput.value = def.startDate;
-
-      const saveBtn = h('button', { className: 'c-btn p-mine__action', type: 'button', text: '保存并生效' });
-      const resetBtn = h('button', { className: 'c-btn c-btn--ghost p-mine__action', type: 'button', text: '跟随校历' });
-      const onSave = () => {
-        const year = yearSel.value;
-        const termNo = Number(termSel.value);
-        if (!/^\d{4}-\d{4}$/.test(year) || !(termNo >= 1 && termNo <= 3)) {
-          toast('请选择学年与学期', 'info'); return;
-        }
-        if (!dateInput.value) { toast('请选择第一周周一的日期', 'info'); return; }
-        const saved = saveCustom({ semesterId: `${year}-${termNo}`, startDate: dateInput.value });
-        if (!saved) { toast('保存失败，请检查日期格式', 'error'); return; }
+    /* ── 学期与教学周设置弹窗（表单本体在 mineTermSheet.js）── */
+    const termSheet = createTermSheet({
+      onChange: () => {
         actions.applyTermSettings(); // 重算周数 + 学期码下发 + 课表槽重取
-        termSheet.close('api');
         paint(); // 摘要行立即反映「自定义」，不等下次订阅触发
-        toast(`已按第 1 周 ${saved.startDate} 生效，课表与周数已刷新`, 'success');
-      };
-      const onReset = () => {
-        clearCustom();
-        actions.applyTermSettings();
-        termSheet.close('api');
-        paint();
-        toast('已恢复跟随校历', 'success');
-      };
-      saveBtn.addEventListener('click', onSave);
-      resetBtn.addEventListener('click', onReset);
-
-      termSheet.setContent(h('div', { className: 'p-mine__form' }, [
-        h('span', { className: 'p-mine__form-label', text: '学年' }), yearSel,
-        h('span', { className: 'p-mine__form-label', text: '学期' }), termSel,
-        h('span', { className: 'p-mine__form-label', text: '第一周周一' }), dateInput,
-        h('p', { className: 'p-mine__hint', text: '保存后 App 按此学期与周数显示课表，重启后仍生效；非周一的日期会自动归到那一周的周一。' }),
-        h('div', { className: 'p-mine__actions' }, [resetBtn, saveBtn]),
-      ]));
-      termSheet.open();
-    };
+      },
+    });
+    const onTermSettings = () => termSheet.open(store.getState().term);
     view.termBtn.addEventListener('click', onTermSettings);
+
+    /**
+     * 请系统弹「添加到桌面」确认框。
+     * addWidget() 返回的是「请求已发出」，不是「已添加」—— 用户还要在系统弹窗里点确认，
+     * 所以提示语写「去桌面确认」，不能写「已添加」。
+     */
+    const onAddWidget = () => {
+      const bridge = window.NativeBridge;
+      const result = bridge && typeof bridge.addWidget === 'function' ? String(bridge.addWidget()) : 'unsupported';
+      if (result === 'requested') {
+        toast('请在桌面弹窗里点「添加」', 'success');
+        return;
+      }
+      toast('这台桌面不支持一键添加：长按桌面空白处 → 小部件 → 掌上唐师', 'info');
+    };
+    view.addWidgetBtn.addEventListener('click', onAddWidget);
 
     const card = el;
     card.addEventListener('click', onTheme);
@@ -389,6 +363,7 @@ export default {
       view.aboutBtn.removeEventListener('click', onAbout);
       view.linkRow.removeEventListener('click', onLink);
       view.termBtn.removeEventListener('click', onTermSettings);
+      view.addWidgetBtn.removeEventListener('click', onAddWidget);
       termSheet.destroy();
       unsubSession();
       unsubSource();

@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">掌上唐师</string>
+
+    <!-- 桌面小组件「今日课程」 -->
+    <string name="widget_title">今日课程</string>
+    <string name="widget_desc">桌面上直接看今天上什么课：第几周、几点、在哪上</string>
+    <string name="widget_empty">还没有课表\n打开 App 进入「课表」自动同步一次</string>
 </resources>

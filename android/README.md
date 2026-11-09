@@ -56,17 +56,41 @@ C:/Android/sdk/platform-tools/adb.exe install -r android/build/app-debug.apk
 | 资产同步 | `app/build.gradle`：`tasks.register('syncWebAssets', Copy)` + `tasks.named('preBuild') { dependsOn 'syncWebAssets' }` |
 | 硬件返回 | `MainActivity.onBackPressed()` → `window.__appBack()`；返回 `true` 由页面消费，`false` 则 `finish()` |
 | 外链 | `AssetLoader.shouldOverrideUrlLoading()`：非 `app.local` 的 http(s)/tel/mailto → `Intent.ACTION_VIEW` |
-| 桥 | `addJavascriptInterface(new NativeBridge(...), "NativeBridge")`，9 个 `@JavascriptInterface`（见下） |
+| 桥 | `addJavascriptInterface(new NativeBridge(...), "NativeBridge")`，11 个 `@JavascriptInterface`（见下） |
 | 学工系统（应用内直开） | 首页「学工系统」行与「我的 → 学工系统网页」→ `NativeBridge.openWebView(url)` → `WebActivity`：应用内 WebView，顶部 返回/刷新/关闭 工具条、标题同步页面 title，无中间跳转页；无原生壳时降级 `window.open` |
 | Cookie | `CookieJar`：WebView `CookieManager` ↔ `java.net.CookieHandler` 双写；手动跟随 302，每跳重建 Cookie（R2 / §6.2） |
 | 凭据 | `SecurePrefs`：AndroidKeyStore AES-256/GCM → SharedPreferences(MODE_PRIVATE) |
 | 证书 | `res/xml/network_security_config.xml`：仅 `tstc.edu.cn` 允许明文 + 信任 system & user CA（R4） |
 | 混淆 | `app/proguard-rules.pro` 保留全部 `@JavascriptInterface` 方法名（含 `rsaEncrypt`） |
 
-### NativeBridge 的 9 个 JS API
+### NativeBridge 的 11 个 JS API
 
 `isNative` / `getAppVersion` / `httpRequest` / `rsaEncrypt` / `clearSession` /
-`saveCredential` / `loadCredential` / `clearCredential` / `openWebView`
+`saveCredential` / `loadCredential` / `clearCredential` / `openWebView` /
+`pushWidget` / `addWidget`
+
+后两个是桌面小组件「今日课程」用的（v1.6.0）：
+
+- `pushWidget(json)` —— H5 把今天的课算好序列化后推进来，落 `SharedPreferences`
+  并让桌面重画。**必须落盘**：小组件在 App 进程之外也要能渲染（开机、零点、上课时刻），
+  那时 WebView 不存在。
+- `addWidget()` —— 请系统弹「添加至桌面」确认框（API 26+ pin 机制），
+  「我的 → 桌面小组件 → 添加到桌面」调它；桌面不支持时返回 `unsupported`，页面给降级文案。
+
+```
+ClassWidget.java   AppWidgetProvider：RemoteViews 渲染 + 四条刷新路径
+WidgetData.java    快照的存取与版本校验（版本不认就整条作废，不画半截）
+res/layout/widget_today.xml          真实布局（固定 4 行，靠 setViewVisibility 控制）
+res/layout/widget_today_preview.xml  initialLayout + 桌面选择器预览（静态示例）
+res/xml/widget_today_info.xml        4×3、可缩放、updatePeriodMillis=30min
+res/values{,-night}/widget_colors.xml 亮/深色两套色（与 tokens.css 同值）
+```
+
+四条刷新路径，都不依赖精确闹钟权限：系统 onUpdate / H5 推完立刻重画 /
+`updatePeriodMillis` 30 分钟兜底 / `AlarmManager.set`（**非精确**）在下一个
+「上课・下课・零点」边界重画。布局里只出现「在某区间内恒成立」的文案（「正在上」
+「下一节 14:00」），刻意不做「还有 12 分钟」这种一刷新就过期的倒计时 ——
+这也是能容忍闹钟晚一两分钟的原因。
 
 两处**以代码为准、不要照抄文档**的偏差：
 

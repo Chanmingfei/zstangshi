@@ -35,6 +35,7 @@ import {
   deleteCourse,
   skipWeek,
 } from '../data/localTimetable.js';
+import { syncWidget } from '../data/widget.js';
 
 /** 「进行中」的重算间隔：一节 45 分钟，60s 足够 */
 const NOW_TICK_MS = 60000;
@@ -115,6 +116,9 @@ export default {
     function save(next, message) {
       local = writeLocal(semesterId, next);
       paint(false);
+      // 课表变了就要让桌面小组件跟着变：改课最常见的原因就是「老师临时调课」，
+      // 用户第二天看桌面时以为什么都没发生，才是最糟的体验
+      syncWidget(store.getState());
       if (message) toast(message, 'success');
     }
 
@@ -126,6 +130,7 @@ export default {
       if (stamp === lastSync) return false;
       lastSync = stamp;
       local = saveImported(semesterId, slot.data.courses).local;
+      syncWidget(store.getState());
       return true;
     }
 

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  小组件颜色（深色）。系统切到深色模式时自动生效（资源限定符由系统在 inflate 时解析），
+  H5 不需要知道桌面是亮还是暗 —— 这正是「快照只下发 courseType、不下发色值」的原因。
+-->
+<resources>
+    <color name="w_bg">#17202E</color>
+    <color name="w_ink">#F2F2F7</color>
+    <color name="w_sub">#98989F</color>
+    <color name="w_line">#26313F</color>
+    <!-- 深底上的强调色（对应 tokens.css 深色主题的 brand-primary #3395FF） -->
+    <color name="w_accent">#3395FF</color>
+
+    <color name="course_required">#3395FF</color>
+    <color name="course_elective">#409CFF</color>
+    <color name="course_public">#30D158</color>
+    <color name="course_practice">#D9B96B</color>
+</resources>

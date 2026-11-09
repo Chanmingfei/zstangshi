@@ -2,7 +2,7 @@
 
 面向唐山师范学院在校生的校园服务 App（个人开发，**非学校官方发布**）。用一套原生壳把教务系统与学工系统的常用功能装进手机：成绩、绩点、课表、推荐课表、选课、校历、奖助贷与请假。
 
-**当前版本 v1.5.3（versionCode 12）** · 零第三方运行时依赖 · 纯静态 ESM，无打包步骤 · `npm run verify` 全绿
+**当前版本 v1.6.0（versionCode 13）** · 零第三方运行时依赖 · 纯静态 ESM，无打包步骤 · `npm run verify` 全绿
 
 ---
 
@@ -11,17 +11,17 @@
 > **Android 用户直接去 Releases 下载，不需要自己编译。**
 >
 > - 始终拿最新版：<https://github.com/Chanmingfei/zstangshi/releases/latest>
-> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v1.5.3>
-> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v1.5.3/ZhangShangTangShi-1.5.3.apk>
+> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v1.6.0>
+> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v1.6.0/ZhangShangTangShi-1.6.0.apk>
 
 | 项目 | 值 |
 | --- | --- |
-| 版本 | 1.5.3（versionCode 12） |
-| 文件 | `ZhangShangTangShi-1.5.3.apk`，917,109 字节（约 896 KiB） |
+| 版本 | 1.6.0（versionCode 13） |
+| 文件 | `ZhangShangTangShi-1.6.0.apk`，959,011 字节（约 937 KiB） |
 | 系统要求 | Android 8.0（API 26）及以上，目标 Android 14（API 34） |
 | 权限 | 仅 `INTERNET`、`ACCESS_NETWORK_STATE` |
 | 签名 | 本地调试密钥，与近期版本一致，**可直接覆盖安装** |
-| SHA-256 | `60d35412f97c8e37e5297667ece424cf941089e953c2fb3d796406532e19d797` |
+| SHA-256 | `58185d827b85cf332e281580491b39e4c894d6c83bb87fbd4b1cbb22edb561cc` |
 
 **安装步骤**
 
@@ -32,8 +32,8 @@
 校验下载完整性（可选）：
 
 ```bash
-certutil -hashfile ZhangShangTangShi-1.5.3.apk SHA256   # Windows 终端
-sha256sum ZhangShangTangShi-1.5.3.apk                   # macOS / Linux
+certutil -hashfile ZhangShangTangShi-1.6.0.apk SHA256   # Windows 终端
+sha256sum ZhangShangTangShi-1.6.0.apk                   # macOS / Linux
 ```
 
 **iOS 没有预编译包。** iOS 的可执行文件必须由 Xcode 编译，且免费 Apple ID 只能自签 7 天。两条路：
@@ -58,9 +58,11 @@ sha256sum ZhangShangTangShi-1.5.3.apk                   # macOS / Linux
 | 首页 | 今日课程、常用功能 7 宫格、下拉刷新、深浅色主题 |
 | 成绩 | 按学期成绩列表、五级制文字成绩（优秀／良好…）、平时分／期末分明细、已获学分与绩点 |
 | 课表 | 个人课表（周视图）、单双周精确周次、同格多课切换、板块课占位行、推荐课表、选课 |
+| 本地课表 | 从教务导入后存本地；手动新建／编辑／删除课程、单周停课；**未登录、断网也能看**；导入只在唐山师范学院校本口径下做，不做多学校适配 |
+| 桌面小组件 | 「今日课程」放在桌面上：第几周、今天几门、每门几点在哪上、哪门正在上；点一下直接进课表 |
 | 日历 | 教学周换算、学期校历、自定义学期 |
 | 学工 | 奖助贷、请假、综合素质（App 内 WebView 打开原站点） |
-| 体验 | 冷启动加载页、应用内返回栈、骨架屏、多级字号、读屏标签、对比度 ≥ 4.5 |
+| 体验 | 冷启动加载页、应用内返回栈、骨架屏、多级字号、读屏标签、对比度 ≥ 4.5、深色模式（含小组件） |
 
 **数据来源与账号**：正式数据来自 `jwxt.tstc.edu.cn`（正方教务）与 `sws.tstc.edu.cn`（学工系统），需要本人学号与密码；App 不保存明文密码，凭据交给系统安全区（Android `SecurePrefs` / iOS Keychain），会话 Cookie 由原生层维护。仓库内还带一套**演示数据**，浏览器里跑 `node server.js` 无需账号即可预览全部界面；演示数据是抓取失败时的降级副本，不是默认数据源。
 
@@ -80,7 +82,7 @@ flowchart TB
     end
     subgraph A["Android 壳"]
         AW["WebView + AssetLoader<br/>http://app.local/ → assets/www"]
-        AB["NativeBridge（10 个 @JavascriptInterface）"]
+        AB["NativeBridge（11 个 @JavascriptInterface）"]
         AW --- AB
     end
     subgraph I["iOS 壳"]
@@ -141,7 +143,19 @@ flowchart TB
 
 - **Android**：`bash android/build-manual.sh` 绕过 AGP，直接用 `aapt2 + javac + d8 + zipalign + apksigner` 产出 `android/build/app-debug.apk`，零 Gradle 依赖。版本号从 `android/app/build.gradle` 读取（单一真源），`debug.keystore` 沿用同一签名以支持覆盖安装。
 - **iOS**：Xcode 工程 + `project.yml`，`ios/scripts/sync-web.sh` 同步 H5 副本，云端 macOS 编译出未签名 ipa。
-- **测试**：`npm run verify` 串起 5 组脚本 —— 教学周算法 214 项、绩点解析 53 项、教务解析器 144 项、页面契约 44 项（10 页 / 20 样式 / 68 个 ESM，import 图零断链）、五条规则守卫（颜色字面量、外链白名单、单文件 400 行上限、校历副本一致性、对比度）。测试以纯函数为主，因此解析规则改动能被逐条断言锁住。
+- **测试**：`npm run verify` 串起 7 组脚本 —— 教学周算法 214 项、绩点解析 53 项、教务解析器 144 项、本地课表 46 项（同步合并规则／编辑／单周停课／存储往返）、小组件快照 36 项（节次换算／今日筛选／下发）、页面契约 45 项（10 页 / 21 样式 / 75 个 ESM，import 图零断链）、五条规则守卫（颜色字面量、外链白名单、单文件 400 行上限、校历副本一致性、对比度）。测试以纯函数为主，因此解析规则改动能被逐条断言锁住。
+
+### 7. 本地课表与桌面小组件
+
+教务只给「现在排成这样」，不给「老师昨天调了课」。这一层要解决的就是这件事：**课表以自己的本地数据为准，教务同步只做合并**。
+
+- **三态来源**（`data/localTimetable.js`，纯函数、零 DOM）：`jwxt`（教务导入、未改动）、`custom`（手动新建）、`edited`（导入后被改过）。每学期一条 `zsts.timetable.<semesterId>`，`weeks` 永远是唯一真源，`weekRange` / `weekParity` 只由它现算。
+- **合并规则**（`mergeImported`）：教务有本地无 → 新增；教务有、本地是 `jwxt` → 覆盖但保留配色与备注；教务有、本地是 `edited` → **保留学生版本**；教务没有、本地是 `custom`/`edited` → 保留；教务没有、本地是 `jwxt` → 删除（教务已取消这门课）。改过的课自动升级为 `edited`，下次同步不会被覆盖回去。
+- **编辑体验**：周次按 1..19 逐格勾选（教务的周次是任意集合，`起止 + 单双周` 两段式装不下）、节次只选起止存连续区间、长按空白格直接在该格新建（500 ms 判定，位移 > 10 px 取消）、详情层可「本周停课」（只摘那一周）。
+- **免登录**：课表页 `requiresAuth: false`，有本地数据就直接看；连本地数据都没有才回登录页 —— 否则新用户会盯着一张空课表，比登录页更费解。
+- **桌面小组件**（Android `ClassWidget` + `WidgetData`）：H5 算好「今日课程」快照 → `NativeBridge.pushWidget(json)` → 落 `SharedPreferences` → `RemoteViews` 渲染。之所以必须落盘：小组件在 App 进程之外也要能画（开机、零点、上课时刻），那时 WebView 不存在。快照里**只下发课程类型、不下发色值**，深色模式由 `values-night` 资源决定；也**不下发「正在上」这类状态**，由原生按当前时钟现算。
+- **刷新**：四条路径都不依赖精确闹钟权限 —— 系统 `onUpdate`、H5 推完立刻重画、`updatePeriodMillis` 30 分钟兜底、`AlarmManager.set`（非精确）在下一个「上课／下课／零点」边界重画。布局里只出现「正在上」「下一节 14:00」这类**在某区间内恒成立**的文案，没有「还有 12 分钟」这种一刷新就过期的倒计时，所以闹钟晚一两分钟也不会显示错。
+- **入口**：「我的 → 桌面小组件 → 添加到桌面」走 API 26+ 的 `requestPinAppWidget` 让系统弹确认框（`NativeBridge.addWidget`）；桌面不支持时给降级文案。点小组件直达课表页（`MainActivity.EXTRA_PATH` → 改写 `location.hash`，路由的 `hashchange` 就是它认识的入口）。
 
 ---
 
@@ -150,7 +164,7 @@ flowchart TB
 ```
 .
 ├── web/           H5 业务代码（唯一真源：core / data / pages / components / styles / assets）
-├── android/       Android 工程（WebView 壳、10 个 @JavascriptInterface、手动构建脚本）
+├── android/       Android 工程（WebView 壳、11 个 @JavascriptInterface、桌面小组件、手动构建脚本）
 ├── ios/           iOS 工程（WKWebView 壳、桥接层、本地 HTTP 服务、Xcode 工程与云构建配置）
 ├── docs/          架构设计、PRD、接口实测记录、验收与解析器适配规格
 ├── tools/         纯函数单测与规则守卫脚本

@@ -37,6 +37,7 @@ import { createInitialState } from './appState.js';
 import { createActions, readFlag, SS_BANNER, SS_DEMO, SS_IS_DEMO } from './appActions.js';
 import { errorPage } from './pages/errorPage.js';
 import { hasLocal } from './data/localTimetable.js';
+import { syncWidget } from './data/widget.js';
 
 const store = createStore(createInitialState());
 
@@ -307,6 +308,11 @@ async function boot() {
   });
 
   await bootTerm();
+
+  // 桌面小组件：每次启动都把「今日课程」快照刷一遍。
+  // 小组件自己不会跑 JS，也要能撑过 App 被杀掉、手机重启，所以数据得落在原生侧。
+  // 放在 bootTerm 之后：需要 term.context 的学期与教学周，否则周次对不上。
+  syncWidget(store.getState());
 
   if (!window.location.hash) {
     // 免登录查看：本地存过课表就直接进课表页，不必先登录；

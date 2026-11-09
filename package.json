@@ -15,8 +15,9 @@
     "test:gpa": "node tools/test-gpa.mjs",
     "test:parse": "node tools/test-jwxt-parse.mjs",
     "test:local": "node tools/test-local-timetable.mjs",
+    "test:widget": "node tools/test-widget.mjs",
     "test:pages": "node tools/test-pages.mjs",
     "check": "node tools/check-rules.mjs",
-    "verify": "node tools/test-week.mjs && node tools/test-gpa.mjs && node tools/test-jwxt-parse.mjs && node tools/test-local-timetable.mjs && node tools/test-pages.mjs && node tools/check-rules.mjs"
+    "verify": "node tools/test-week.mjs && node tools/test-gpa.mjs && node tools/test-jwxt-parse.mjs && node tools/test-local-timetable.mjs && node tools/test-widget.mjs && node tools/test-pages.mjs && node tools/check-rules.mjs"
   }
 }

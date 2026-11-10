@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">掌上唐师</string>
+
+    <string name="tab_timetable">课表</string>
+    <string name="tab_grades">成绩</string>
+    <string name="tab_calendar">校历</string>
+    <string name="tab_mine">我的</string>
+
+    <string name="widget_desc">今天要上的课，跟着时间自己滚动</string>
+    <string name="widget_none">今天没有课</string>
+    <string name="widget_empty">还没有课表</string>
+    <string name="widget_refresh">刷新</string>
+</resources>

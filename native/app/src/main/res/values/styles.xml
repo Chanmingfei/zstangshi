@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:windowBackground">@color/bg_page</item>
+        <item name="android:statusBarColor">@color/bg_page</item>
+        <item name="android:navigationBarColor">@color/bg_page</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!--
+      二级页面（功能页 / 校历 / 内置浏览器）专用：整页当成一张圆角卡片滑进来。
+
+      windowIsTranslucent 是这套做法的前提 —— 圆角之外那点三角形必须能透出下面那一页，
+      否则窗口面没有 alpha 通道，四个角会画成黑色。代价与补偿：
+        · 窗口底色改透明，DecorView 自己涂页面色（它铺满整个窗口，状态栏/导航栏那条也在内），
+          所以静止状态看起来和以前一样；
+        · 状态栏、导航栏底色也交给 DecorView，系统栏颜色设透明，圆角才会在上下两端都露出来；
+        · 具体位移/圆角由 ui/PageSlide 驱动。
+    -->
+    <style name="AppTheme.SlidePage" parent="@style/AppTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

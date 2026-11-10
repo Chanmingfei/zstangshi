@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 品牌色：直接沿用老版 web/styles/tokens.css 的深蓝（#0062CC），
+         替换原来偏亮偏浅的 #2F6BFF；白底对比度 5.8:1，比原来 4.5:1 更清晰。 -->
+    <color name="brand">#0062CC</color>
+    <color name="brand_deep">#004C9E</color>
+    <color name="brand_soft">#E8F1FC</color>
+    <color name="brand_on_soft">#0062CC</color>
+
+    <!-- 浅色 -->
+    <color name="bg_page">#F3F5F9</color>
+    <color name="bg_surface">#FFFFFF</color>
+    <color name="bg_sunken">#EDEFF4</color>
+    <color name="text_primary">#141821</color>
+    <color name="text_secondary">#5A6273</color>
+    <color name="text_tertiary">#8B93A5</color>
+    <color name="border_subtle">#E3E7EF</color>
+
+    <!-- 课表色板（与 CourseColorAssigner 的 8 色一一对应） -->
+    <color name="course_0">#3B7BE8</color>
+    <color name="course_1">#E8734A</color>
+    <color name="course_2">#3FA37A</color>
+    <color name="course_3">#B06BDA</color>
+    <color name="course_4">#D9A21B</color>
+    <color name="course_5">#4FA8C7</color>
+    <color name="course_6">#C9527A</color>
+    <color name="course_7">#6E7FA8</color>
+
+    <color name="course_0_soft">#E7EFFC</color>
+    <color name="course_1_soft">#FCEDE7</color>
+    <color name="course_2_soft">#E7F5EF</color>
+    <color name="course_3_soft">#F4EBFB</color>
+    <color name="course_4_soft">#FBF3DE</color>
+    <color name="course_5_soft">#E7F3F8</color>
+    <color name="course_6_soft">#FAE9EF</color>
+    <color name="course_7_soft">#EDF0F6</color>
+</resources>

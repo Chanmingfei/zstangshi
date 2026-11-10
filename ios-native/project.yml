@@ -1,0 +1,56 @@
+# ios-native/project.yml —— 原生 SwiftUI 版工程描述（XcodeGen）
+#
+# 这份工程与 ios/（旧的 WKWebView + H5 套壳版）**完全独立**，
+# 也与 native/（Android 原生版）代码零共享：只对齐「功能与视觉」。
+#
+# 用法（macOS）：
+#   brew install xcodegen
+#   cd ios-native && xcodegen generate
+#   open ZhangShangTangShi.xcodeproj
+#
+# CI（Codemagic / GitHub Actions）里同样先 xcodegen generate 再 xcodebuild，
+# 所以仓库里不需要提交 .xcodeproj —— 工程结构永远由这一个文件决定，不会漂移。
+
+name: ZhangShangTangShi
+
+options:
+  bundleIdPrefix: com.tstc
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+
+targets:
+  ZhangShangTangShi:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Sources
+      - path: Resources/Assets.xcassets
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.tstc.zstangshi
+        PRODUCT_NAME: "掌上唐师"
+        MARKETING_VERSION: "3.0.25"
+        CURRENT_PROJECT_VERSION: "41"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: "NO"
+        ENABLE_PREVIEWS: "NO"
+        SWIFT_EMIT_LOC_STRINGS: "NO"
+        DEVELOPMENT_ASSET_PATHS: ""
+    scheme:
+      testTargets: []
+      gatherCoverageData: false

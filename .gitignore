@@ -1,9 +1,15 @@
 # 构建产物
 ios/build/
+android/build/
+native/build/
 DerivedData/
 *.ipa
 *.xcarchive
 *.dSYM.zip
+
+# 本地打出来的 APK（分发走 Releases，不入库）
+zstangshi-v*.apk
+ZhangShangTangShi-*.apk
 
 # Xcode 用户态（共享 scheme 在 xcshareddata/ 里，要提交）
 xcuserdata/

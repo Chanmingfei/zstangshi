@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 31+ 的系统启动画面：默认会画「圆角方块 + 应用图标」，和旧版那种「纯底色 → 品牌加载页」
+  的观感差很远（会先闪一个大图标）。这里把图标压成透明、底色跟页面同色，
+  系统那一帧就只是一块干净的底色，紧接着就是我们的加载页。
+-->
+<resources>
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:windowBackground">@color/bg_page</item>
+        <item name="android:statusBarColor">@color/bg_page</item>
+        <item name="android:navigationBarColor">@color/bg_page</item>
+        <item name="android:windowLightStatusBar">true</item>
+
+        <item name="android:windowSplashScreenBackground">@color/bg_page</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/bg_page</item>
+    </style>
+</resources>

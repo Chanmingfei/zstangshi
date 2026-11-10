@@ -1,4 +1,14 @@
-# 掌上唐师 · iOS 版
+# 掌上唐师 · iOS 版（legacy v2 · WKWebView 套壳）
+
+> ## ⚠️ 这份文档与工程已归档，不再是 iOS 主线
+>
+> v3 起 iOS 端改为**原生 SwiftUI 重写**，代码在 [`../ios-native/`](../ios-native/README.md)，
+> 与本文档描述的 WKWebView + H5 套壳方案**没有任何共用代码**。
+>
+> 本目录保留只为两件事：① v2 的 ipa 云构建链路（`scripts/build-ipa.sh`、Codemagic、GitHub Actions）
+> 仍可复现 v2 产物；② 存档对照。**新功能只会进 `ios-native/`。**
+>
+> v2 的完整代码另存于 `legacy-webview-v2.0.1` 分支与 `v2.0.1` tag。
 
 Android 源码（`android/` + `web/`）到 iOS 的完整移植。**H5 业务代码一行未改**，
 原生侧按 1:1 复刻了 Android 的壳能力，所以功能与设计完全一致。

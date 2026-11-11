@@ -171,6 +171,36 @@ public final class BusModels {
         }
     }
 
+    /**
+     * 一次搜索的结果：站点在前、线路在后。
+     *
+     * <p>上游一次只回前 3 个站点和前 10 条线路（正反方向各算一条），但会告诉我们
+     * 实际命中多少（{@link #stationCount} / {@link #lineCount}）——线路可以在用户继续
+     * 下滑时用 {@code more=true} 再要全量，站点没有再多的入口，所以界面上要如实写出
+     * 「命中 N 个，只显示前 3 个」而不是假装全给了。
+     */
+    public static final class SearchHit {
+        public final List<Station> stations = new ArrayList<>();
+        public final List<Line> lines = new ArrayList<>();
+        /** 上游报的命中总数；0 表示它没给这个字段 */
+        public int lineCount;
+        public int stationCount;
+
+        public boolean empty() {
+            return stations.isEmpty() && lines.isEmpty();
+        }
+
+        /** 站点是不是被截断了（上游只回前 3 个）。 */
+        public boolean stationsTruncated() {
+            return stationCount > stations.size();
+        }
+
+        /** 线路是不是被截断了（正反方向已合并成一行，所以直接跟命中数比）。 */
+        public boolean linesTruncated() {
+            return lineCount > lines.size();
+        }
+    }
+
     /** 线路详情里的一个站。 */
     public static final class Stop {
         public String id = "";

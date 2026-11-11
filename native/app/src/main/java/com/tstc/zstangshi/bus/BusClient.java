@@ -220,27 +220,64 @@ public final class BusClient {
         return 3;
     }
 
-    /** 线路搜索：支持中文与线路号（如「17」「17路」）。 */
-    public static List<BusModels.Line> search(String cityId, String keyword, double lat, double lng)
+    /**
+     * 关键字搜索：站点 + 线路一起搜（中文站名、线路号如「17」「17路」都行）。
+     *
+     * <p>上游这个接口一次只回前 3 个站点和前 10 条线路，同时把真实命中数放在
+     * {@code stationCount} / {@code lineCount} 里。线路可以用 {@link #searchMore}
+     * 再要全量，站点没有更长的列表可翻，界面据此决定「还能不能继续加载」。
+     */
+    public static BusModels.SearchHit search(String cityId, String keyword, double lat, double lng)
             throws Exception {
+        BusModels.SearchHit hit = new BusModels.SearchHit();
+        JSONObject result = searchResult(cityId, keyword, lat, lng, false);
+        if (result == null) return hit;
+
+        hit.lineCount = result.optInt("lineCount", 0);
+        hit.stationCount = result.optInt("stationCount", 0);
+        readStations(result, hit.stations);
+        hit.lines.addAll(readLines(result));
+        return hit;
+    }
+
+    /**
+     * 搜索的「还有更多」：同一个接口带 {@code more=true}，一次给全量线路
+     * （实测「路」29 条线路 → 56 条正反方向记录，「1」43 条 → 84 条）。
+     *
+     * <p>代价是这种模式下上游不再回站点，所以只在用户已经清完第一屏时才调用。
+     */
+    public static List<BusModels.Line> searchMore(String cityId, String keyword, double lat, double lng)
+            throws Exception {
+        JSONObject result = searchResult(cityId, keyword, lat, lng, true);
+        if (result == null) return new ArrayList<>();
+        return readLines(result);
+    }
+
+    private static JSONObject searchResult(String cityId, String keyword, double lat, double lng,
+                                           boolean more) throws Exception {
         Map<String, String> p = base();
         p.put("cityId", cityId);
         p.put("localCityId", cityId);
         p.put("key", keyword);
         p.put("supportPhyStn", "true");
+        if (more) p.put("more", "true");
         if (lat > 0 && lng > 0) {
             p.put("lat", fmt(lat));
             p.put("lng", fmt(lng));
             p.put("geo_lat", fmt(lat));
             p.put("geo_lng", fmt(lng));
         }
+        return call("/bus/query!nSearch.action", p).optJSONObject("result");
+    }
 
-        JSONObject data = call("/bus/query!nSearch.action", p);
-        JSONObject result = data.optJSONObject("result");
-        List<BusModels.Line> out = new ArrayList<>();
-        if (result == null) return out;
+    /**
+     * 上游把一条线的正反方向当两条记录返回（同名、同 lineNo）。搜索结果里合成一行：
+     * 否则一屏 12 条其实只有 6 条线，翻五页全是成对的重复。方向在详情页里换，那里本来就是原地换向。
+     */
+    private static List<BusModels.Line> readLines(JSONObject result) {
+        Map<String, BusModels.Line> uniq = new LinkedHashMap<>();
         JSONArray lines = result.optJSONArray("lines");
-        if (lines == null) return out;
+        if (lines == null) return new ArrayList<>();
         for (int i = 0; i < lines.length(); i++) {
             JSONObject l = lines.optJSONObject(i);
             if (l == null) continue;
@@ -250,15 +287,43 @@ public final class BusClient {
             line.lineId = l.optString("lineId");
             line.name = l.optString("name");
             if (line.name.isEmpty()) line.name = l.optString("lineNo");
+            line.lineNo = l.optString("lineNo");
             line.direction = l.optInt("direction", 0);
             line.startName = l.optString("startSn");
             line.endName = l.optString("endSn");
             line.firstTime = l.optString("firstTime");
             line.lastTime = l.optString("lastTime");
             if (line.lineId.isEmpty() || line.name.isEmpty()) continue;
-            out.add(line);
+
+            String key = line.lineNo.isEmpty() ? line.name : line.lineNo;
+            BusModels.Line old = uniq.get(key);
+            // 留正方向那一行（direction=0）；只有反向时才先占位
+            if (old == null || (old.direction != 0 && line.direction == 0)) {
+                uniq.put(key, line);
+            }
         }
-        return out;
+        return new ArrayList<>(uniq.values());
+    }
+
+    /** 搜索结果里的站点自带经纬度和距离，可以直接点进站点详情。 */
+    private static void readStations(JSONObject result, List<BusModels.Station> out) {
+        JSONArray arr = result.optJSONArray("stations");
+        if (arr == null) return;
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject s = arr.optJSONObject(i);
+            if (s == null) continue;
+            if (s.optInt("subwayV2", 0) == 1) continue;
+            BusModels.Station st = new BusModels.Station();
+            st.name = s.optString("sn").trim();
+            st.id = s.optString("sId");
+            st.physicalId = s.optString("physicalStId");
+            st.namesakeId = s.optString("namesakeStId");
+            st.lat = s.optDouble("lat", 0);
+            st.lng = s.optDouble("lng", 0);
+            st.distanceMeters = s.has("distance") ? s.optInt("distance", -1) : -1;
+            if (st.name.isEmpty() || st.id.isEmpty()) continue;
+            out.add(st);
+        }
     }
 
     /**
@@ -727,7 +792,7 @@ public final class BusClient {
     }
 
     /** 球面距离（米）。站与用户都在 WGS84 下，直接算即可。 */
-    static double distanceMeters(double lat1, double lng1, double lat2, double lng2) {
+    public static double distanceMeters(double lat1, double lng1, double lat2, double lng2) {
         double r = 6371000.0;
         double p1 = Math.toRadians(lat1), p2 = Math.toRadians(lat2);
         double dp = p2 - p1;
@@ -1073,7 +1138,7 @@ public final class BusClient {
             ts[i] = new Thread(() -> {
                 for (int k = idx; k < task.size(); k += workers) {
                     BusModels.Station s = task.get(k);
-                    mergeStationDetail(cityId, s, lat, lng);
+                    mergeDetail(s, fetchStationDetail(cityId, s, lat, lng));
                     if (s.lat != 0 && s.lng != 0) {
                         if (COORD_CACHE.size() > 600) COORD_CACHE.clear();
                         COORD_CACHE.put(s.id, new double[]{s.lat, s.lng});
@@ -1114,15 +1179,20 @@ public final class BusClient {
     }
 
     /**
-     * 详情接口里带这一站自己的经纬度和到站数据，用来补齐列表里没有实时数据的站。
+     * 批量拉站点详情，只往回带数据、不动传进来的对象。
      *
-     * 注意是**合并**不是替换：详情只会给被请求那个站台的完整数据，其他站台是占位，
-     * 直接覆盖会把别的站台的线路弄丢——首页要显示全部线路，站台切换留给站点详情页。
+     * <p>首页要先把 nearby 那点数据立刻画出来（一行列表 200~400ms 就能上屏），
+     * 详情这批一两秒才回来，所以不在工作线程里改 {@code Station}：那边还在读，
+     * 这边改 arrivals 会撞出并发问题。取回来交给 UI 线程合并。
+     *
+     * @return stationId → 详情
      */
-    public static void fillStationDetail(String cityId, List<BusModels.Station> list,
-                                         final double lat, final double lng) {
+    public static Map<String, BusModels.Station> stationDetails(String cityId,
+                                                               List<BusModels.Station> list,
+                                                               final double lat, final double lng) {
+        final Map<String, BusModels.Station> out = new java.util.concurrent.ConcurrentHashMap<>();
         final List<BusModels.Station> todo = new ArrayList<>(list);
-        if (todo.isEmpty()) return;
+        if (todo.isEmpty()) return out;
         // 一次开 8 个线程打过去，上游会掐掉一部分连接（掐掉的那几个站就永远停在
         // 「暂无实时」）。三条并发、每条之间歇一下，慢一两秒但每个站都能拿到。
         final int workers = Math.min(3, todo.size());
@@ -1131,7 +1201,9 @@ public final class BusClient {
             final int idx = i;
             ts[i] = new Thread(() -> {
                 for (int k = idx; k < todo.size(); k += workers) {
-                    mergeStationDetail(cityId, todo.get(k), lat, lng);
+                    BusModels.Station s = todo.get(k);
+                    BusModels.Station full = fetchStationDetail(cityId, s, lat, lng);
+                    if (full != null) out.put(s.id, full);
                     try {
                         Thread.sleep(60);
                     } catch (InterruptedException ignored) {
@@ -1146,10 +1218,44 @@ public final class BusClient {
             } catch (InterruptedException ignored) {
             }
         }
+        return out;
     }
 
-    /** 拉一个站的详情并合并进列表对象；失败歇一下再试一次。 */
-    private static void mergeStationDetail(String cityId, BusModels.Station s, double lat, double lng) {
+    /** 拉一个站的详情并合并回列表里的那条记录（UI 线程调用）。 */
+    public static void mergeDetail(BusModels.Station s, BusModels.Station full) {
+        if (s == null || full == null) return;
+        // 注意是**合并**不是替换：详情只会给被请求那个站台的完整数据，其他站台是占位，
+        // 直接覆盖会把别的站台的线路弄丢——首页要显示全部线路，站台切换留给站点详情页。
+        if (full.lat != 0 && full.lng != 0) {
+            s.lat = full.lat;
+            s.lng = full.lng;
+        }
+        if (s.platforms.isEmpty()) s.platforms.addAll(full.platforms);
+        if (full.arrivals.isEmpty()) return;
+        Map<String, BusModels.Arrival> fresh = new LinkedHashMap<>();
+        for (BusModels.Arrival a : full.arrivals) fresh.put(key(a), a);
+        for (int k = 0; k < s.arrivals.size(); k++) {
+            BusModels.Arrival old = s.arrivals.get(k);
+            BusModels.Arrival neu = fresh.remove(key(old));
+            if (neu == null) continue;
+            // 详情不保证每趟都给实时：新来这条是空的时候，别把已经算好的分钟数冲掉，
+            // 只把站序这类静态信息补上
+            boolean oldHasData = old.arrived || old.minutes >= 0;
+            boolean neuHasData = neu.arrived || neu.minutes >= 0 || neu.realtime;
+            if (!neuHasData && oldHasData) {
+                if (neu.orderInLine > 0) old.orderInLine = neu.orderInLine;
+                if (old.stopId.isEmpty()) old.stopId = neu.stopId;
+                if (old.status.isEmpty()) old.status = neu.status;
+                continue;
+            }
+            s.arrivals.set(k, neu);
+        }
+        s.arrivals.addAll(fresh.values());
+    }
+
+    /** 拉一个站的详情；失败歇一下再试一次。 */
+    private static BusModels.Station fetchStationDetail(String cityId, BusModels.Station s,
+                                                        double lat, double lng) {
         BusModels.Station full = null;
         try {
             full = stopDetail(cityId, s.physicalId, s.namesakeId, s.id, lat, lng);
@@ -1162,21 +1268,7 @@ public final class BusClient {
             } catch (Exception ignored) {
             }
         }
-        if (full == null) return;
-        if (full.lat != 0 && full.lng != 0) {
-            s.lat = full.lat;
-            s.lng = full.lng;
-        }
-        if (s.platforms.isEmpty()) s.platforms.addAll(full.platforms);
-        if (full.arrivals.isEmpty()) return;
-        Map<String, BusModels.Arrival> fresh = new LinkedHashMap<>();
-        for (BusModels.Arrival a : full.arrivals) fresh.put(key(a), a);
-        for (int k = 0; k < s.arrivals.size(); k++) {
-            BusModels.Arrival old = s.arrivals.get(k);
-            BusModels.Arrival neu = fresh.remove(key(old));
-            if (neu != null) s.arrivals.set(k, neu);
-        }
-        s.arrivals.addAll(fresh.values());
+        return full;
     }
 
     private static String key(BusModels.Arrival a) {

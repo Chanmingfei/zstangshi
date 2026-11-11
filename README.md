@@ -4,7 +4,7 @@
 最常用的几件事装进手机：课表、成绩、绩点、推荐课表、选课、校历、奖助贷与请假，
 以及校门口的**实时公交**（到站预测、候车站、首站发车时刻表）。
 
-**当前版本 v3.0.31（versionCode 47）· Android 原生重写** · 零第三方运行时依赖 · 纯 framework，
+**当前版本 v3.0.32（versionCode 51）· Android 原生重写** · 零第三方运行时依赖 · 纯 framework，
 不引 androidx · `bash native/build.sh` 一条命令出 APK · iOS 为独立的 SwiftUI 工程
 
 ---
@@ -14,17 +14,17 @@
 > **直接去 Releases 下载，不需要自己编译。**
 >
 > - 始终拿最新版：<https://github.com/Chanmingfei/zstangshi/releases/latest>
-> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v3.0.31>
-> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v3.0.31/zstangshi-v3.0.31.apk>
+> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v3.0.32>
+> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v3.0.32/zstangshi-v3.0.32.apk>
 
 | 项目 | 值 |
 | --- | --- |
-| 版本 | 3.0.31（versionCode 47） |
-| 文件 | `zstangshi-v3.0.31.apk`，1,108,588 字节（约 1.06 MiB） |
+| 版本 | 3.0.32（versionCode 51） |
+| 文件 | `zstangshi-v3.0.32.apk`，1,116,780 字节（约 1.07 MiB） |
 | 系统要求 | Android 8.0（API 26）及以上，目标 Android 14（API 34） |
 | 权限 | `INTERNET`、`ACCESS_NETWORK_STATE`；另加 `ACCESS_COARSE_LOCATION` / `ACCESS_FINE_LOCATION`，**只在实时公交首页取一次坐标**，不做后台定位、不上传位置 |
 | 签名 | 本地调试密钥（CN=ZSTS），与 v3.x 各版本一致，**可直接覆盖安装** |
-| SHA-256 | `299e3f59597437b83bb559a23f9cc5cc2a2365961e0c886aa8145c893b8eecac` |
+| SHA-256 | `e9e374e545693f86d33a4d0c42ff08108bd87d0b1a35c1eade6e410f78958f8a` |
 
 **安装步骤**
 
@@ -35,8 +35,8 @@
 校验下载完整性（可选）：
 
 ```bash
-certutil -hashfile zstangshi-v3.0.31.apk SHA256   # Windows
-sha256sum zstangshi-v3.0.31.apk                   # macOS / Linux
+certutil -hashfile zstangshi-v3.0.32.apk SHA256   # Windows
+sha256sum zstangshi-v3.0.32.apk                   # macOS / Linux
 ```
 
 **iOS 没有预编译包。** `.ipa` 必须由 Apple 的 SDK 编译，而 SDK 只在 Xcode 里、Xcode 只在 macOS 上。
@@ -199,7 +199,7 @@ bash android/build-manual.sh                   # v2 的 WebView 壳 APK
 
 ## 版本脉络（v3）
 
-原生版从 3.0.8 一路打磨到 3.0.31，几乎每个小版本都对应一个真机测出来的具体问题：
+原生版从 3.0.8 一路打磨到 3.0.32，几乎每个小版本都对应一个真机测出来的具体问题：
 
 | 版本 | 关键修复 |
 | --- | --- |
@@ -217,6 +217,7 @@ bash android/build-manual.sh                   # v2 的 WebView 壳 APK
 | 3.0.29 | 「继续下滑加载更远站点」失效 —— 附近接口不给经纬度，旧逻辑把探回来的站全丢了 → 改按站点详情补坐标 + 坐标缓存 |
 | 3.0.30 | 点「展开全部」后新线路一直停在「…」→ 展开时对新增行立刻补一次预测，并摘掉收起行的旧绑定 |
 | 3.0.31 | 接入首站发车时刻表（`preStartTimetableNew`）：下一班发车、今日预测分时段、昨日实际班次 |
+| 3.0.32 | 搜索能搜站点、结果下滑翻页；进首页必重新定位（换地方后不再停在旧坐标）；定位感知提速（先按系统缓存点铺一屏再校正）；首屏只等附近站点、详情随后补进卡片 |
 
 ---
 

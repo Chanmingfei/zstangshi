@@ -184,7 +184,20 @@ public class BusActivity extends BaseActivity {
     private static final long TT_TTL_MS = 5 * 60 * 1000;
 
     private boolean showingSearch = false;
+    /** 正在拉附近站点；和「等定位」用两个标志，不然一边在等定位会把列表请求挡住。 */
     private boolean loading = false;
+    /** 正在等一帧新定位。 */
+    private boolean locating;
+    /** 最近一次真的拿到定位的时刻：连着两次进入页面不重复要。 */
+    private long lastFixAt;
+    /** 最近一次发起定位的时刻：首页停留时每分钟自动对一次位置。 */
+    private long lastLocateAt;
+    /** 手动下拉刷新：位置没动也要重新查一遍附近站点。 */
+    private boolean forceReload;
+    /** 附近站点请求代号：换了位置会重开一轮，上一轮的响应回来直接丢掉。 */
+    private int nearGen;
+    /** 首页「附近站点」标题，等定位时挂一句提示。 */
+    private TextView nearTitle;
 
     /** 首页里被「展开全部」的站点（默认每条线路只露三条，和车来了一致）。 */
     private final Set<String> expanded = new HashSet<>();
@@ -258,8 +271,10 @@ public class BusActivity extends BaseActivity {
         slide.attachBack();
 
         if (MODE_HOME.equals(mode)) {
+            // 先用手里的旧坐标铺一屏（不至于白屏），紧接着就要一帧「此刻的位置」：
+            // 旧坐标可能是几小时前在别处留下的，不重新定位就会一直显示那个地方的站点。
             renderHome();
-            ensureLocation(false);
+            ensureLocation(true);
         } else if (MODE_STOP.equals(mode)) {
             loadStop();
         } else {
@@ -308,9 +323,31 @@ public class BusActivity extends BaseActivity {
         super.onResume();
         ticker.removeCallbacks(autoTick);
         ticker.postDelayed(autoTick, AUTO_MS);
-        // 从站点详情 / 线路详情退回来、或从后台切回来：手上的数字已经是一两分钟前的了，
-        // 立刻静默重拉一次，别让用户看着旧车次做决定。
-        ticker.post(this::quietRefresh);
+        ticker.post(this::onEnter);
+    }
+
+    /**
+     * 每次回到这一页都要做一次刷新，但两层页面的口径不同：
+     *
+     * <ul>
+     *   <li><b>首页</b>：位置和公交信息都要新 —— 人可能已经从宿舍走到校门口了，
+     *       只刷到站时间会算出一堆「离你 900 米」的假距离。所以重新要一次定位，
+     *       位置真的变了就整套重铺（顺序、距离都跟着变）。</li>
+     *   <li><b>站点 / 线路详情</b>：位置没有意义（这一站、这一条线是固定的），
+     *       只把到站时间和车辆位置重算一遍。</li>
+     * </ul>
+     */
+    private void onEnter() {
+        if (!MODE_HOME.equals(mode)) {
+            quietRefresh();
+            return;
+        }
+        if (showingSearch) return;              // 搜索页是静态列表，不用刷
+
+        // 先要位置。以前这里会先补一轮到站（最多 36 条预测），把链路堵在后面，
+        // 定位和 nearby 都得排队；位置没变时 keepList 那条路会补到站，变了则
+        // renderNearby 会补，不用在这儿抢跑。
+        ensureLocation(true);
     }
 
     @Override
@@ -341,8 +378,14 @@ public class BusActivity extends BaseActivity {
             // 顺带把补不到的几条再补一遍
             if (!stopPlatforms.isEmpty() || !shownEta.isEmpty()) loadStop(true);
         } else if (MODE_HOME.equals(mode)) {
+            // 搜索页是静态结果，别在这里重铺列表，也别把用户从搜索里踢回去
+            if (showingSearch) return;
             // 首页：只重算屏幕上这一批到站，不重铺站点列表，滚动位置和展开状态都不动
-            if (!showingSearch) refreshShownEta(ETA_PER_TICK);
+            refreshShownEta(ETA_PER_TICK);
+            // 人可能就在页面停留期间走了一段：每分钟对一次位置，真换了地方再整套重铺
+            if (System.currentTimeMillis() - lastLocateAt > RELOCATE_EVERY_MS) {
+                ensureLocation(true);
+            }
         }
     }
 
@@ -401,13 +444,20 @@ public class BusActivity extends BaseActivity {
 
     private void reload() {
         if (MODE_HOME.equals(mode)) {
-            showingSearch = false;
+            // 搜索页下拉：按当前关键词重搜一遍，不把人踢回首页
+            if (showingSearch) {
+                if (!searchKey.isEmpty()) doSearch(searchKey);
+                else if (pull != null) pull.setRefreshing(false);
+                return;
+            }
             if (searchBox != null) searchBox.setText("");
             // 首页的下拉刷新是「换个位置重新看」：先要一次新定位，拿到新坐标后
             // useLocation → renderHome 会按新位置把附近站点整套重铺（距离、顺序都变）。
             // 所以这里不清 list，等新坐标回来一次到位，避免先闪一屏旧位置的站点。
             nearDone = false;
             nearRing = 0;
+            // 手动下拉是「重新查一遍」：就算位置没动也要重铺列表，不能只刷到站
+            forceReload = true;
             if (lat <= 0 || lng <= 0) renderHome();
             ensureLocation(true);
         } else if (MODE_STOP.equals(mode)) {
@@ -423,6 +473,10 @@ public class BusActivity extends BaseActivity {
     private void renderHome() {
         renderHomeContent();
         if (lat > 0 && lng > 0) {
+            // 重铺意味着位置可能变了：作废还在飞的上一轮请求，
+            // 否则旧位置的响应晚一步回来，会把刚铺好的新列表又盖回旧站点
+            nearGen++;
+            loading = false;
             body.addView(loadingCard());
             loadNearby();
         } else {
@@ -436,7 +490,15 @@ public class BusActivity extends BaseActivity {
         body.addView(searchCard());
         body.addView(cityRow());
         body.addView(favoritesSection());
-        body.addView(sectionTitle("附近站点"));
+        nearTitle = sectionTitle("附近站点");
+        body.addView(nearTitle);
+        updateLocatingHint();
+    }
+
+    /** 正在等定位时，在「附近站点」后面挂一句提示：此刻列表还可能是上一次的位置。 */
+    private void updateLocatingHint() {
+        if (nearTitle == null) return;
+        nearTitle.setText(locating ? "附近站点 · 正在定位…" : "附近站点");
     }
 
     private View searchCard() {
@@ -477,7 +539,34 @@ public class BusActivity extends BaseActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         glp.leftMargin = dp(8);
         card.addView(go, glp);
+
+        // 搜索页要给一条退回附近站点的路：不然后退键只能退出整个功能
+        if (showingSearch) {
+            TextView cancel = new TextView(this);
+            cancel.setText("取消");
+            cancel.setTextSize(13);
+            cancel.setTextColor(getColor(R.color.text_secondary));
+            cancel.setGravity(Gravity.CENTER);
+            cancel.setPadding(dp(12), dp(9), dp(4), dp(9));
+            cancel.setOnClickListener(v -> exitSearch());
+            LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            clp.leftMargin = dp(4);
+            card.addView(cancel, clp);
+        }
         return card;
+    }
+
+    /** 退出搜索，回到附近站点（不重新定位，位置没变）。 */
+    private void exitSearch() {
+        showingSearch = false;
+        searchKey = "";
+        searchAll.clear();
+        searchShown = 0;
+        searchLinesBox = null;
+        searchFooter = null;
+        if (searchBox != null) searchBox.setText("");
+        renderHome();
     }
 
     private View cityRow() {
@@ -578,24 +667,61 @@ public class BusActivity extends BaseActivity {
         loading = true;
         final String cid = cityId;
         final double la = lat, ln = lng;
+        // 换位置会重开一轮，上一轮晚到的响应不能拿来覆盖新位置的列表
+        final int gen = ++nearGen;
         new Thread(() -> {
-            List<BusModels.Station> list = null;
-            String err = null;
+            List<BusModels.Station> list;
             try {
                 list = BusClient.nearby(cid, la, ln, 8);
-                // 附近接口只给最近两三站算实时，其余站单独补一次，避免一排「暂无车」
-                BusClient.fillStationDetail(cid, list, la, ln);
             } catch (Exception e) {
-                err = friendly(e);
+                final String error = friendly(e);
+                runOnUiThread(() -> {
+                    if (gen != nearGen) return;
+                    loading = false;
+                    if (isFinishing() || isDestroyed()) return;
+                    if (pull != null) pull.setRefreshing(false);
+                    if (showingSearch) return;
+                    renderNearby(null, error);
+                });
+                return;
             }
-            final List<BusModels.Station> data = list;
-            final String error = err;
+            // 第一屏只用 nearby 的结果，几百毫秒就能上屏；
+            // 站点详情那批每个站一条请求、通常要一两秒，回来再补进已有卡片里。
+            // 以前是等两批都齐了才画，换一次位置要多等两秒。
+            final List<BusModels.Station> first = list;
             runOnUiThread(() -> {
+                if (gen != nearGen) return;
                 loading = false;
                 if (isFinishing() || isDestroyed()) return;
                 if (pull != null) pull.setRefreshing(false);
                 if (showingSearch) return;
-                renderNearby(data, error);
+                renderNearby(first, null);
+            });
+            // 附近接口只给最近两三站算实时，其余站补一次详情，避免一排「暂无车」
+            final java.util.Map<String, BusModels.Station> details =
+                    BusClient.stationDetails(cid, first, la, ln);
+            if (details.isEmpty()) return;
+            runOnUiThread(() -> {
+                if (gen != nearGen) return;
+                if (isFinishing() || isDestroyed()) return;
+                if (showingSearch) return;
+                boolean any = false;
+                for (BusModels.Station s : nearList) {
+                    BusModels.Station full = details.get(s.id);
+                    if (full != null) {
+                        BusClient.mergeDetail(s, full);
+                        any = true;
+                    }
+                }
+                if (!any) return;
+                // 合并换了 Arrival 对象，旧的行绑定要一起换掉；重画之后必须补一次预测：
+                // 详情里没实时数据的线路是带 pending 的，不补就一直挂着「…」，
+                // 只能靠用户点「展开全部」或等 20 秒轮询。
+                etaBinders.clear();
+                shownEta.clear();
+                etaCursor = 0;
+                fillNearCards();
+                primeArrivals(new ArrayList<>(shownEta));
             });
         }, "bus-nearby").start();
     }
@@ -638,7 +764,7 @@ public class BusActivity extends BaseActivity {
 
         nearFooter = footerHint("继续下滑，加载更远的站点");
         body.addView(nearFooter);
-        attachLoadMore();
+        attachScrollPager();
         // 这一屏的到站整体算一遍：nearSts 只给最近几站算实时，其余只有站数没有分钟，
         // 统一走线路详情那个接口，两处的数字才同一个口径
         primeShownEta();
@@ -668,17 +794,23 @@ public class BusActivity extends BaseActivity {
         return v;
     }
 
-    /** 滚到接近底部就自动往外扩一圈，和无限列表的手感一致。 */
-    private void attachLoadMore() {
+    /**
+     * 滚到接近底部：搜索页继续放线路，首页继续按距离往外扩站点。
+     * 两处共用一个滚动监听 —— 换成各自 set 会互相覆盖。
+     */
+    private void attachScrollPager() {
         if (pageScroll == null) return;
         pageScroll.setOnScrollChangeListener((v, sx, sy, ox, oy) -> {
             View child = ((ViewGroup) v).getChildAt(0);
             if (child == null) return;
-            if (sy + v.getHeight() >= child.getHeight() - dp(260)) loadMoreNear();
+            if (sy + v.getHeight() < child.getHeight() - dp(260)) return;
+            if (showingSearch) loadMoreSearch();
+            else loadMoreNear();
         });
     }
 
     private void loadMoreNear() {
+        if (showingSearch) return;
         if (nearLoading || nearDone || nearList.isEmpty() || lat <= 0 || lng <= 0) return;
         nearLoading = true;
         nearRing++;
@@ -966,46 +1098,231 @@ public class BusActivity extends BaseActivity {
 
     // ──────────────────────────── 搜索 ────────────────────────────
 
+    /** 一屏先给 12 条线路，滑到底再补 12 条。 */
+    private static final int SEARCH_PAGE = 12;
+    private String searchKey = "";
+    /** 已拿到的线路（第一屏只是上游的前 10 条），按 lineId#direction 去重后追加 */
+    private final List<BusModels.Line> searchAll = new ArrayList<>();
+    private int searchShown;
+    private boolean searchMoreLoading;
+    /** 上游全量已经取过一次（不管有没有新东西），不再重复请求 */
+    private boolean searchMoreDone;
+    private LinearLayout searchLinesBox;
+    private TextView searchFooter;
+
     private void doSearch(String key) {
         if (key.isEmpty()) return;
         showingSearch = true;
+        searchKey = key;
+        searchAll.clear();
+        searchShown = 0;
+        searchMoreLoading = false;
+        searchMoreDone = false;
+        searchLinesBox = null;
+        searchFooter = null;
         shownEta.clear();
+        etaBinders.clear();
+
         body.removeAllViews();
         body.addView(searchCard());
-        if (searchBox != null) searchBox.setText(key);
+        if (searchBox != null) {
+            searchBox.setText(key);
+            searchBox.setSelection(searchBox.getText().length());
+        }
         body.addView(sectionTitle("「" + key + "」的搜索结果"));
         body.addView(loadingCard());
+        // 搜索页也有「滑到底继续加载」，和首页共用一套滚动判据
+        attachScrollPager();
 
         final String kw = key;
         new Thread(() -> {
-            List<BusModels.Line> lines = null;
+            BusModels.SearchHit hit = null;
             String err = null;
             try {
-                lines = BusClient.search(cityId, kw, lat, lng);
+                hit = BusClient.search(cityId, kw, lat, lng);
             } catch (Exception e) {
                 err = friendly(e);
             }
-            final List<BusModels.Line> data = lines;
+            final BusModels.SearchHit data = hit;
             final String error = err;
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) return;
-                body.removeAllViews();
-                body.addView(searchCard());
-                if (searchBox != null) searchBox.setText(kw);
-                body.addView(sectionTitle("「" + kw + "」的搜索结果"));
-                if (error != null) {
-                    body.addView(errorCard(error));
-                    return;
-                }
-                if (data == null || data.isEmpty()) {
-                    body.addView(infoCard("没有找到这条线路", "换个关键词，或先确认城市选对了"));
-                    return;
-                }
-                for (BusModels.Line l : data) {
-                    body.addView(searchRow(l));
-                }
+                // 连按两次搜索：只认最后一次的关键词，别让先回来的旧结果覆盖新结果
+                if (!showingSearch || !kw.equals(searchKey)) return;
+                renderSearch(data, error);
             });
         }, "bus-search").start();
+    }
+
+    private void renderSearch(BusModels.SearchHit data, String error) {
+        if (pull != null) pull.setRefreshing(false);
+        body.removeAllViews();
+        body.addView(searchCard());
+        if (searchBox != null) {
+            searchBox.setText(searchKey);
+            searchBox.setSelection(searchBox.getText().length());
+        }
+        searchLinesBox = null;
+        searchFooter = null;
+
+        if (error != null) {
+            body.addView(errorCard(error));
+            return;
+        }
+        if (data == null || data.empty()) {
+            body.addView(infoCard("没有找到相关站点或线路",
+                    "站名要写成连着的词（如「大学公寓」），线路写「60」或「60路」都行"));
+            return;
+        }
+
+        if (!data.stations.isEmpty()) {
+            body.addView(sectionTitle("站点"));
+            for (BusModels.Station s : data.stations) body.addView(searchStationRow(s));
+            if (data.stationsTruncated()) {
+                // 上游只回前 3 个站，剩下没有可翻的列表 —— 如实说明，别让人以为站点就这些
+                body.addView(footerHint("共 " + data.stationCount + " 个站点命中，这里只列最接近的 "
+                        + data.stations.size() + " 个 · 站名写全一些能找得更准"));
+            }
+        }
+
+        if (!data.lines.isEmpty()) {
+            String t = data.lineCount > 0 ? "线路 · 共 " + data.lineCount + " 条" : "线路";
+            body.addView(sectionTitle(t));
+            searchLinesBox = new LinearLayout(this);
+            searchLinesBox.setOrientation(LinearLayout.VERTICAL);
+            body.addView(searchLinesBox);
+            searchAll.addAll(dedupe(data.lines));
+            // 上游报的命中数已经全在这一屏里了，就不用再为「更多」多发一次请求
+            searchMoreDone = !data.linesTruncated();
+            appendSearchLines(SEARCH_PAGE);
+            searchFooter = footerHint("");
+            body.addView(searchFooter);
+            updateSearchFooter();
+            // 上游第一屏只给 10 条记录（合并方向后只剩 5 条线），不够一屏就立刻补全，
+            // 别让人以为「就这么几条」
+            if (searchShown < SEARCH_PAGE && !searchMoreDone) loadMoreSearch();
+        }
+    }
+
+    /** 把还没铺出来的线路接着铺 count 条。 */
+    private void appendSearchLines(int count) {
+        if (searchLinesBox == null) return;
+        int end = Math.min(searchAll.size(), searchShown + count);
+        for (int i = searchShown; i < end; i++) {
+            searchLinesBox.addView(searchRow(searchAll.get(i)));
+        }
+        searchShown = end;
+    }
+
+    private void updateSearchFooter() {
+        if (searchFooter == null) return;
+        if (searchMoreLoading) {
+            searchFooter.setText("正在加载更多线路…");
+        } else if (searchShown < searchAll.size()) {
+            searchFooter.setText("继续下滑，加载更多线路");
+        } else if (!searchMoreDone) {
+            searchFooter.setText("继续下滑，加载更多线路");
+        } else {
+            searchFooter.setText("已显示全部 " + searchShown + " 条线路");
+        }
+    }
+
+    /**
+     * 搜索页滑到底：手上还有没铺完的先铺（不发请求），铺完了再按 {@code more=true}
+     * 向上游要一次全量 —— 这个模式一次给全，之后都是本地翻页。
+     */
+    private void loadMoreSearch() {
+        if (!showingSearch || searchLinesBox == null || searchMoreLoading) return;
+        if (searchShown < searchAll.size()) {
+            appendSearchLines(SEARCH_PAGE);
+            updateSearchFooter();
+            return;
+        }
+        if (searchMoreDone) return;
+
+        searchMoreLoading = true;
+        updateSearchFooter();
+        final String kw = searchKey;
+        new Thread(() -> {
+            List<BusModels.Line> more = null;
+            try {
+                more = BusClient.searchMore(cityId, kw, lat, lng);
+            } catch (Exception ignored) {
+            }
+            final List<BusModels.Line> got = more;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || !showingSearch) return;
+                if (!kw.equals(searchKey)) return;
+                searchMoreLoading = false;
+                searchMoreDone = true;
+                if (got != null && !got.isEmpty()) searchAll.addAll(dedupe(got));
+                appendSearchLines(SEARCH_PAGE);
+                updateSearchFooter();
+            });
+        }, "bus-search-more").start();
+    }
+
+    /** 上游每条线的正反方向已在上层合并成一行，这里按 lineNo（没有就用名字）去重。 */
+    private List<BusModels.Line> dedupe(List<BusModels.Line> in) {
+        Set<String> seen = new HashSet<>();
+        for (BusModels.Line l : searchAll) seen.add(lineKey(l));
+        List<BusModels.Line> out = new ArrayList<>();
+        for (BusModels.Line l : in) {
+            if (seen.add(lineKey(l))) out.add(l);
+        }
+        return out;
+    }
+
+    private static String lineKey(BusModels.Line l) {
+        return l.lineNo.isEmpty() ? l.name + "#" + l.lineId : l.lineNo;
+    }
+
+    private View searchStationRow(BusModels.Station s) {
+        LinearLayout c = card();
+        c.setPadding(dp(14), dp(13), dp(14), dp(13));
+        c.setOrientation(LinearLayout.HORIZONTAL);
+        c.setGravity(Gravity.CENTER_VERTICAL);
+        c.setBackground(rippleCard());
+        c.setClickable(true);
+        c.setOnClickListener(v -> openStop(this, s, cityId, lat, lng));
+
+        ImageView ic = new ImageView(this);
+        ic.setImageResource(R.drawable.ic_quick_bus);
+        ic.setColorFilter(getColor(R.color.brand));
+        ic.setBackground(roundRect(getColor(R.color.brand_soft), dp(9)));
+        ic.setPadding(dp(6), dp(6), dp(6), dp(6));
+        c.addView(ic, new LinearLayout.LayoutParams(dp(28), dp(28)));
+
+        LinearLayout mid = new LinearLayout(this);
+        mid.setOrientation(LinearLayout.VERTICAL);
+        TextView t = new TextView(this);
+        t.setText(s.name);
+        t.setTextSize(15);
+        t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setTextColor(getColor(R.color.text_primary));
+        mid.addView(t);
+        TextView d = new TextView(this);
+        d.setText(s.distanceLabel().isEmpty() ? "公交站点" : "公交站点 · 距你 " + s.distanceLabel());
+        d.setTextSize(11.5f);
+        d.setTextColor(getColor(R.color.text_tertiary));
+        d.setPadding(0, dp(3), 0, 0);
+        mid.addView(d);
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        mlp.leftMargin = dp(10);
+        c.addView(mid, mlp);
+
+        TextView arrow = new TextView(this);
+        arrow.setText("›");
+        arrow.setTextSize(20);
+        arrow.setTextColor(getColor(R.color.text_tertiary));
+        c.addView(arrow);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dp(8);
+        c.setLayoutParams(lp);
+        return c;
     }
 
     private View searchRow(BusModels.Line l) {
@@ -2054,10 +2371,16 @@ public class BusActivity extends BaseActivity {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
-    /** 定位缓存多久之内还信得过：下拉刷新手动要新位置，但如果是刚拿到的就不必再等一帧。 */
-    private static final long FRESH_MS = 20000;
+    /** 系统里那个「最后已知位置」多旧还愿意先拿来铺一屏（本地读取，不等定位）。 */
+    private static final long PROVISIONAL_AGE_MS = 3 * 60 * 1000;
+    /** 兜底用的旧点超过这个年龄就再要一帧：太旧的点会把附近站点停在几公里外。 */
+    private static final long FALLBACK_MAX_AGE_MS = 60000;
     /** 主动定位最多等这么久，超时就用最后一次已知位置兜底。 */
-    private static final long LOC_TIMEOUT_MS = 8000;
+    private static final long LOC_TIMEOUT_MS = 7000;
+    /** 连着两次要定位的间隔：刚拿到就不要再要，避免重复发。 */
+    private static final long FIX_DEDUPE_MS = 2000;
+    /** 首页停留时每隔这么久自动对一次位置。 */
+    private static final long RELOCATE_EVERY_MS = 60000;
 
     private void ensureLocation(boolean force) {
         if (!force && lat > 0 && lng > 0) {
@@ -2073,45 +2396,75 @@ public class BusActivity extends BaseActivity {
         LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if (lm == null) return;
 
+        long now = System.currentTimeMillis();
+        // 已经有一帧在等，或者刚刚才拿到：不重复发
+        if (locating || now - lastFixAt < FIX_DEDUPE_MS) {
+            // 手动下拉时不能因为「刚定位过」就把这次刷新吞掉：坐标就是现在的，
+            // 直接把附近站点重查一遍，不然下拉会一直转圈。
+            if (!locating && forceReload && MODE_HOME.equals(mode)) renderHome();
+            return;
+        }
+
         Location last = lastKnown(lm);
 
-        // 进页面（非强制）：系统里有一条就直接用，不为一次进入去等定位
-        if (!force && last != null) {
-            useLocation(last);
-            return;
+        // 先把手里的点当下「现在的位置」立刻铺一屏：读本地缓存，毫秒级，不用等定位
+        // 那一两秒。同时照样去要一帧新的，两个点差得远时新帧回来会静默重铺一次。
+        // 这样最常见的情况（刚在别处被定位过 / 模拟定位刚切过）是「进页面就到位」。
+        if (last != null && now - last.getTime() < PROVISIONAL_AGE_MS) {
+            useLocation(last, true);
         }
-        // 下拉刷新 / 点「重新定位」：只有很新的缓存才算「当前位置」，否则主动要一帧
-        if (last != null && System.currentTimeMillis() - last.getTime() < FRESH_MS) {
-            useLocation(last);
-            return;
-        }
+        requestFix(lm, last, 0);
+    }
 
-        loading = true;
+    /**
+     * 主动要一帧定位。
+     *
+     * <p>第一次超时后，如果手里那个已知点已经很旧（比如半小时前在宿舍留下的），
+     * 直接拿它兜底等于「位置没刷新」，用户会一直看到别处的站点。所以再要一轮，
+     * 两轮都拿不到才退回旧点，并且旧点也会触发重铺判断。
+     */
+    private void requestFix(final LocationManager lm, final Location fallback, final int attempt) {
+        locating = true;
+        lastLocateAt = System.currentTimeMillis();
+        updateLocatingHint();
+        final LocListener l = new LocListener(this, lm);
         try {
-            final LocListener l = new LocListener(this, lm);
             for (String p : new String[]{LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER}) {
                 try {
                     lm.requestLocationUpdates(p, 0, 0, l);
                 } catch (Exception ignored) {
                 }
             }
-            final Location fallback = last;
-            new android.os.Handler(getMainLooper()).postDelayed(() -> {
-                if (l.finished()) return;
-                l.stop();
-                loading = false;
-                if (isFinishing() || isDestroyed()) return;
-                if (fallback != null) {
-                    // 拿不到新帧（室内很常见）：退回最后一次已知位置，总比停在原地不动强
-                    useLocation(fallback);
-                } else {
-                    if (pull != null) pull.setRefreshing(false);
-                    if (MODE_HOME.equals(mode) && (lat <= 0 || lng <= 0)) renderHome();
-                }
-            }, LOC_TIMEOUT_MS);
         } catch (Exception ignored) {
-            loading = false;
         }
+        new android.os.Handler(getMainLooper()).postDelayed(() -> {
+            if (l.finished()) return;             // 已经收到帧了，useLocation 里收尾
+            l.stop();
+            locating = false;
+            if (isFinishing() || isDestroyed()) return;
+
+            // 等的这段时间里系统里可能刚落了一个新点，取较新的那个
+            Location best = newer(fallback, lastKnown(lm));
+            long age = best == null ? Long.MAX_VALUE
+                    : System.currentTimeMillis() - best.getTime();
+            if (attempt == 0 && age > FALLBACK_MAX_AGE_MS) {
+                requestFix(lm, best, 1);          // 手里的点太旧，再要一帧
+                return;
+            }
+            if (best != null) {
+                useLocation(best);
+            } else {
+                updateLocatingHint();
+                if (pull != null) pull.setRefreshing(false);
+                if (MODE_HOME.equals(mode) && (lat <= 0 || lng <= 0)) renderHome();
+            }
+        }, LOC_TIMEOUT_MS);
+    }
+
+    private static Location newer(Location a, Location b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return b.getTime() > a.getTime() ? b : a;
     }
 
     /** 系统里最近一次已知位置（GPS / 网络取时间较新的那条）。 */
@@ -2129,13 +2482,41 @@ public class BusActivity extends BaseActivity {
     }
 
     private void useLocation(Location l) {
+        useLocation(l, false);
+    }
+
+    /**
+     * @param provisional 只是先拿系统缓存的那个点把页面铺出来，后面还有一帧新定位要进来；
+     *                    这种不算「定位完成」，不能清掉 lastFixAt / locating 的去重状态。
+     */
+    private void useLocation(Location l, boolean provisional) {
+        double prevLat = lat, prevLng = lng;
         lat = l.getLatitude();
         lng = l.getLongitude();
         store.setLastLocation(lat, lng);
-        loading = false;
-        if (MODE_HOME.equals(mode)) {
-            showingSearch = false;
+        if (!provisional) {
+            locating = false;
+            lastFixAt = System.currentTimeMillis();
+        }
+        if (!MODE_HOME.equals(mode)) {
+            updateLocatingHint();
+            return;
+        }
+
+        showingSearch = false;
+        // 回到首页要的是「当前位置的公交」：位置真变了就整套重铺（距离、顺序都变）；
+        // 位置没动（大多数时候是这样）就保留已经滑出来的站点和滚动位置，只重算到站，
+        // 但手动下拉刷新要的是「重新查一遍」，位置没动也得重铺。
+        boolean moved = prevLat <= 0 || prevLng <= 0
+                || BusClient.distanceMeters(prevLat, prevLng, lat, lng) > 50;
+        // 第一屏还在路上（loading）就别再开一轮，等它回来直接铺，省一次请求
+        boolean reloadList = forceReload || moved || (!loading && nearList.isEmpty());
+        forceReload = false;
+        if (reloadList) {
             renderHome();
+        } else {
+            updateLocatingHint();
+            refreshShownEta(ETA_PER_PRIME);
         }
     }
 

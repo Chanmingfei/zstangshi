@@ -224,9 +224,12 @@ public class HomePage extends PullRefreshLayout {
     }
 
     /**
-     * 首页宫格。8 个位置铺满两行：课表 / 校历是本地页，成绩 / 绩点 / 选课 /
-     * 推荐课表走 {@link com.tstc.zstangshi.FeatureActivity} 的原生教务查询，
-     * 只有「更多功能」和「学工系统」才打开原站点网页。
+     * 首页宫格。8 个位置铺满两行：课表 / 校历是本地页，成绩 / 绩点 / 选课 / 推荐课表
+     * 走 {@link com.tstc.zstangshi.FeatureActivity} 的原生教务查询，
+     * 「实时公交」是独立的原生二级页，只有「更多功能」打开原教务站点网页。
+     *
+     * 原来第 8 格是「学工系统」，和下面那张 {@link #affairsCard()} 横条入口重复，
+     * 已让位给实时公交 —— 学工只保留横条一处，避免同一页出现两个同义入口。
      */
     private LinearLayout quickGrid() {
         LinearLayout wrap = new LinearLayout(host);
@@ -248,8 +251,9 @@ public class HomePage extends PullRefreshLayout {
                 () -> feature(FeatureActivity.T_SELECTION, "自主选课")));
         row2.addView(cell(R.drawable.ic_quick_recommend, "推荐课表",
                 () -> feature(FeatureActivity.T_RECOMMEND, "推荐课表")));
+        row2.addView(cell(R.drawable.ic_quick_bus, "实时公交",
+                () -> com.tstc.zstangshi.BusActivity.open(host)));
         row2.addView(cell(R.drawable.ic_quick_more, "更多功能", () -> browse(JWXT, "教务系统")));
-        row2.addView(cell(R.drawable.ic_quick_school, "学工系统", () -> browse(XUEGONG, "学工系统")));
         wrap.addView(row2);
         return wrap;
     }

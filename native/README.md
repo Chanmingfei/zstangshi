@@ -8,11 +8,12 @@ v3 系列的全部代码。**纯 Android framework 实现，不引 androidx，�
 也做不出「手指拖到哪、画面跟到哪」的原生手感。v2 的代码完整保留在 `../android/` + `../web/`
 和 `legacy-webview-v2.0.1` 分支，与这里零共享。
 
-- 版本：**3.0.25（versionCode 41）**
+- 版本：**3.0.31（versionCode 47）**
 - 包名：`com.tstc.zstangshi`
 - minSdk 26（Android 8.0）· targetSdk 34（Android 14）
-- 权限：`INTERNET`、`ACCESS_NETWORK_STATE`（仅此两条）
-- 规模：43 个 Java 文件、约 13,000 行、34 个资源文件、APK 约 1.0 MB
+- 权限：`INTERNET`、`ACCESS_NETWORK_STATE`，加一对定位权限 —— 只有实时公交首页用来取一次附近站点，
+  拒绝授权也能用（手动搜索线路）
+- 规模：48 个 Java 文件、约 17,200 行、35 个资源文件、APK 约 1.06 MB
 
 ---
 
@@ -38,8 +39,8 @@ bash native/build.sh
 版本号只在一处维护 —— `native/version.properties`：
 
 ```properties
-versionCode=41
-versionName=3.0.25
+versionCode=47
+versionName=3.0.31
 ```
 
 改了就跑一遍 `build.sh`，`aapt2 link` 会把两个值同时写进 manifest 和包信息。
@@ -67,9 +68,11 @@ native/
     │   ├── LoginActivity        登录（教务 / 仅学工两种口径）
     │   ├── MainActivity         四页容器：PageDeck + 胶囊底栏 + 返回手势调度
     │   ├── FeatureActivity      二级功能页（成绩 / 绩点 / 推荐课表 / 选课…）
+    │   ├── BusActivity          实时公交：首页 / 站点 / 线路三层共用这一个 Activity
     │   ├── CalendarActivity     校历
     │   ├── WebViewActivity      应用内浏览器（仓库链接、长尾教务功能）
     │   ├── BaseActivity         深色模式注入（applyOverrideConfiguration）
+    │   ├── bus/                 公交数据层：BusClient（签名+接口+预测）/ BusModels / BusStore
     │   ├── data/                课表模型、周次换算、校历、Store 快照、教务抓取
     │   ├── jw/                  正方教务：Auth / JwClient / JwApi
     │   ├── pages/               四个主页面 + 课程编辑器
@@ -147,6 +150,14 @@ API 32 及以下没有这套机制，退回 `onBackPressed` + 自绘滑动。
   这是 v3.0.13 修掉「把本周当第 1 周」的关键。
 - 刷新策略：首页下拉只重新登录（`Auth.loginOnly`）并更新登录态，**不覆盖本地课表**；
   成绩 / 绩点进页面才加载，下拉才真正拉取。
+- `bus/BusClient.java`：实时公交。参数按插入顺序拼 `k=v&` + 固定盐 → MD5 → `cryptoSign`，
+  响应剥 `**YGKJ{…}` 壳后 AES/ECB 解密。到站预测只有一个口径 `predict(cityId, lineId, order, …)`，
+  首页 / 站点详情 / 线路详情全走它 —— 上游「附近站点」接口只对最近几站算实时，直接用会得到
+  「首页说没车、点进去有车」。批量补数据限 3 并发、每条间隔 70ms，否则会被上游掐连接。
+  虚拟站组（上游把一段路拆成多站、`order` 全为 999，真实站序藏在 `sId` 的 `999$30$1` 里）
+  由 `orderLabel` / `effectiveOrder` 还原。
+- 公交刷新策略：进页面即拉一次，之后每 20 秒静默轮询，只换行内文字（`etaBinders` 行级绑定），
+  不动滚动位置和已选候车站；首页下拉重新定位并换一批站点，线路详情下拉只更新车辆位置。
 
 ---
 
@@ -158,3 +169,5 @@ API 32 及以下没有这套机制，退回 `onBackPressed` + 自绘滑动。
 - APK 用本地调试密钥签名，仅供自用与测试；正式分发需要换签名。
 - 只在 Android 14 的 ColorOS 上做过真机点测，其他 ROM 的状态栏行为（尤其透明窗口 + 全屏布局）
   可能需要微调。
+- 实时公交没有官方 API：走的是车来了的公开查询接口，字段或签名随上游改动可能失效；
+  「附近站点」接口不返回经纬度，继续下滑加载更远站点时得逐个查站点详情补坐标（已加内存缓存）。

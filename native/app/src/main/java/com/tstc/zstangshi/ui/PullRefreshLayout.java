@@ -45,6 +45,8 @@ public class PullRefreshLayout extends LinearLayout {
     private boolean dragging;
     private boolean refreshing;
     private Runnable onRefresh;
+    /** 刷新中的提示语，各页面按自己的数据源改文案（默认按教务说）。 */
+    private String busyText = "正在从教务刷新…";
 
     public PullRefreshLayout(Context c) {
         super(c);
@@ -98,6 +100,11 @@ public class PullRefreshLayout extends LinearLayout {
         onRefresh = r;
     }
 
+    /** 换数据源时改一句提示语，别让「正在从教务刷新」跑到不是教务的页面上。 */
+    public void setRefreshText(String busy) {
+        if (busy != null && !busy.isEmpty()) busyText = busy;
+    }
+
     public void setRefreshing(boolean on) {
         refreshing = on;
         dragging = false;
@@ -109,7 +116,7 @@ public class PullRefreshLayout extends LinearLayout {
             arrow.setVisibility(VISIBLE);
             arrow.setRotation(0f);
         }
-        setHeader(on ? busyHeight : 0, on ? "正在从教务刷新…" : "下拉刷新");
+        setHeader(on ? busyHeight : 0, on ? busyText : "下拉刷新");
     }
 
     private void setHeader(int h, String text) {

@@ -10,6 +10,8 @@ DerivedData/
 # 本地打出来的 APK（分发走 Releases，不入库）
 zstangshi-v*.apk
 ZhangShangTangShi-*.apk
+唐师随身行-*.apk
+*.apk
 
 # Xcode 用户态（共享 scheme 在 xcshareddata/ 里，要提交）
 xcuserdata/
@@ -36,3 +38,9 @@ cm_*.txt
 
 # 下载回来的 ipa（本地交付物，不入库）
 dist/
+
+# 接口逆向参考仓库与探测脚本（本地资料，不入库）
+.ref/
+
+# 根目录零散调试截图（真机验证时随手截的，不入库）
+/*.png

@@ -368,6 +368,14 @@ public final class ChelaileClient {
         }
         d.status = data.optString("depDesc");
         d.nextDeparture = data.optString("preArrivalTime");
+        // 收班/未运营时 depDesc 常是空串，官方状态写在 line.shortDesc
+        // （和首页同一字段，如「不在运营时间」「末班时间已过」），
+        // 没有就退一步用 nextOperationTimeDesc（如「首班预计明日 06:00 发车」）。
+        // 不补这一层的话，首页显示运营状态、点进详情却变成「暂无预测」
+        if (lo != null && d.status.isEmpty()) {
+            d.status = lo.optString("shortDesc");
+            if (d.status.isEmpty()) d.status = lo.optString("nextOperationTimeDesc");
+        }
 
         JSONArray others = data.optJSONArray("otherlines");
         JSONObject rev = others == null ? null : others.optJSONObject(0);

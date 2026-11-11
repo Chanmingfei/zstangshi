@@ -83,6 +83,39 @@ public final class HeaderBar {
         return tv;
     }
 
+    /**
+     * 顶栏右侧「文字 + 下拉小三角」按钮（数据源切换）。
+     *
+     * <p>不用「文字 ▾」这种写法：▾ 是字体字符，挂在基线上、沉到文字底部，
+     * 视觉上整个按钮像坠下去了一样和旁边的文字按钮对不齐。
+     * 三角用几何绘制、和文字垂直居中，TextView 是第一个子 View，改文字直接对它 setText。
+     */
+    public static LinearLayout actionWithCaret(Activity host, String text,
+                                               View.OnClickListener onClick) {
+        LinearLayout box = new LinearLayout(host);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        box.setPadding(dp(host, 12), 0, dp(host, 8), 0);
+        box.setMinimumWidth(dp(host, 44));
+        box.setOnClickListener(onClick);
+
+        TextView tv = new TextView(host);
+        tv.setText(text);
+        tv.setTextSize(13);
+        tv.setIncludeFontPadding(false);
+        tv.setGravity(Gravity.CENTER_VERTICAL);
+        tv.setTextColor(host.getColor(R.color.brand));
+        box.addView(tv, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(host, 40)));
+
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(dp(host, 7), dp(host, 4));
+        cp.leftMargin = dp(host, 4);
+        box.addView(new Caret(host, host.getColor(R.color.brand)), cp);
+        box.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(host, 40)));
+        return box;
+    }
+
     /** 正文里的「‹ 重新筛选」之类次级返回链接，同样用绘制的箭头保证对齐。 */
     public static LinearLayout backLink(Activity host, String text, View.OnClickListener onClick) {
         LinearLayout row = new LinearLayout(host);
@@ -133,6 +166,29 @@ public final class HeaderBar {
             path.moveTo(cx + arm * 0.62f, cy - arm);
             path.lineTo(cx - arm * 0.62f, cy);
             path.lineTo(cx + arm * 0.62f, cy + arm);
+            canvas.drawPath(path, paint);
+        }
+    }
+
+    /** 纯几何的实心「▾」，和文字垂直居中，不受字体基线影响。 */
+    private static final class Caret extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path = new Path();
+
+        Caret(Context c, int color) {
+            super(c);
+            paint.setColor(color);
+            paint.setStyle(Paint.Style.FILL);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float w = getWidth(), h = getHeight();
+            path.reset();
+            path.moveTo(0, 0);
+            path.lineTo(w, 0);
+            path.lineTo(w / 2f, h * 0.9f);
+            path.close();
             canvas.drawPath(path, paint);
         }
     }

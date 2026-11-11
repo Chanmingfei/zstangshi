@@ -4,7 +4,7 @@
 最常用的几件事装进手机：课表、成绩、绩点、推荐课表、选课、校历、奖助贷与请假，
 以及校门口的**实时公交**（到站预测、候车站、首站发车时刻表）。
 
-**当前版本 v3.1.0（versionCode 55）· Android 原生重写** · 零第三方运行时依赖 · 纯 framework，
+**当前版本 v3.1.1（versionCode 56）· Android 原生重写** · 零第三方运行时依赖 · 纯 framework，
 不引 androidx · `bash native/build.sh` 一条命令出 APK · iOS 为独立的 SwiftUI 工程
 
 ---
@@ -14,17 +14,17 @@
 > **直接去 Releases 下载，不需要自己编译。**
 >
 > - 始终拿最新版：<https://github.com/Chanmingfei/zstangshi/releases/latest>
-> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v3.1.0>
-> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v3.1.0/zstangshi-v3.1.0.apk>
+> - 本次版本：<https://github.com/Chanmingfei/zstangshi/releases/tag/v3.1.1>
+> - APK 直链：<https://github.com/Chanmingfei/zstangshi/releases/download/v3.1.1/zstangshi-v3.1.1.apk>
 
 | 项目 | 值 |
 | --- | --- |
-| 版本 | 3.1.0（versionCode 55） |
-| 文件 | `zstangshi-v3.1.0.apk`，1,153,644 字节（约 1.10 MiB） |
+| 版本 | 3.1.1（versionCode 56） |
+| 文件 | `zstangshi-v3.1.1.apk`，1,153,644 字节（约 1.10 MiB） |
 | 系统要求 | Android 8.0（API 26）及以上，目标 Android 14（API 34） |
 | 权限 | `INTERNET`、`ACCESS_NETWORK_STATE`；另加 `ACCESS_COARSE_LOCATION` / `ACCESS_FINE_LOCATION`，**只在实时公交首页取一次坐标**，不做后台定位、不上传位置 |
 | 签名 | 本地调试密钥（CN=ZSTS），与 v3.x 各版本一致，**可直接覆盖安装** |
-| SHA-256 | `777b97116ee67178e4319bfb4265c4509818df847fd2b106adf4b2e36e07bee7` |
+| SHA-256 | `0ae287d0101aef3e76751d510e0b3a7997bdbd40f01f267ccab13d62662db589` |
 
 **安装步骤**
 
@@ -35,8 +35,8 @@
 校验下载完整性（可选）：
 
 ```bash
-certutil -hashfile zstangshi-v3.1.0.apk SHA256   # Windows
-sha256sum zstangshi-v3.1.0.apk                   # macOS / Linux
+certutil -hashfile zstangshi-v3.1.1.apk SHA256   # Windows
+sha256sum zstangshi-v3.1.1.apk                   # macOS / Linux
 ```
 
 **iOS 没有预编译包。** `.ipa` 必须由 Apple 的 SDK 编译，而 SDK 只在 Xcode 里、Xcode 只在 macOS 上。

@@ -298,8 +298,11 @@ public class BusActivity extends BaseActivity {
     private LinearLayout header() {
         LinearLayout h = HeaderBar.create(this, title, v -> closePage());
         if (MODE_HOME.equals(mode)) {
-            sourceBtn = HeaderBar.action(this, BusClient.sourceName() + " ▾", v -> pickSource());
-            h.addView(sourceBtn);
+            // 三角用几何绘制、与文字垂直居中；sourceBtn 只是其中的文字部分
+            LinearLayout srcBox = HeaderBar.actionWithCaret(this, BusClient.sourceName(),
+                    v -> pickSource());
+            sourceBtn = (TextView) srcBox.getChildAt(0);
+            h.addView(srcBox);
             h.addView(HeaderBar.action(this, "刷新", v -> reload()));
         } else if (MODE_LINE.equals(mode)) {
             boolean fav = store.isFavorite(cityId, lineId);
@@ -1786,7 +1789,8 @@ public class BusActivity extends BaseActivity {
             num.setTextSize(24);
         } else {
             num.setText(d.status.isEmpty() ? "暂无预测" : d.status);
-            num.setTextSize(d.status.isEmpty() ? 20 : 22);
+            // 官方状态偶尔是长句（如「首班预计明日 06:00 发车」），字号跟着收一点
+            num.setTextSize(d.status.length() > 8 ? 16 : 22);
         }
         num.setTypeface(Typeface.DEFAULT_BOLD);
         num.setTextColor(d.etaMinutes >= 0 || d.etaArrived || !d.estArrival.isEmpty()
@@ -2396,8 +2400,8 @@ public class BusActivity extends BaseActivity {
     private void switchSource(int src) {
         store.setSource(src);          // 记住偏好 + 切 BusClient + 作废缓存
         cityId = store.cityId();       // 城市编号换了一套，先落默认值
-        // 顶栏按钮是 onCreate 时画好的，这里手动把字换掉
-        if (sourceBtn != null) sourceBtn.setText(BusClient.sourceName() + " ▾");
+        // 顶栏按钮是 onCreate 时画好的，这里手动把字换掉（三角是画的，只换文字）
+        if (sourceBtn != null) sourceBtn.setText(BusClient.sourceName());
         expanded.clear();
         showingSearch = false;
         if (searchBox != null) searchBox.setText("");

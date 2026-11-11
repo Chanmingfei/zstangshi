@@ -8,7 +8,7 @@ v3 系列的全部代码。**纯 Android framework 实现，不引 androidx，�
 也做不出「手指拖到哪、画面跟到哪」的原生手感。v2 的代码完整保留在 `../android/` + `../web/`
 和 `legacy-webview-v2.0.1` 分支，与这里零共享。
 
-- 版本：**3.1.0（versionCode 55）**
+- 版本：**3.1.1（versionCode 56）**
 - 包名：`com.tstc.zstangshi`
 - minSdk 26（Android 8.0）· targetSdk 34（Android 14）
 - 权限：`INTERNET`、`ACCESS_NETWORK_STATE`，加一对定位权限 —— 只有实时公交首页用来取一次附近站点，
@@ -39,8 +39,8 @@ bash native/build.sh
 版本号只在一处维护 —— `native/version.properties`：
 
 ```properties
-versionCode=55
-versionName=3.1.0
+versionCode=56
+versionName=3.1.1
 ```
 
 改了就跑一遍 `build.sh`，`aapt2 link` 会把两个值同时写进 manifest 和包信息。

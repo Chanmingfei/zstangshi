@@ -340,7 +340,7 @@ public final class BusClient {
         }
     }
 
-    /** 线路级的运营状态：停运 / 未开通实时 / 等待发车 / 末班已过。 */
+    /** 线路级的运营状态：停运 / 未开通实时 / 非运营时间 / 等待发车 / 末班已过。 */
     private static String statusOf(MygolbsClient.Realtime rt, MygolbsClient.RouteInfo route,
                                    int waitOrder) {
         if (rt.runState == 1) return "该线路已停运";
@@ -355,6 +355,9 @@ public final class BusClient {
             }
         }
         if (hasUpcoming) return "";
+        // 官方 104 明说的状态（如「非运营时间」）优先于按首末班推出来的文案，
+        // 这样点进线路详情和首页补预测后显示的是同一句官方原话
+        if (!rt.statusTips.isEmpty()) return rt.statusTips;
         int now = BusModels.minutesOf(MygolbsClient.nowHHMM());
         int first = BusModels.minutesOf(route.firstTime);
         int last = BusModels.minutesOf(route.lastTime);
@@ -367,6 +370,7 @@ public final class BusClient {
     private static String shortStatusOf(MygolbsClient.Realtime rt) {
         if (rt.runState == 1) return "该线路已停运";
         if (!rt.hasReal) return "未开通实时";
+        if (!rt.statusTips.isEmpty()) return rt.statusTips;
         if (!rt.planTime.isEmpty()) return "下趟 " + rt.planTime + " 发车";
         return "";
     }
@@ -456,6 +460,10 @@ public final class BusClient {
                             a.realtime = true;
                             // 「已到站」只认上游明说；0 分钟是「即将到站」，别混
                             if (pr.arrived) a.arrived = true;
+                        } else if (pr != null && !pr.depDesc.isEmpty()) {
+                            // 补不到分钟数，但官方给了线路状态（如「非运营时间」）：
+                            // 覆掉首页 105 给的那句，让首页和点进详情看到同一句话
+                            a.status = pr.depDesc;
                         }
                         // 补不到就老实收起「…」，别一直转
                         a.pending = false;

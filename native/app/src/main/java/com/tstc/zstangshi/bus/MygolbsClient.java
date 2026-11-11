@@ -355,12 +355,19 @@ public final class MygolbsClient {
             for (int i = 0; i < eta.length(); i++) {
                 JSONObject e = eta.optJSONObject(i);
                 if (e == null) continue;
+                String tips = e.optString("busToStationTips", "");
                 int count = e.optInt("busToStationCount", -1);
+                // 收班/非运营时官方在这里明说「非运营时间」「已过末班时刻」（都配 count=-1），
+                // 是线路级状态，不是某辆车的到站 —— 记下来给首页和线路详情统一用，
+                // 别当过站车丢掉。关键字按官方实际出现过的文案收，宁缺毋滥
+                if (count < 0 && (tips.contains("非运营") || tips.contains("收班")
+                        || tips.contains("末班") || tips.contains("停运"))) {
+                    if (rt.statusTips.isEmpty()) rt.statusTips = tips;
+                    continue;
+                }
                 // count < 0 是「这辆车已经过了这一站」，上游仍把它列出来、时间写 0，
                 // 直接用会把「刚开走」当成「已到站」
                 if (count < 0) continue;
-                String tips = e.optString("busToStationTips", "");
-                if (tips.contains("非运营") || tips.contains("收班")) continue;
                 Eta item = new Eta();
                 item.busNumber = e.optString("busNumber", "");
                 item.count = count;
@@ -379,6 +386,9 @@ public final class MygolbsClient {
             }
         }
         Collections.sort(rt.etas, (a, b) -> Integer.compare(a.minutes, b.minutes));
+        // 有真车就不需要线路级状态了（比如列表里既有真车又混了一条「非运营时间」），
+        // 状态只在线路确实没车可用时才生效
+        if (!rt.etas.isEmpty()) rt.statusTips = "";
         return rt;
     }
 
@@ -893,6 +903,8 @@ public final class MygolbsClient {
         public boolean hasReal = true;
         public int runState = 0;
         public String planTime = "";
+        /** 官方给的线路级状态（如「非运营时间」），只在没有任何可用车辆时生效 */
+        public String statusTips = "";
         public final List<Bus> buses = new ArrayList<>();
         public final List<Eta> etas = new ArrayList<>();
 

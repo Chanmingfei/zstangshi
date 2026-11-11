@@ -382,8 +382,13 @@ public final class BusClient {
                 stop.id = s.optString("sId");
                 stop.physicalId = s.optString("physicalStId");
                 stop.name = s.optString("sn");
-                stop.order = s.optInt("order", i + 1);
-                stop.orderLabel = orderLabel(stop.order, stop.id);
+                // 站序一律用「在 stations 数组里的位置」。上游对「虚拟站组」会把一
+                // 串真实站点塞进一条 order=999 的记录里（sId 形如 999$13$4），而且组
+                // 后面站点的 order 还会往回退（组只占一个 order）。直接用 order 会
+                // 出现「13-1、13-2…」这种编号，和「全线 39 站」对不上。
+                // 数组本身就是行车顺序，位置即站序；buses[].order 也是这个口径。
+                stop.order = i + 1;
+                stop.orderLabel = String.valueOf(i + 1);
                 stop.lat = s.optDouble("wgsLat", 0);
                 stop.lng = s.optDouble("wgsLng", 0);
                 d.stops.add(stop);
@@ -466,31 +471,23 @@ public final class BusClient {
         return d;
     }
 
-    /** 真实站序：虚拟站组（order=999，sId 形如 999$30$1）还原成它所属的 30。 */
-    private static int effectiveOrder(int order, String sId) {
+    /**
+     * 真实站序：虚拟站组（order=999，sId 形如 999$13$4）还原成它在整条线上的位置。
+     *
+     * 上游把一串连续的真实站点编码成「组」：{@code G} 是组前面最后一个站的 order，
+     * {@code N} 是组内第几个，所以真实站序 = G + N（999$13$4 是第 17 站）。
+     * 只取 G 会把这组里的 7 个站算成同一站，预测的「还剩几站」和车标位置都会错。
+     */
+    static int effectiveOrder(int order, String sId) {
         if (order < 999) return order;
         String[] seg = (sId == null ? "" : sId).split("\\$");
-        if (seg.length >= 2) {
+        if (seg.length >= 3) {
             try {
-                return Integer.parseInt(seg[1]);
+                return Integer.parseInt(seg[1]) + Integer.parseInt(seg[2]);
             } catch (NumberFormatException ignored) {
             }
         }
         return order;
-    }
-
-    /** 站序的显示文案：普通站直接用 order，上游的虚拟站组还原成「30-1」。 */
-    private static String orderLabel(int order, String sId) {
-        if (order < 999) return String.valueOf(order);
-        String[] seg = (sId == null ? "" : sId).split("\\$");
-        if (seg.length >= 3) {
-            try {
-                return Integer.parseInt(seg[1]) + "-" + Integer.parseInt(seg[2]);
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        // 解析不出来就干脆不显示序号，别把 999 甩给用户
-        return "";
     }
 
     /** 拉一次到「候车站」的车辆预测，填分钟 / 站数 / 距离。失败不影响站表。 */
@@ -991,11 +988,12 @@ public final class BusClient {
             if (a.lineId.isEmpty()) continue;
 
             // 这个站在该线路上的站序：站点详情和首页的每条 line 都带 targetStation，
-            // 用它才能让「从 A 站进线路详情」默认候车站就是 A 站
+            // 用它才能让「从 A 站进线路详情」默认候车站就是 A 站。
+            // 虚拟站组的 order 是 999，要用 sId 还原成真实站序，否则预测会算到别的站去。
             JSONObject target = li.optJSONObject("targetStation");
             if (target != null) {
-                a.orderInLine = target.optInt("order", 0);
                 a.stopId = target.optString("sId");
+                a.orderInLine = effectiveOrder(target.optInt("order", 0), a.stopId);
             }
 
             JSONArray states = li.optJSONArray("stnStates");

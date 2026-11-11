@@ -44,7 +44,16 @@ public class SplashActivity extends BaseActivity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextView status;
+    /** 自动登录期间的快捷入口：不等教务，先去实时公交。 */
+    private TextView skipBtn;
     private boolean left;
+    /** 用户点了「直接进入实时公交」：登录留在后台，回加载页时再接去主界面。 */
+    private boolean busJumped;
+    /** 后台登录是否已结束（busJumped 时用它决定回到加载页后怎么走）。 */
+    private boolean loginDone;
+    private boolean loginOk;
+    /** 加载页当前是否在前台（busJumped 后回来时要不要立刻进主界面）。 */
+    private boolean resumed;
     private Store store;
 
     @Override
@@ -122,6 +131,27 @@ public class SplashActivity extends BaseActivity {
         stlp.topMargin = dp(14);
         box.addView(status, stlp);
 
+        // 教务自动登录有时要等很久：给个横条按钮，不想等的人先进实时公交，
+        // 登录在后台接着跑，回到这页时如果已经登好就直接送进主界面。
+        // 位置放在加载动画正下方 —— 大拇指自然悬停的高度，不用伸到底部够；
+        // 样式和 APP 其他主按钮一致：圆角矩形（12dp）
+        box.setMinimumWidth(dp(280));
+        skipBtn = new TextView(this);
+        skipBtn.setText("直接进入实时公交");
+        skipBtn.setTextSize(14.5f);
+        skipBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        skipBtn.setTextColor(0xFFFFFFFF);
+        skipBtn.setGravity(Gravity.CENTER);
+        GradientDrawable skipBg = new GradientDrawable();
+        skipBg.setColor(getColor(R.color.brand));
+        skipBg.setCornerRadius(dp(12));
+        skipBtn.setBackground(skipBg);
+        skipBtn.setOnClickListener(v -> goBus());
+        LinearLayout.LayoutParams skipLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+        skipLp.topMargin = dp(24);
+        box.addView(skipBtn, skipLp);
+
         FrameLayout.LayoutParams boxLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         boxLp.gravity = Gravity.CENTER;
@@ -131,13 +161,15 @@ public class SplashActivity extends BaseActivity {
         if (!Auth.canAutoLogin(store)) {
             // 没开自动登录：亮一下就去登录页（旧版这里只有圆点，不写文案）
             status.setText("");
+            skipBtn.setVisibility(View.GONE);
             ui.postDelayed(this::goLogin, 350);
             return;
         }
 
         status.setText("自动登录中");
+
         ui.postDelayed(() -> {
-            if (left) return;
+            if (left || busJumped) return;   // 已经进实时公交的就别再踢去登录页了
             goLogin("自动登录超时了，请手动登录一次");
         }, TIMEOUT_MS);
 
@@ -145,6 +177,21 @@ public class SplashActivity extends BaseActivity {
             Auth.Outcome o = Auth.loginAndMaybeSync(store.user(), store.pass(), store, false);
             ui.post(() -> {
                 if (left) return;
+                loginDone = true;
+                loginOk = o.ok;
+                if (busJumped) {
+                    // 人已经在实时公交里：不打扰，只把结果记下，等回到这页再接走
+                    if (o.ok) {
+                        TodayWidget.refreshAll(this);
+                        status.setText("教务登录完成，返回后自动进入主界面");
+                        if (resumed) goMain();
+                    } else {
+                        status.setText(o.message);
+                        skipBtn.setText("去手动登录");
+                        skipBtn.setOnClickListener(v -> goLogin(o.message));
+                    }
+                    return;
+                }
                 if (o.ok) {
                     TodayWidget.refreshAll(this);
                     goMain();
@@ -153,6 +200,32 @@ public class SplashActivity extends BaseActivity {
                 }
             });
         }).start();
+    }
+
+    /**
+     * 「直接进入实时公交」：加载页留在任务栈里，登录继续在后台跑。
+     * 可以反复点 —— 从实时公交退回来（登录还没好）再点一次要照样能进。
+     */
+    private void goBus() {
+        if (left) return;
+        busJumped = true;
+        status.setText("教务登录已转到后台，正在进入实时公交…");
+        startActivity(new Intent(this, BusActivity.class));
+        overridePendingTransition(0, 0);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resumed = true;
+        // 从实时公交退回来时，后台登录多半已经完成 —— 别让人再对着加载页等
+        if (busJumped && loginDone && loginOk && !left) goMain();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        resumed = false;
     }
 
     /** 校徽呼吸：透明度 1 ↔ 0.86，缩放 1 ↔ 0.995，2.6s 一轮。 */

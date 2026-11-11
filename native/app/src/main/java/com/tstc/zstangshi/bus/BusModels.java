@@ -73,10 +73,10 @@ public final class BusModels {
          */
         public boolean refreshed = false;
 
-        /** 界面上那句短文案：即将到站 / 3 分钟 / 暂无预测 / 暂无车 */
+        /** 界面上那句短文案：已到站 / 即将到站 / 3 分钟 / 暂无预测 / 暂无车 */
         public String label() {
             if (pending) return "…";
-            if (arrived) return "即将到站";
+            if (arrived) return "已到站";
             if (minutes >= 0) return minutes <= 0 ? "即将到站" : minutes + " 分钟";
             if (!status.isEmpty()) return status;
             // 知道还剩几站、但上游没给秒数：别写「暂无车」，那和左边的「还有 N 站」自相矛盾
@@ -88,9 +88,11 @@ public final class BusModels {
         /** 车来了风格的「23分钟·14站」；没有分钟就只给站数。 */
         public String etaCompact() {
             if (pending) return "…";
-            if (arrived || minutes == 0) return "已到站";
-            if (minutes > 0 && stopsAway > 0) return minutes + "分钟·" + stopsAway + "站";
-            if (minutes > 0) return minutes + "分钟";
+            if (arrived) return "已到站";
+            // 官方口径：小于 1 分钟是「即将到站」，不是「已到站」
+            if (minutes == 0) return "即将到站";
+            if (minutes > 0 && stopsAway > 0) return minutesText(minutes) + "·" + stopsAway + "站";
+            if (minutes > 0) return minutesText(minutes);
             if (!status.isEmpty()) return status;
             if (stopsAway > 0) return stopsAway + "站外";
             if (!realtime) return "暂无实时";
@@ -101,7 +103,8 @@ public final class BusModels {
         public String nextLabel() {
             if (nextMinutes < 0 && nextStopsAway < 0) return "";
             StringBuilder sb = new StringBuilder("下辆 ");
-            if (nextMinutes >= 0) sb.append(nextMinutes).append("分钟");
+            if (nextMinutes == 0) sb.append("即将到站");
+            else if (nextMinutes > 0) sb.append(nextMinutes).append("分钟");
             if (nextStopsAway > 0) {
                 if (nextMinutes >= 0) sb.append(' ');
                 sb.append(nextStopsAway).append("站");
@@ -260,15 +263,24 @@ public final class BusModels {
         public int etaMinutes = -1;
         public int etaStops = -1;
         public int etaDistanceMeters = -1;
+        /** 车真的在候车站上（上游明说「已到站」），优先级高于 etaMinutes==0 的「即将到站」 */
+        public boolean etaArrived = false;
+        /** 没车在途时上游估的到站时刻（车来了 preArrivalTime，形如 19:34），掌上公交没有这数据 */
+        public String estArrival = "";
 
         public boolean reversible() {
             return reverseId != null && !reverseId.isEmpty();
         }
 
-        /** 「17站 / 8.8千米」，上游没有距离就只给站数。 */
+        /** 「小于1分钟·17站 / 8.8千米」，上游没有距离就只给站数。 */
         public String etaDetail() {
             StringBuilder sb = new StringBuilder();
-            if (etaStops > 0) sb.append(etaStops).append("站");
+            // 已到站就不写「小于1分钟」了，大字已经说明白
+            if (etaMinutes == 0 && !etaArrived) sb.append("小于1分钟");
+            if (etaStops > 0) {
+                if (sb.length() > 0) sb.append("·");
+                sb.append(etaStops).append("站");
+            }
             if (etaDistanceMeters > 0) {
                 if (sb.length() > 0) sb.append(" / ");
                 if (etaDistanceMeters < 1000) sb.append(etaDistanceMeters).append("米");
@@ -357,6 +369,14 @@ public final class BusModels {
     /** 按钟点排序：字符串排序会把 "6:24" 排到 "10:00" 后面，得按分钟数比。 */
     public static void sortByClock(List<String> times) {
         Collections.sort(times, (a, b) -> Integer.compare(minutesOf(a), minutesOf(b)));
+    }
+
+    /** 45 → 「45分钟」；104 → 「1小时44分」。城乡公交跑一趟动辄一个多小时，写「104分钟」读着费劲。 */
+    public static String minutesText(int m) {
+        if (m < 60) return m + "分钟";
+        int h = m / 60;
+        int r = m % 60;
+        return r == 0 ? h + "小时" : h + "小时" + r + "分";
     }
 
     /** "07:43" → 463；不是钟点返回 -1。 */

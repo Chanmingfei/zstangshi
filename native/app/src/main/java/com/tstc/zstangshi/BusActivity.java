@@ -6,6 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -198,6 +201,8 @@ public class BusActivity extends BaseActivity {
     private int nearGen;
     /** 首页「附近站点」标题，等定位时挂一句提示。 */
     private TextView nearTitle;
+    /** 顶栏的数据源按钮：切换后要跟着改字，不然一直显示旧数据源的名字。 */
+    private TextView sourceBtn;
 
     /** 首页里被「展开全部」的站点（默认每条线路只露三条，和车来了一致）。 */
     private final Set<String> expanded = new HashSet<>();
@@ -212,6 +217,8 @@ public class BusActivity extends BaseActivity {
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         store = new BusStore(this);
+        // BusStore 构造时已把用户选过的数据源读回 BusClient（没选过默认车来了），
+        // 城市编号跟源走，各存一份
         cityId = store.cityId();
         lat = store.lastLat();
         lng = store.lastLng();
@@ -291,6 +298,8 @@ public class BusActivity extends BaseActivity {
     private LinearLayout header() {
         LinearLayout h = HeaderBar.create(this, title, v -> closePage());
         if (MODE_HOME.equals(mode)) {
+            sourceBtn = HeaderBar.action(this, BusClient.sourceName() + " ▾", v -> pickSource());
+            h.addView(sourceBtn);
             h.addView(HeaderBar.action(this, "刷新", v -> reload()));
         } else if (MODE_LINE.equals(mode)) {
             boolean fav = store.isFavorite(cityId, lineId);
@@ -1634,13 +1643,17 @@ public class BusActivity extends BaseActivity {
         BusModels.LineDetail d = detail;
         if (d == null) return;
         body.removeAllViews();
+        // 模块顺序学车来了：① 候车站 + 等车时间 → ② 线路图 → ③ 首站发车
         body.addView(lineHeadCard(d));
+        body.addView(sectionTitle("全线 " + d.stops.size() + " 站 · 左右滑动查看"));
+        // 站线只在首进页面时居中一次；之后不管换候车站还是例行刷新，
+        // 一律恢复用户当前的滚动位置——用户能点到那站，说明它就在屏幕里，
+        // 擅自居中只会产生跳动感
+        body.addView(stopStrip(d, keepX <= 0 ? 1 : 0));
         // 时刻表占个位：数据回来只填这里，不重排整页
         ttSlot = new LinearLayout(this);
         ttSlot.setOrientation(LinearLayout.VERTICAL);
         body.addView(ttSlot);
-        body.addView(sectionTitle("全线 " + d.stops.size() + " 站 · 左右滑动查看"));
-        body.addView(stopStrip(d));
         body.addView(sectionTitle("全部站点 · 点站名切换候车站"));
         body.addView(stationListCard(d));
         if (!ttKey.equals(lineId + "#" + d.line.direction)) tt = null;
@@ -1753,21 +1766,34 @@ public class BusActivity extends BaseActivity {
         big.setPadding(0, dp(12), 0, 0);
 
         TextView num = new TextView(this);
-        if (d.etaMinutes > 0) {
+        if (d.etaArrived) {
+            num.setText("已到站");
+            num.setTextSize(26);
+        } else if (d.etaMinutes >= 60) {
+            // 长途线一小时开外，直接写「1小时44分」，别让大字撑成「104」
+            num.setText(BusModels.minutesText(d.etaMinutes));
+            num.setTextSize(30);
+        } else if (d.etaMinutes > 0) {
             num.setText(String.valueOf(d.etaMinutes));
             num.setTextSize(34);
         } else if (d.etaMinutes == 0) {
-            num.setText("已到站");
+            // 官方口径：小于 1 分钟叫「即将到站」，配「小于1分钟·X站·X米」
+            num.setText("即将到站");
             num.setTextSize(26);
+        } else if (!d.estArrival.isEmpty()) {
+            // 没车在途：车来了的 preArrivalTime，官方估的到站时刻
+            num.setText("预计" + d.estArrival + "到站");
+            num.setTextSize(24);
         } else {
             num.setText(d.status.isEmpty() ? "暂无预测" : d.status);
             num.setTextSize(d.status.isEmpty() ? 20 : 22);
         }
         num.setTypeface(Typeface.DEFAULT_BOLD);
-        num.setTextColor(d.etaMinutes >= 0 ? getColor(R.color.brand) : getColor(R.color.text_secondary));
+        num.setTextColor(d.etaMinutes >= 0 || d.etaArrived || !d.estArrival.isEmpty()
+                ? getColor(R.color.brand) : getColor(R.color.text_secondary));
         big.addView(num);
 
-        if (d.etaMinutes > 0) {
+        if (d.etaMinutes > 0 && d.etaMinutes < 60) {
             TextView unit = new TextView(this);
             unit.setText(" 分钟");
             unit.setTextSize(14);
@@ -2051,12 +2077,14 @@ public class BusActivity extends BaseActivity {
 
     /**
      * 横排站线（车来了那套）：整条线路横向铺开、可滑动，站名竖排，
-     * 自动滚动到「离我最近」的站并高亮，在途车辆标在它所在的那一站。
+     * 首进页面居中到「候车站」（没有就退回「离我最近」的站）并高亮，
+     * 在途车辆标在它所在的那一站。之后重绘一律不自己滚动，滚动位置由外部恢复。
      */
     /** 站线里每一列的宽度，决定一屏能露出几个站。 */
     private static final int STRIP_COL = 54;
 
-    private View stopStrip(BusModels.LineDetail d) {
+    /** centerMode：0 不动（滚动位置由外部恢复），1 瞬时居中（仅首进页面）。 */
+    private View stopStrip(BusModels.LineDetail d, int centerMode) {
         LinearLayout wrap = card();
         wrap.setPadding(0, 0, 0, 0);
 
@@ -2071,21 +2099,25 @@ public class BusActivity extends BaseActivity {
         strip.setPadding(dp(8), dp(12), dp(8), dp(14));
 
         final int n = d.stops.size();
-        final View[] anchor = new View[1];
+        View pickedCol = null;
+        View nearestCol = null;
         for (int i = 0; i < n; i++) {
-            View col = stripColumn(d.stops.get(i), i == 0, i == n - 1);
+            BusModels.Stop s = d.stops.get(i);
+            View col = stripColumn(s, i == 0, i == n - 1);
             strip.addView(col, new LinearLayout.LayoutParams(dp(STRIP_COL),
                     ViewGroup.LayoutParams.WRAP_CONTENT));
-            if (d.stops.get(i).nearest) anchor[0] = col;
+            if (pickedCol == null && isPicked(s)) pickedCol = col;
+            if (nearestCol == null && s.nearest) nearestCol = col;
         }
+        final View anchor = pickedCol != null ? pickedCol : nearestCol;
         hs.addView(strip);
         wrap.addView(hs);
         stripScroll = hs;
 
-        if (anchor[0] != null) {
+        if (anchor != null && centerMode > 0) {
             // 等布局完成再居中，否则 getLeft() 还是 0
             hs.post(() -> {
-                int x = anchor[0].getLeft() + anchor[0].getWidth() / 2 - hs.getWidth() / 2;
+                int x = anchor.getLeft() + anchor.getWidth() / 2 - hs.getWidth() / 2;
                 hs.scrollTo(Math.max(0, x), 0);
             });
         }
@@ -2121,33 +2153,47 @@ public class BusActivity extends BaseActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(21)));
 
         FrameLayout rail = new FrameLayout(this);
+        rail.setClipChildren(false);
         View line = new View(this);
         GradientDrawable lg = new GradientDrawable();
         lg.setColor(getColor(R.color.border_subtle));
         line.setBackground(lg);
+        // 线条学车来了加粗一档（1.5dp 太细，横排看起来像条虚线）
         FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1.5f)), Gravity.CENTER_VERTICAL);
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(2, dp(5f)), Gravity.CENTER_VERTICAL);
         if (first) llp.leftMargin = dp(STRIP_COL / 2f);
         if (last) llp.rightMargin = dp(STRIP_COL / 2f);
         rail.addView(line, llp);
 
-        View dot = new View(this);
-        GradientDrawable dg = new GradientDrawable();
-        dg.setShape(GradientDrawable.OVAL);
-        if (s.nearest) {
-            // 家/公司那站：空心圈，永远保留「离我最近」
-            dg.setColor(pageColor());
-            dg.setStroke(Math.max(2, dp(2.2f)), getColor(R.color.brand));
-        } else if (picked) {
-            dg.setColor(getColor(R.color.brand));
+        if (picked) {
+            // 车来了同款：候车站在线条上是一个蓝色圆底 + 白色右箭头，
+            // 一眼能认出「车往这边开、你在这站等」
+            FrameLayout badge = new FrameLayout(this);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.OVAL);
+            bg.setColor(getColor(R.color.brand));
+            badge.setBackground(bg);
+            // 白箭头用几何路径画：字符「›」受字体基线影响，永远做不到真正居中
+            badge.addView(new RailArrow(this, 0xFFFFFFFF), new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            rail.addView(badge, new FrameLayout.LayoutParams(dp(19), dp(19), Gravity.CENTER));
         } else {
-            dg.setColor(night() ? 0xFF39424F : 0xFFD7DCE5);
+            View dot = new View(this);
+            GradientDrawable dg = new GradientDrawable();
+            dg.setShape(GradientDrawable.OVAL);
+            if (s.nearest) {
+                // 家/公司那站：空心圈，永远保留「离我最近」
+                dg.setColor(pageColor());
+                dg.setStroke(Math.max(2, dp(2.2f)), getColor(R.color.brand));
+            } else {
+                dg.setColor(night() ? 0xFF39424F : 0xFFD7DCE5);
+            }
+            dot.setBackground(dg);
+            int ds = s.nearest ? dp(13) : dp(9);
+            rail.addView(dot, new FrameLayout.LayoutParams(ds, ds, Gravity.CENTER));
         }
-        dot.setBackground(dg);
-        int ds = s.nearest || picked ? dp(13) : dp(9);
-        rail.addView(dot, new FrameLayout.LayoutParams(ds, ds, Gravity.CENTER));
         col.addView(rail, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(16)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(20)));
 
         TextView order = new TextView(this);
         order.setText(s.orderLabel);
@@ -2331,6 +2377,61 @@ public class BusActivity extends BaseActivity {
     }
 
     // ──────────────────────────── 城市与定位 ────────────────────────────
+
+    /**
+     * 切数据源：两家的优劣用大白话写在选项里，选完记住，
+     * 下次打开直接用他选的那个（持久化在 BusStore）。
+     */
+    private void pickSource() {
+        String[] opts = new String[]{
+                "车来了（默认）\n到站时间准，但少数城乡线路查不到",
+                "掌上公交\n线路更全（含城乡公交），个别线路时间偏差大"
+        };
+        OptionSheet.show(this, "切换数据源", opts, BusClient.source(), idx -> {
+            if (idx == BusClient.source()) return;
+            switchSource(idx);
+        });
+    }
+
+    private void switchSource(int src) {
+        store.setSource(src);          // 记住偏好 + 切 BusClient + 作废缓存
+        cityId = store.cityId();       // 城市编号换了一套，先落默认值
+        // 顶栏按钮是 onCreate 时画好的，这里手动把字换掉
+        if (sourceBtn != null) sourceBtn.setText(BusClient.sourceName() + " ▾");
+        expanded.clear();
+        showingSearch = false;
+        if (searchBox != null) searchBox.setText("");
+        stopPlatforms.clear();
+        android.widget.Toast.makeText(this,
+                "已切换为「" + BusClient.sourceName() + "」", android.widget.Toast.LENGTH_SHORT).show();
+        // 两套城市编号对不上：按城市名在后台对一遍，对不上就保持默认城市
+        new Thread(() -> {
+            try {
+                String want = normCity(store.cityName());
+                for (BusModels.City c : BusClient.cities()) {
+                    if (normCity(c.name).equals(want)) {
+                        store.setCity(c.id, c.name);
+                        cityId = c.id;
+                        break;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                reload();
+            });
+        }, "bus-switch-src").start();
+    }
+
+    /** 「唐山市」「唐山」「迁西县」都折成可比较的名字。 */
+    private static String normCity(String s) {
+        String v = s == null ? "" : s.trim();
+        while (v.endsWith("市") || v.endsWith("县")) {
+            v = v.substring(0, v.length() - 1);
+        }
+        return v;
+    }
 
     private void pickCity() {
         android.widget.Toast.makeText(this, "正在加载城市列表…", android.widget.Toast.LENGTH_SHORT).show();
@@ -2723,5 +2824,37 @@ public class BusActivity extends BaseActivity {
             }
         }
         return digits ? name + " 路" : name;
+    }
+
+    /**
+     * 站线候车站徽标里的白色右箭头（车来了同款）。
+     * 用 Canvas 画路径而不是字符「›」：TextView 的字形受字体 ascent/descent
+     * 左右，怎么调 padding 都差半个像素的居中；几何路径以 View 正中为原点，
+     * 天然居中。静态嵌套类，不碰 d8 对内部类的那点脾气。
+     */
+    private static final class RailArrow extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path = new Path();
+
+        RailArrow(Context c, int color) {
+            super(c);
+            paint.setColor(color);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(c.getResources().getDisplayMetrics().density * 1.8f);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeJoin(Paint.Join.ROUND);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float cx = getWidth() / 2f;
+            float cy = getHeight() / 2f;
+            float s = Math.min(getWidth(), getHeight()) * 0.2f;
+            path.reset();
+            path.moveTo(cx - s * 0.55f, cy - s);
+            path.lineTo(cx + s * 0.55f, cy);
+            path.lineTo(cx - s * 0.55f, cy + s);
+            canvas.drawPath(path, paint);
+        }
     }
 }

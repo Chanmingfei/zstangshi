@@ -146,7 +146,13 @@ public final class OptionSheet {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         int rows = Math.min(options.length, 7);
-        int h = dp * (74 + rows * 56 + (searchable ? 62 : 0));
+        // 有的选项自带「\n」当说明（比如数据源切换的两句话），高度得按实际行数给，
+        // 不然第二行被压在方块外。每个额外行约 22dp；单行选项不受影响
+        int extraLines = 0;
+        for (int i = 0; i < rows; i++) {
+            extraLines += options[i].split("\n", -1).length - 1;
+        }
+        int h = dp * (74 + rows * 56 + extraLines * 22 + (searchable ? 62 : 0));
         int cap = Math.round(host.getResources().getDisplayMetrics().heightPixels * 0.7f);
         handle[0] = Sheet.show(host, box, Math.min(h, cap));
     }

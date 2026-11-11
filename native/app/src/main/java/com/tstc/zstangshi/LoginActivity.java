@@ -63,7 +63,7 @@ public class LoginActivity extends BaseActivity {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         page.setGravity(Gravity.CENTER_VERTICAL);
-        page.setPadding(dp(24), dp(28), dp(24), dp(28));
+        page.setPadding(dp(24), dp(14), dp(24), dp(14));
         scroll.addView(page, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -76,17 +76,17 @@ public class LoginActivity extends BaseActivity {
         logo.setImageResource(R.drawable.login_badge);
         logo.setAdjustViewBounds(true);
         logo.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        brand.addView(logo, new LinearLayout.LayoutParams(dp(210),
+        brand.addView(logo, new LinearLayout.LayoutParams(dp(182),
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView name = new TextView(this);
         name.setText(R.string.app_name);
-        name.setTextSize(24);
+        name.setTextSize(21);
         name.setTypeface(Typeface.DEFAULT_BOLD);
         name.setTextColor(getColor(R.color.text_primary));
         name.setLetterSpacing(0.04f);
         name.setGravity(Gravity.CENTER);
-        name.setPadding(0, dp(14), 0, 0);
+        name.setPadding(0, dp(8), 0, 0);
         brand.addView(name);
 
         TextView slogan = new TextView(this);
@@ -94,7 +94,7 @@ public class LoginActivity extends BaseActivity {
         slogan.setTextSize(12.5f);
         slogan.setTextColor(getColor(R.color.text_secondary));
         slogan.setGravity(Gravity.CENTER);
-        slogan.setPadding(0, dp(6), 0, dp(22));
+        slogan.setPadding(0, dp(4), 0, dp(14));
         brand.addView(slogan);
         page.addView(brand, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -102,7 +102,7 @@ public class LoginActivity extends BaseActivity {
         // ── 表单卡片 ──
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(16), dp(18), dp(16), dp(18));
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
         card.setBackground(getDrawable(R.drawable.card_bg));
         card.setElevation(dp(2));
 
@@ -114,14 +114,14 @@ public class LoginActivity extends BaseActivity {
         idInput.setTextSize(15);
         idInput.setInputType(InputType.TYPE_CLASS_NUMBER);
         idInput.setBackground(getDrawable(R.drawable.input_bg));
-        idInput.setPadding(dp(14), dp(13), dp(14), dp(13));
+        idInput.setPadding(dp(14), dp(11), dp(14), dp(11));
         idInput.setSingleLine(true);
         idInput.setText(store.user());
         card.addView(idInput, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView pwdLabel = fieldLabel("密码");
-        pwdLabel.setPadding(0, dp(14), 0, dp(6));
+        pwdLabel.setPadding(0, dp(10), 0, dp(6));
         card.addView(pwdLabel);
 
         LinearLayout pwdRow = new LinearLayout(this);
@@ -141,7 +141,7 @@ public class LoginActivity extends BaseActivity {
         pwdInput.setImeOptions(EditorInfo.IME_ACTION_DONE);
         pwdInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         pwdInput.setBackground(null);
-        pwdInput.setPadding(0, dp(13), 0, dp(13));
+        pwdInput.setPadding(0, dp(11), 0, dp(11));
         boolean remembered = store.rememberPwd() && !store.pass().isEmpty();
         if (remembered) pwdInput.setText(store.pass());
         pwdRow.addView(pwdInput, new LinearLayout.LayoutParams(0,
@@ -225,10 +225,10 @@ public class LoginActivity extends BaseActivity {
         submit.setGravity(Gravity.CENTER);
         submit.setTextColor(0xFFFFFFFF);
         submit.setBackground(getDrawable(R.drawable.btn_primary));
-        submit.setPadding(0, dp(14), 0, dp(14));
+        submit.setPadding(0, dp(12), 0, dp(12));
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        slp.topMargin = dp(16);
+        slp.topMargin = dp(12);
         card.addView(submit, slp);
         submit.setOnClickListener(v -> doLogin());
 
@@ -240,7 +240,7 @@ public class LoginActivity extends BaseActivity {
         alt.setOrientation(LinearLayout.HORIZONTAL);
         alt.setGravity(Gravity.CENTER_VERTICAL);
         alt.setBackground(getDrawable(R.drawable.card_bg));
-        alt.setPadding(dp(14), dp(13), dp(14), dp(13));
+        alt.setPadding(dp(14), dp(14), dp(14), dp(14));
         alt.setClickable(true);
         alt.setOnClickListener(v -> com.tstc.zstangshi.WebViewActivity.open(this,
                 "http://sws.tstc.edu.cn/XGTSTC/Phone/#/login", "学工系统"));
@@ -285,8 +285,65 @@ public class LoginActivity extends BaseActivity {
 
         LinearLayout.LayoutParams altLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        altLp.topMargin = dp(12);
+        altLp.topMargin = dp(10);
         page.addView(alt, altLp);
+
+        // ── 仅使用实时公交：不想登录教务的人也有门进，样式与上面的侧门卡片一致 ──
+        LinearLayout bus = new LinearLayout(this);
+        bus.setOrientation(LinearLayout.HORIZONTAL);
+        bus.setGravity(Gravity.CENTER_VERTICAL);
+        bus.setBackground(getDrawable(R.drawable.card_bg));
+        bus.setPadding(dp(14), dp(14), dp(14), dp(14));
+        bus.setClickable(true);
+        bus.setOnClickListener(v -> {
+            // 不建立任何登录态，看完实时公交按返回还能回到登录页
+            startActivity(new Intent(this, BusActivity.class));
+            overridePendingTransition(0, 0);
+        });
+
+        // 图标与实时公交入口同款：brand_soft 圆角底 + 品牌色公交正面
+        android.widget.ImageView busIcon = new android.widget.ImageView(this);
+        busIcon.setImageResource(com.tstc.zstangshi.R.drawable.ic_quick_bus);
+        busIcon.setColorFilter(getColor(R.color.brand));
+        android.graphics.drawable.GradientDrawable busBg =
+                new android.graphics.drawable.GradientDrawable();
+        busBg.setColor(getColor(R.color.brand_soft));
+        busBg.setCornerRadius(dp(10));
+        busIcon.setBackground(busBg);
+        busIcon.setPadding(dp(8), dp(8), dp(8), dp(8));
+        bus.addView(busIcon, new LinearLayout.LayoutParams(dp(36), dp(36)));
+
+        LinearLayout busText = new LinearLayout(this);
+        busText.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams busTextLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        busTextLp.leftMargin = dp(12);
+        TextView busTitle = new TextView(this);
+        busTitle.setText("仅使用实时公交");
+        busTitle.setTextSize(14);
+        busTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        busTitle.setTextColor(getColor(R.color.text_primary));
+        busText.addView(busTitle);
+        TextView busDesc = new TextView(this);
+        busDesc.setText("查附近站点与到站时间 · 免登录免账号");
+        busDesc.setTextSize(11);
+        busDesc.setTextColor(getColor(R.color.text_tertiary));
+        busDesc.setPadding(0, dp(2), 0, 0);
+        busText.addView(busDesc);
+        bus.addView(busText, busTextLp);
+
+        TextView busArrow = new TextView(this);
+        busArrow.setText("›");
+        busArrow.setTextSize(22);
+        busArrow.setTextColor(getColor(R.color.text_tertiary));
+        bus.addView(busArrow);
+
+        LinearLayout.LayoutParams busLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        busLp.topMargin = dp(10);
+        page.addView(bus, busLp);
+        // 从「我的」进来补登录的人本就在应用里，这扇门没有意义，一并藏掉
+        if (returnMode) bus.setVisibility(android.view.View.GONE);
 
         // ── 逃生门（从「我的」进来时没意义：本就在应用里） ──
         TextView skip = new TextView(this);
@@ -294,7 +351,7 @@ public class LoginActivity extends BaseActivity {
         skip.setTextSize(13);
         skip.setTextColor(getColor(R.color.text_secondary));
         skip.setGravity(Gravity.CENTER);
-        skip.setPadding(0, dp(18), 0, 0);
+        skip.setPadding(0, dp(10), 0, 0);
         skip.setOnClickListener(v -> goMain());
         if (returnMode) skip.setVisibility(android.view.View.GONE);
         page.addView(skip);
@@ -304,7 +361,7 @@ public class LoginActivity extends BaseActivity {
         note.setTextSize(11);
         note.setTextColor(getColor(R.color.text_secondary));
         note.setGravity(Gravity.CENTER);
-        note.setPadding(dp(8), dp(22), dp(8), 0);
+        note.setPadding(dp(8), dp(10), dp(8), 0);
         page.addView(note);
 
         setContentView(scroll);

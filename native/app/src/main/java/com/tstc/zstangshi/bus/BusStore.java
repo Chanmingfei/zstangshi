@@ -18,8 +18,16 @@ import java.util.List;
 public final class BusStore {
 
     private static final String FILE = "zsts_bus";
-    private static final String K_CITY_ID = "city_id";
-    private static final String K_CITY_NAME = "city_name";
+    /** 数据源：0 车来了（默认），1 掌上公交。选过就记住。 */
+    private static final String K_SRC = "source";
+    /** 城市按源各存一份：两套的编号体系对不上（车来了 056，掌上公交 唐山市）。 */
+    private static final String K_CITY_ID_CL = "city_id_cl";
+    private static final String K_CITY_NAME_CL = "city_name_cl";
+    private static final String K_CITY_ID_MG = "city_id_mg";
+    private static final String K_CITY_NAME_MG = "city_name_mg";
+    /** 旧版单城市的键，迁移完就删。 */
+    private static final String K_CITY_ID_LEGACY = "city_id";
+    private static final String K_CITY_NAME_LEGACY = "city_name";
     private static final String K_FAV = "favorites";
     private static final String K_LAT = "last_lat";
     private static final String K_LNG = "last_lng";
@@ -47,18 +55,58 @@ public final class BusStore {
 
     public BusStore(Context c) {
         sp = c.getApplicationContext().getSharedPreferences(FILE, Context.MODE_PRIVATE);
+        restoreSource();
+        migrateLegacyCity();
+    }
+
+    /** 把上次选的数据源读回 BusClient；没选过默认车来了。 */
+    private void restoreSource() {
+        BusClient.setSource(sp.getInt(K_SRC, BusClient.SRC_CHELAILE));
+    }
+
+    /**
+     * 旧版只存一个城市，而且不同版本存的体系还不一样
+     * （3.0.33 以前是车来了的「056」，3.0.34-test 是掌上公交的「唐山市」）。
+     * 按值判断该归到哪个源，迁完把旧键删掉。
+     */
+    private void migrateLegacyCity() {
+        String legacyId = sp.getString(K_CITY_ID_LEGACY, "");
+        if (legacyId.isEmpty()) return;
+        boolean mg = !legacyId.matches("[0-9]+");
+        String ki = mg ? K_CITY_ID_MG : K_CITY_ID_CL;
+        String kn = mg ? K_CITY_NAME_MG : K_CITY_NAME_CL;
+        if (sp.getString(ki, "").isEmpty()) {
+            sp.edit()
+                    .putString(ki, legacyId)
+                    .putString(kn, sp.getString(K_CITY_NAME_LEGACY, ""))
+                    .apply();
+        }
+        sp.edit().remove(K_CITY_ID_LEGACY).remove(K_CITY_NAME_LEGACY).apply();
+    }
+
+    /** 记住用户选的数据源（下次打开直接用他选的那个）。 */
+    public void setSource(int src) {
+        sp.edit().putInt(K_SRC, src).apply();
+        BusClient.setSource(src);
+    }
+
+    public int source() {
+        return sp.getInt(K_SRC, BusClient.SRC_CHELAILE);
     }
 
     public String cityId() {
-        return sp.getString(K_CITY_ID, BusClient.DEFAULT_CITY_ID);
+        return sp.getString(BusClient.ml() ? K_CITY_ID_MG : K_CITY_ID_CL, BusClient.DEFAULT_CITY_ID);
     }
 
     public String cityName() {
-        return sp.getString(K_CITY_NAME, BusClient.DEFAULT_CITY_NAME);
+        return sp.getString(BusClient.ml() ? K_CITY_NAME_MG : K_CITY_NAME_CL,
+                BusClient.DEFAULT_CITY_NAME);
     }
 
     public void setCity(String id, String name) {
-        sp.edit().putString(K_CITY_ID, id).putString(K_CITY_NAME, name).apply();
+        String ki = BusClient.ml() ? K_CITY_ID_MG : K_CITY_ID_CL;
+        String kn = BusClient.ml() ? K_CITY_NAME_MG : K_CITY_NAME_CL;
+        sp.edit().putString(ki, id).putString(kn, name).apply();
     }
 
     public double lastLat() {
@@ -92,7 +140,12 @@ public final class BusStore {
                 f.direction = o.optInt("direction", 0);
                 f.startName = o.optString("startName");
                 f.endName = o.optString("endName");
-                if (!f.lineId.isEmpty()) out.add(f);
+                // 两个源的 lineId 编号体系互不相通，只把「当前源」的收藏给出去，
+                // 另一个源的留着不删 —— 用户切回去还在
+                if (f.lineId.isEmpty() || MygolbsClient.sameSource(f.lineId) != BusClient.ml()) {
+                    continue;
+                }
+                out.add(f);
             }
         } catch (Exception ignored) {
         }

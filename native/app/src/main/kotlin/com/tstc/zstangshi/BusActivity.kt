@@ -130,9 +130,16 @@ class BusActivity : BaseActivity() {
     /** 顶栏「收藏」按钮：收藏是加进首页常用，页面里只有这一个入口。 */
     private var favBtn: TextView? = null
 
-    /** 底栏两个动作（换向 / 乘车码），刷新时要跟着改可用性与可用状态。 */
+    /** 换向按钮：线路信息卡里的那颗，刷新时要跟着改可用状态。 */
     private var swapBtn: View? = null
-    private var codeBtn: View? = null
+
+    /** 悬浮的「乘车码」按钮：图标常驻，文字在收放时做宽度 + 透明度过渡。 */
+    private var codeFab: LinearLayout? = null
+    private var codeFabText: TextView? = null
+    /** 文字完全展开时占的宽度（px），第一次收到零之前量一次，之后都按它算比例。 */
+    private var codeFabTextWidth = 0
+    private var codeFabExpanded = true
+    private var codeFabAnim: android.animation.ValueAnimator? = null
 
     private val ticker = android.os.Handler(android.os.Looper.getMainLooper())
     private var fetching = false
@@ -265,7 +272,8 @@ class BusActivity : BaseActivity() {
         val scroller: View = p
         body = LinearLayout(this)
         body.orientation = LinearLayout.VERTICAL
-        body.setPadding(dp(16f), dp(12f), dp(16f), dp(28f))
+        // 线路详情底部有一颗悬浮的「乘车码」，内容要留出它占的高度，最后一条才不会被压在下面
+        body.setPadding(dp(16f), dp(12f), dp(16f), if (MODE_LINE == mode) dp(96f) else dp(28f))
         p.scrollView().addView(
             body, FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -282,23 +290,33 @@ class BusActivity : BaseActivity() {
             false
         }
         // 线路详情：主卡不单独置顶，和站线、时刻表一起放在滚动区最上面，跟着页面滚。
-        // 只留底部一条操作栏（乘车码 / 换向）。
-        val host = LinearLayout(this)
-        host.orientation = LinearLayout.VERTICAL
+        // 乘车码不再是底部一整条，改成浮在右下角的悬浮按钮（追客首页那颗 FAB 的形状与动画）。
+        val host = FrameLayout(this)
         if (MODE_LINE == mode) {
             // 复用同一个 FrameLayout：每次重铺都把它挂到 body 顶端，
             // 只换里面的卡片，不新建视图（换面板时才能做高度过渡）
             heroHost = FrameLayout(this)
         }
         host.addView(
-            scroller, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+            scroller, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
             )
         )
         if (MODE_LINE == mode) {
-            host.addView(bottomBar(), LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
+            val lp = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(56f)
+            )
+            lp.gravity = Gravity.BOTTOM or Gravity.END
+            lp.rightMargin = dp(16f)
+            lp.bottomMargin = dp(16f)
+            host.addView(transitCodeFab(), lp)
+            // 往下翻收成只有图标、往上翻再展开 —— 追客的 FAB 就是跟着列表滚动收放的
+            pageScroll?.setOnScrollChangeListener { _, _, y, _, oldY ->
+                val dy = y - oldY
+                if (y <= 0) setCodeFabExpanded(true)
+                else if (dy > dp(4f)) setCodeFabExpanded(false)
+                else if (dy < -dp(4f)) setCodeFabExpanded(true)
+            }
         }
         root.addView(host, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
@@ -407,6 +425,8 @@ class BusActivity : BaseActivity() {
 
     override fun onDestroy() {
         ticker.removeCallbacks(autoTick)
+        codeFabAnim?.cancel()
+        codeFabAnim = null
         super.onDestroy()
     }
 
@@ -2790,50 +2810,81 @@ class BusActivity : BaseActivity() {
         sc.smoothScrollTo(0, y)
     }
 
-    // ── 底栏：乘车码（换向在「线路信息」卡里，那儿才是它该待的地方） ──
+    // ── 悬浮的「乘车码」按钮（追客首页 ExtendedFloatingActionButton 同款） ──
+    //
+    // 形状：56dp 高、16dp 圆角、6dp 投影；展开时 16dp 左内边距 + 24dp 图标 +
+    // 12dp 间距 + 文字 + 20dp 右内边距，收起时只剩 16dp + 图标 + 16dp = 56dp 方块。
+    // 动画：跟着列表滚动收放（往下翻收成图标、往上翻展开），宽度与文字透明度一起过渡。
+    // 外观：配色仍用本 App 的品牌色 / 白色文字 / 白色涟漪，不搬追客的主题色。
 
-    private fun bottomBar(): View {
-        val wrap = LinearLayout(this)
-        wrap.orientation = LinearLayout.VERTICAL
-        wrap.setBackgroundColor(getColor(R.color.bg_surface))
-        wrap.elevation = dp(8f).toFloat()
-        val row = LinearLayout(this)
-        row.orientation = LinearLayout.HORIZONTAL
-        row.gravity = Gravity.CENTER_VERTICAL
-        row.setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
-
-        // 乘车码是这一页最常用的动作：整条占满，图标 + 文字（和追客的 FAB 一个形状）
-        val code = LinearLayout(this)
-        code.orientation = LinearLayout.HORIZONTAL
-        code.gravity = Gravity.CENTER
-        code.background = RippleDrawable(
-            ColorStateList.valueOf(0x33FFFFFF), roundRect(getColor(R.color.brand), dp(14f)), null
+    private fun transitCodeFab(): View {
+        val fab = LinearLayout(this)
+        fab.orientation = LinearLayout.HORIZONTAL
+        fab.gravity = Gravity.CENTER_VERTICAL
+        fab.minimumWidth = dp(56f)
+        fab.setPadding(dp(16f), 0, dp(20f), 0)
+        fab.background = RippleDrawable(
+            ColorStateList.valueOf(0x33FFFFFF),
+            roundRect(getColor(R.color.brand), dp(16f)),
+            roundRect(android.graphics.Color.WHITE, dp(16f))
         )
-        code.isClickable = true
-        code.setOnClickListener { openTransitCode() }
-        code.setOnLongClickListener {
+        fab.elevation = dp(6f).toFloat()
+        fab.isClickable = true
+        fab.setOnClickListener { openTransitCode() }
+        fab.setOnLongClickListener {
             pickTransitCode()
             true
         }
-        codeBtn = code
-        val icon = qrGlyph()
-        code.addView(icon, LinearLayout.LayoutParams(dp(20f), dp(20f)))
+        codeFab = fab
+
+        fab.addView(qrGlyph(), LinearLayout.LayoutParams(dp(24f), dp(24f)))
         val lab = TextView(this)
         lab.text = "乘车码"
         lab.textSize = 15f
         lab.typeface = Typeface.DEFAULT_BOLD
         lab.setTextColor(android.graphics.Color.WHITE)
-        lab.setPadding(dp(8f), 0, 0, 0)
-        code.addView(lab)
-        row.addView(code, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(52f)
-        ))
-
-        wrap.addView(row)
-        return wrap
+        lab.maxLines = 1
+        val lp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        lp.leftMargin = dp(12f)
+        fab.addView(lab, lp)
+        codeFabText = lab
+        return fab
     }
 
-    /** 乘车码小图标：三个定位方块 + 几个点，几何画出来，不用图片资源。 */
+    /** 文字展开时的宽度只量一次；动画过程中 lab.width 会被改掉，不能每帧重新量。 */
+    private fun setCodeFabExpanded(expand: Boolean) {
+        if (codeFabExpanded == expand) return
+        val lab = codeFabText ?: return
+        val fab = codeFab ?: return
+        codeFabExpanded = expand
+        if (codeFabTextWidth <= 0) {
+            codeFabTextWidth = lab.width
+            // 首帧还没 layout 完时按字号估一个，下一轮展开前再校准
+            if (codeFabTextWidth <= 0) {
+                codeFabTextWidth = Math.round(lab.paint.measureText("乘车码"))
+            }
+        }
+        codeFabAnim?.cancel()
+        val a = ValueAnimator.ofFloat(if (expand) 0f else 1f, if (expand) 1f else 0f)
+        a.duration = if (expand) 260L else 220L
+        // Material 的 FastOutSlowIn：起步快、收尾缓，跟追客展开/收缩的节奏一致
+        a.interpolator = android.view.animation.PathInterpolator(0.4f, 0f, 0.2f, 1f)
+        a.addUpdateListener { anim ->
+            val f = anim.animatedValue as Float
+            val p = lab.layoutParams as LinearLayout.LayoutParams
+            p.width = Math.round(codeFabTextWidth * f)
+            p.leftMargin = Math.round(dp(12f) * f)
+            lab.layoutParams = p
+            lab.alpha = f
+            lab.visibility = if (f <= 0.001f) View.INVISIBLE else View.VISIBLE
+            fab.setPadding(dp(16f), 0, Math.round(dp(16f) + dp(4f) * f), 0)
+        }
+        codeFabAnim = a
+        a.start()
+    }
+
     /** 乘车码图标：画在品牌色按钮上，所以用白色。 */
     private fun qrGlyph(): View = QrGlyph(this, android.graphics.Color.WHITE)
 

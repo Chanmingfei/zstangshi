@@ -32,6 +32,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 
 import com.tstc.zstangshi.bus.BusClient
+import com.tstc.zstangshi.bus.BusDemo
 import com.tstc.zstangshi.bus.BusModels
 import com.tstc.zstangshi.bus.BusStore
 import com.tstc.zstangshi.bus.BusText
@@ -537,6 +538,7 @@ class BusActivity : BaseActivity() {
     /** 首页正文：搜索 + 城市 + 收藏 + 附近站点标题。 */
     private fun renderHomeContent() {
         body.removeAllViews()
+        if (BusDemo.SHOW_ENTRY) body.addView(demoEntryCard())
         body.addView(searchCard())
         body.addView(cityRow())
         body.addView(favoritesSection())
@@ -547,6 +549,71 @@ class BusActivity : BaseActivity() {
     }
 
     /** 正在等定位时，在「附近站点」后面挂一句提示：此刻列表还可能是上一次的位置。 */
+    /**
+     * 测试入口：点进去是 [BusDemo] 编的一条「多车在途」线路，不联网。
+     * 只为了验「全部车辆 / 单车跟随 / 到站大字」这些状态，正式包里不该有这一张。
+     */
+    private fun demoEntryCard(): View {
+        val c = card()
+        c.setPadding(dp(16f), dp(13f), dp(16f), dp(13f))
+        c.isClickable = true
+        c.background = RippleDrawable(
+            ColorStateList.valueOf(0x14000000), getDrawable(R.drawable.card_bg), null
+        )
+        c.setOnClickListener {
+            openLine(
+                this, cityId, BusDemo.ID, "游1路", 0, BusDemo.DEFAULT_ORDER, "", lat, lng
+            )
+        }
+
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+
+        val head = LinearLayout(this)
+        head.orientation = LinearLayout.HORIZONTAL
+        head.gravity = Gravity.CENTER_VERTICAL
+        val tag = TextView(this)
+        tag.text = "测试数据"
+        tag.textSize = 10f
+        tag.typeface = Typeface.DEFAULT_BOLD
+        tag.setTextColor(0xFFE8734A.toInt())
+        tag.background = roundRect(0x1FE8734A, dp(5f))
+        tag.setPadding(dp(6f), dp(2f), dp(6f), dp(2f))
+        head.addView(tag)
+        val title = TextView(this)
+        title.text = BusDemo.summary()
+        title.textSize = 14f
+        title.typeface = Typeface.DEFAULT_BOLD
+        title.setTextColor(getColor(R.color.text_primary))
+        title.isSingleLine = true
+        title.ellipsize = android.text.TextUtils.TruncateAt.END
+        val tlp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        tlp.leftMargin = dp(7f)
+        head.addView(title, tlp)
+        col.addView(head)
+
+        val sub = TextView(this)
+        sub.text = "点开看「全部车辆 / 单车跟随 / 到站大字」，数据是本地编的"
+        sub.textSize = 11.5f
+        sub.setTextColor(getColor(R.color.text_tertiary))
+        sub.setPadding(0, dp(4f), 0, 0)
+        col.addView(sub)
+        row.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+        val arrow = TextView(this)
+        arrow.text = "›"
+        arrow.textSize = 20f
+        arrow.setTextColor(getColor(R.color.text_tertiary))
+        arrow.setPadding(dp(8f), 0, 0, 0)
+        row.addView(arrow)
+        c.addView(row)
+        return c
+    }
+
     private fun updateLocatingHint() {
         val nt = nearTitle ?: return
         nt.text = if (locating) "附近站点 · 正在定位…" else "附近站点"

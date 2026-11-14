@@ -2861,9 +2861,13 @@ class BusActivity : BaseActivity() {
         codeFabExpanded = expand
         if (codeFabTextWidth <= 0) {
             codeFabTextWidth = lab.width
-            // 首帧还没 layout 完时按字号估一个，下一轮展开前再校准
+            // 还没 layout 过（刚进页面就滑）就自己量一次，别按字号估算——估窄了会把字裁掉
             if (codeFabTextWidth <= 0) {
-                codeFabTextWidth = Math.round(lab.paint.measureText("乘车码"))
+                lab.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+                codeFabTextWidth = lab.measuredWidth
             }
         }
         codeFabAnim?.cancel()

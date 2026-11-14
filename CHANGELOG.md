@@ -1,7 +1,26 @@
-# 掌上唐师 v3 更新日志
+# 掌上唐师 更新日志
 
 > **对比基线**：v2.0.1（versionCode 15）· 2.x 最后一个版本
-> **当前版本**：v3.1.1（versionCode 56）· 中间连续 26 个版本打磨，另有实时公交 8 个版本
+> **当前版本**：v4.0.0（versionCode 58）· Kotlin 重写版（测试中，未发布）
+> **上一个正式版**：v3.1.1（versionCode 56）
+
+---
+
+## v4.0.0 · 全量 Kotlin 重写（versionCode 58）· 测试版，未发布
+
+- **只换语言，不换行为**：50 个源码文件、约 2 万行 Java 全部改写为 Kotlin，
+  包结构、类名、方法名、资源名、布局尺寸、文案、动画时长一律保持原样。
+  界面截图与 v3.1.1 逐页对齐，肉眼不可分辨。
+- **零第三方依赖不变**：仍然只依赖 Android framework，不引 androidx、不引 Gradle；
+  构建链还是 `aapt2 + kotlinc + d8 + apksigner`，`bash native/build.sh` 直出可安装 APK。
+  源码目录只剩 `native/app/src/main/kotlin`，Java 源码已从工作区移除（保留在 git 历史里）。
+- **Kotlin 侧的几个落地细节**：
+  - `static` 常量/工具方法 → `companion object` + `@JvmStatic`/`@JvmField`，Java 调用方写法不变；
+  - 公开实例字段 → `@JvmField var`，`Settings.sectionCount` 这类「字段 + 同名方法」并存的老写法照样成立；
+  - 受检异常 → `@Throws(JSONException::class)`，与方法签名里的 throws 语义一致。
+- **编译器版本**：kotlin-compiler-embeddable 1.9.24（不是 2.x）——build-tools 34 自带的 R8 8.2.2
+  读不懂 2.0 的 kotlin.Metadata，d8 阶段会刷 stacktrace。
+- 版本号 4.0.0（versionCode 58），**测试版不发布**：不推 Release、不发 GitHub、不上架。
 
 ---
 

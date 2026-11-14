@@ -4,8 +4,12 @@
 最常用的几件事装进手机：课表、成绩、绩点、推荐课表、选课、校历、奖助贷与请假，
 以及校门口的**实时公交**（到站预测、候车站、首站发车时刻表）。
 
-**当前版本 v3.1.1（versionCode 56）· Android 原生重写** · 零第三方运行时依赖 · 纯 framework，
+**对外发布版本 v3.1.1（versionCode 56）· Android 原生重写** · 零第三方运行时依赖 · 纯 framework，
 不引 androidx · `bash native/build.sh` 一条命令出 APK · iOS 为独立的 SwiftUI 工程
+
+> **v4.0.0（versionCode 58）· 全量 Kotlin 重写 · 本地测试版，未发布**
+> 功能、界面、文案、尺寸、动画与 v3.1.1 完全一致，只把 50 个源码文件从 Java 换成 Kotlin。
+> 仅本地构建与真机自测，**没有 Release、没有上架、Releases 里也没有这个包**。
 
 ---
 

@@ -96,6 +96,9 @@ class BusActivity : BaseActivity() {
     /** 单车跟随里正在看的那辆车（上游车辆标识）。 */
     private var followedBusId = ""
 
+    /** 刚点进「跟随」时，把行程流里那辆车所在站滚到视线里（只做一次）。 */
+    private var flowScrollPending = false
+
     /** 主卡高度/淡入动画；换面板时先 cancel，免得两次动画抢 */
     private var heroAnim: ValueAnimator? = null
 
@@ -309,7 +312,7 @@ class BusActivity : BaseActivity() {
             // 卡片里退一级（车辆列表 / 单车跟随 → 站点卡）不该把整页带走，
             // 所以返回手势先问页面：要不要自己消化掉这次返回
             sld.backInterceptor = { panel != PANEL_STATION }
-            sld.backAction = { backToStation() }
+            sld.backAction = { backOneLevel() }
         }
 
         if (MODE_HOME == mode) {
@@ -347,10 +350,7 @@ class BusActivity : BaseActivity() {
 
     private fun closePage() {
         // 顶栏返回和系统返回手势同一个口径：卡片里退一级，不直接关页
-        if (MODE_LINE == mode && panel != PANEL_STATION) {
-            backToStation()
-            return
-        }
+        if (MODE_LINE == mode && backOneLevel()) return
         val s = slide
         if (s != null) s.finish()
         else finish()
@@ -2564,23 +2564,38 @@ class BusActivity : BaseActivity() {
         flow.setPadding(0, dp(12f), 0, dp(2f))
         c.addView(flow)
 
-        val sc = ScrollView(this)
+        // 行程流直接摊在卡里、跟着页面一起滚。
+        // 原来这里套了一个 240dp 高的 ScrollView：竖的 ScrollView 套在竖的
+        // ScrollView 里，父级 onInterceptTouchEvent 先到先得，手指一划就被外层
+        // 抢走，里面这块永远「划不动」。摊平之后没有嵌套，也就没有抢手势这回事。
         val list = LinearLayout(this)
         list.orientation = LinearLayout.VERTICAL
-        sc.addView(list, FrameLayout.LayoutParams(
+        list.layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
-        c.addView(sc, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(240f)
-        ))
+        )
+        c.addView(list)
 
         val last = d.stops.size - 1
+        var curRow: View? = null
         for (i in d.stops.indices) {
-            list.addView(flowRow(d.stops[i], v, i == 0, i == last))
+            val row = flowRow(d.stops[i], v, i == 0, i == last)
+            if (curRow == null && d.stops[i].order >= v.order) curRow = row
+            list.addView(row)
         }
-        // 默认把当前车所在的那一站滚到中间偏上，跟追客一致
-        val idx = Math.max(0, v.order - 3)
-        sc.post { sc.scrollTo(0, idx * dp(36f)) }
+        // 主动点进「跟随」这一下，把当前车所在站滚到屏幕中上部（追客同款）；
+        // 之后 20 秒一轮的轮询只原地换内容，页面一动不动
+        if (flowScrollPending) {
+            flowScrollPending = false
+            val target = curRow
+            val sc = pageScroll
+            if (target != null && sc != null) c.post {
+                val p = IntArray(2)
+                val q = IntArray(2)
+                target.getLocationInWindow(p)
+                sc.getLocationInWindow(q)
+                sc.smoothScrollTo(0, Math.max(0, sc.scrollY + (p[1] - q[1]) - dp(110f)))
+            }
+        }
         c.addView(lineInfoFooter(d, false))
         return c
     }
@@ -2713,7 +2728,7 @@ class BusActivity : BaseActivity() {
             ColorStateList.valueOf(0x0F000000), roundRect(getColor(R.color.bg_sunken), dp(16f)), null
         )
         tv.layoutParams = LinearLayout.LayoutParams(dp(32f), dp(32f))
-        tv.setOnClickListener { backToStation() }
+        tv.setOnClickListener { backOneLevel() }
         return tv
     }
 
@@ -2777,14 +2792,37 @@ class BusActivity : BaseActivity() {
     private fun openFollow(v: BusModels.Vehicle) {
         followedBusId = v.id
         panel = PANEL_BUS_FOLLOW
+        flowScrollPending = true
         renderHero()
     }
 
-    private fun backToStation() {
-        if (panel == PANEL_STATION) return
-        panel = PANEL_STATION
-        followedBusId = ""
-        renderHero()
+    /**
+     * 主卡里退一级：单车跟随 → 全部车辆 → 站点卡。
+     *
+     * 层级和进来时一致（站点卡 →「查看全部车辆」→ 列表 →「点某一辆」→ 跟随），
+     * 所以返回只能一级一级退，不能一步跳回站点卡 —— 从跟随页返回时列表里
+     * 还留着「刚才我在看哪辆车」的上下文。
+     *
+     * @return true 表示这次返回被卡片消化掉了，整页不该关
+     */
+    private fun backOneLevel(): Boolean {
+        when (panel) {
+            PANEL_BUS_FOLLOW -> {
+                panel = PANEL_BUS_LIST
+                // 跟随页为了看行程流常常滚到很深的地方，退回列表时卡片会矮一大截，
+                // 不回到顶部就只剩一屏空白
+                pageScroll?.smoothScrollTo(0, 0)
+                renderHero()
+                return true
+            }
+            PANEL_BUS_LIST -> {
+                panel = PANEL_STATION
+                followedBusId = ""
+                renderHero()
+                return true
+            }
+        }
+        return false
     }
 
     /** 离候车站最近、还没开过去的那辆车。 */
@@ -3115,7 +3153,8 @@ class BusActivity : BaseActivity() {
             box.addView(ttSection("今日发车预测", "还没发的班次，按现在算的", t.today, t.nextDep))
         }
         if (t.history.isNotEmpty()) {
-            box.addView(ttSection("昨日实际班次", "昨天这一天的真实发车记录", t.history, ""))
+            // 分节标题跟着数据来源走：这两天上游常只回前天的班次
+            box.addView(ttSection(t.historyTitle, "这一天的真实发车记录", t.history, ""))
         }
         if (t.tip.isNotEmpty()) {
             val tip = TextView(this)
@@ -3341,6 +3380,12 @@ class BusActivity : BaseActivity() {
         if (picked) {
             // 车来了同款：候车站在线条上是一个蓝色圆底 + 白色右箭头，
             // 一眼能认出「车往这边开、你在这站等」
+            // 外圈再套一层会呼吸的淡蓝光晕（追客的 SelectedStationPulseHalo）：
+            // 整条线只有这一个点会动，扫一眼就知道自己在等哪站
+            rail.addView(
+                PulseHalo(this, alphaOf(getColor(R.color.brand), 0.20f)),
+                FrameLayout.LayoutParams(dp(24f), dp(24f), Gravity.CENTER)
+            )
             val badge = FrameLayout(this)
             val bg = GradientDrawable()
             bg.shape = GradientDrawable.OVAL
@@ -3981,6 +4026,47 @@ class BusActivity : BaseActivity() {
             path.lineTo(cx + s * 0.55f, cy)
             path.lineTo(cx - s * 0.55f, cy + s)
             canvas.drawPath(path, paint)
+        }
+    }
+
+    /**
+     * 候车站圆点的呼吸光晕（追客 SelectedStationPulseHalo 的等价物）：
+     * 24dp 的淡品牌色圆，1.0 → 1.25 → 1.0 往复，一程 800ms。
+     *
+     * 只给「当前候车站」这一个点挂 —— 30 个站每个都在跑的动画就是 30 个独立
+     * 时钟，掉帧从这里开始。挂载才起播、被移除就 cancel，刷新时整列重建不会
+     * 留下一堆空转的动画。
+     */
+    private class PulseHalo(c: Context, color: Int) : View(c) {
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val anim = ValueAnimator.ofFloat(1f, 1.25f)
+
+        init {
+            paint.color = color
+            paint.style = Paint.Style.FILL
+            anim.duration = 800
+            anim.repeatCount = ValueAnimator.INFINITE
+            anim.repeatMode = ValueAnimator.REVERSE
+            anim.interpolator = android.view.animation.DecelerateInterpolator()
+            anim.addUpdateListener { a ->
+                val s = a.animatedValue as Float
+                scaleX = s
+                scaleY = s
+            }
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            canvas.drawCircle(width / 2f, height / 2f, Math.min(width, height) / 2f, paint)
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            if (!anim.isStarted) anim.start()
+        }
+
+        override fun onDetachedFromWindow() {
+            anim.cancel()
+            super.onDetachedFromWindow()
         }
     }
 

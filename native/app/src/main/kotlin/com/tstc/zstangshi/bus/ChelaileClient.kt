@@ -644,6 +644,7 @@ class ChelaileClient private constructor() {
 
             val todayBlock = data.optJSONObject("timetable")
             val yBlock = data.optJSONObject("yesterdayTimetable")
+            val bBlock = data.optJSONObject("beforeYesterdayTimetable")
             if (todayBlock != null) {
                 t.depTitle = todayBlock.optString("depTitle")
                 t.tip = todayBlock.optString("tip")
@@ -653,6 +654,18 @@ class ChelaileClient private constructor() {
                 if (t.depTitle.isEmpty()) t.depTitle = yBlock.optString("depTitle")
                 if (t.tip.isEmpty()) t.tip = yBlock.optString("tip")
                 t.history.addAll(readTtSegments(yBlock))
+            }
+            // 上游现在常常「今日预测 / 昨日实际」两块都是空的，只有前天的历史班次
+            // （timeTableType=2、today 段数 0、yesterday 段数 0、beforeYesterday 有 4 段）。
+            // 只认前两块就会判成「没有时刻表」，线路详情里那张首站发车卡整张消失。
+            // 前天那份一样是首站发车时间，退一步用它，文案跟着改成「前日」。
+            if (t.history.isEmpty() && bBlock != null) {
+                if (t.depTitle.isEmpty()) t.depTitle = bBlock.optString("depTitle")
+                t.history.addAll(readTtSegments(bBlock))
+                if (t.history.isNotEmpty()) {
+                    t.historyTitle = "前日实际班次"
+                    if (t.tip.isEmpty()) t.tip = "本时刻表取自前日的实际发车记录，仅供参考"
+                }
             }
 
             val todayTimes = t.todayTimes()
@@ -678,7 +691,8 @@ class ChelaileClient private constructor() {
                 next = firstAfter(histTimes, now)
                 if (next != null) {
                     t.nextDep = next
-                    t.nextFrom = "昨日实际"
+                    // 「昨日」还是「前日」，跟弹层里的分节标题同一个口径
+                    t.nextFrom = if ("前日实际班次" == t.historyTitle) "前日实际" else "昨日实际"
                 } else if (histTimes.isNotEmpty()) {
                     t.nextDep = histTimes[0]
                     t.nextFrom = "明日首班"

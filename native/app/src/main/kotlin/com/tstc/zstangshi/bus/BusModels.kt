@@ -326,6 +326,13 @@ class BusModels private constructor() {
         /** 昨日实际跑出来的整日班次 */
         @JvmField val history: MutableList<TtSegment> = ArrayList()
 
+        /**
+         * [history] 是哪一天的：「昨日实际班次」或「前日实际班次」。
+         * 车来了现在经常把今日预测、昨日实际都空着，只回前天的历史班次，
+         * 界面上不能一律写成「昨日」，那样等于骗人。
+         */
+        @JvmField var historyTitle: String = "昨日实际班次"
+
         /** 下一班发车时刻 HH:mm；空 = 今天没班次了 */
         @JvmField var nextDep: String = ""
 

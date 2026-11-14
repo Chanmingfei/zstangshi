@@ -185,10 +185,6 @@ class BusClient private constructor() {
             cityId: String, lineId: String, targetOrder: Int,
             stationId: String?, lat: Double, lng: Double
         ): BusModels.LineDetail {
-            // 测试用的本地演示线路，不联网
-            if (BusDemo.isDemo(lineId)) {
-                return BusDemo.detail(lineId, targetOrder, System.currentTimeMillis())
-            }
             if (!ml()) return ChelaileClient.lineDetail(cityId, lineId, targetOrder, stationId, lat, lng)
             val ref = MygolbsClient.parseLineId(lineId)
             if (ref == null) throw IOException("这条线路来自旧的数据源，请重新搜索")
@@ -327,7 +323,6 @@ class BusClient private constructor() {
         @JvmStatic
         @Throws(Exception::class)
         fun timetable(cityId: String, lineId: String, direction: Int, lineNo: String?): BusModels.Timetable {
-            if (BusDemo.isDemo(lineId)) return BusDemo.timetable(lineId)
             if (!ml()) return ChelaileClient.timetable(cityId, lineId, direction, lineNo)
             val ref = MygolbsClient.parseLineId(lineId)
             if (ref == null) throw IOException("这条线路来自旧的数据源，请重新搜索")

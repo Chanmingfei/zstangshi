@@ -143,6 +143,9 @@ class BusStore(c: Context) {
                 f.direction = o.optInt("direction", 0)
                 f.startName = o.optString("startName")
                 f.endName = o.optString("endName")
+                // 打磨期注入的演示线路已经删掉了：收藏里若还留着 demo-x，跳过不显示，
+                // 否则点进去会拿一个不存在的 lineId 去查真实接口
+                if (f.lineId.startsWith("demo-")) continue
                 // 两个源的 lineId 编号体系互不相通，只把「当前源」的收藏给出去，
                 // 另一个源的留着不删 —— 用户切回去还在
                 if (f.lineId.isEmpty() || MygolbsClient.sameSource(f.lineId) != BusClient.ml()) {

@@ -35,6 +35,9 @@ class BusClient private constructor() {
 
         /** 车真的在候车站上（上游明说「已到站」），跟「小于1分钟」是两回事 */
         @JvmField var arrived: Boolean = false
+
+        /** 上面这几个数属于哪辆车（上游车辆标识）；空 = 不知道，界面按站序兜底 */
+        @JvmField var busId: String = ""
         @JvmField var depDesc: String = ""
         @JvmField var preArrival: String = ""
     }
@@ -309,6 +312,8 @@ class BusClient private constructor() {
                 d.etaMinutes = (pr.secs + 59) / 60
                 d.etaStops = pr.stops
                 d.etaDistanceMeters = pr.dist
+                // 小字（车牌 / 距离 / 时刻 / 时速）必须读大字那辆车，见 BusModels.displayVehicle
+                d.etaBusId = pr.busId
             }
             d.etaArrived = pr.arrived
             if (d.status.isEmpty()) {
@@ -346,6 +351,7 @@ class BusClient private constructor() {
                 out.stops = p.stops
                 out.dist = p.dist
                 out.arrived = p.arrived
+                out.busId = p.busId
                 out.depDesc = p.depDesc
                 out.preArrival = p.preArrival
                 return out
@@ -362,10 +368,13 @@ class BusClient private constructor() {
                     out.secs = e.minutes * 60
                     out.stops = e.count
                     out.dist = e.distance
+                    out.busId = e.busNumber
                     // 有一辆车在站上就算到站（多辆车时 0 分钟会把它排最前）
                     for (x in rt.etas) {
                         if (x.arrived) {
                             out.arrived = true
+                            // 大字说「到站了」时小字要读同一辆，别拿排第一的那辆顶替
+                            if (x.busNumber.isNotEmpty()) out.busId = x.busNumber
                             break
                         }
                     }

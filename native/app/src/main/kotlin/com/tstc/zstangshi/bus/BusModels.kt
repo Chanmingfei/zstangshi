@@ -285,6 +285,18 @@ class BusModels private constructor() {
         /** 车真的在候车站上（上游明说「已到站」），优先级高于 etaMinutes==0 的「即将到站」 */
         @JvmField var etaArrived: Boolean = false
 
+        /**
+         * 上面这几个数（「到站了 / N 分钟」）是从**哪一辆车**算出来的。
+         *
+         * 大字和小字必须是同一辆车。上游的聚合预测（谁最快到）和「按站序挑最近一辆」
+         * 在车刚停靠完的那几秒里会指向不同的车：车已经开往下一站，lineDetail 里它的
+         * order 变成 N+1，按站序就会挑到后面那辆 —— 于是出现
+         * 「到站了 · 快去上车 · 距本站 11.7公里」（大字说到了，小字是后车的里程）。
+         * 车来了能精确到 busId 就记在这里；拿不到（掌上公交）留空，由
+         * [BusModels.displayVehicle] 按站序兜底。
+         */
+        @JvmField var etaBusId: String = ""
+
         /** 没车在途时上游估的到站时刻（车来了 preArrivalTime，形如 19:34），掌上公交没有这数据 */
         @JvmField var estArrival: String = ""
 
@@ -403,6 +415,77 @@ class BusModels private constructor() {
     }
 
     companion object {
+
+        /**
+         * 「大字」那辆车：小字里的车牌 / 距本站 / 到站时刻 / 时速都得读它。
+         *
+         * 顺序：
+         *  1. [LineDetail.etaBusId] —— 上游聚合预测（谁最快到）指的那辆，最准；
+         *     这辆车这一轮没出现在车列表里时返回 null（宁可少写一行，也不拿后一辆顶替，
+         *     否则又变成「到站了 · 距本站 11.7公里」）；
+         *  2. 上游没点名时按站序：还没开过候车站、order 最大的那辆（同一站有两辆取 ETA 早的）。
+         *
+         * 追客也是这个口径（`ArrivalText.nearestBus`）：先选车，再由这辆车推出全部文字，
+         * 所以它不会出现「到站了」配着后一辆车里程的情况。
+         */
+        @JvmStatic
+        fun displayVehicle(d: LineDetail, order: Int = 0): Vehicle? {
+            if (d.etaBusId != null && d.etaBusId.isNotEmpty()) {
+                for (v in d.vehicles) {
+                    if (v.id == d.etaBusId) return v
+                }
+                return null
+            }
+            return nearestVehicle(d, if (order > 0) order else d.waitingOrder)
+        }
+
+        /** 还没开过候车站、order 最大的那辆车（含「正开往这一站」）。 */
+        @JvmStatic
+        fun nearestVehicle(d: LineDetail, order: Int): Vehicle? {
+            var best: Vehicle? = null
+            for (v in d.vehicles) {
+                if (v.order <= 0) continue
+                if (order > 0 && v.order > order) continue
+                val b = best
+                if (b == null) {
+                    best = v
+                    continue
+                }
+                if (v.order > b.order) {
+                    best = v
+                } else if (v.order == b.order) {
+                    // 同一站有两辆车（少见）：取 ETA 更早的
+                    val a0 = if (b.etaSeconds >= 0) b.etaSeconds else Int.MAX_VALUE
+                    val a1 = if (v.etaSeconds >= 0) v.etaSeconds else Int.MAX_VALUE
+                    if (a1 < a0) best = v
+                }
+            }
+            return best
+        }
+
+        /** 「下一辆」：除了 [except] 之外，还没开过候车站、order 最大的那辆。 */
+        @JvmStatic
+        fun followingVehicle(d: LineDetail, order: Int, except: Vehicle?): Vehicle? {
+            var best: Vehicle? = null
+            for (v in d.vehicles) {
+                if (v === except) continue
+                if (v.order <= 0) continue
+                if (order > 0 && v.order > order) continue
+                val b = best
+                if (b == null) {
+                    best = v
+                    continue
+                }
+                if (v.order > b.order) {
+                    best = v
+                } else if (v.order == b.order) {
+                    val a0 = if (b.etaSeconds >= 0) b.etaSeconds else Int.MAX_VALUE
+                    val a1 = if (v.etaSeconds >= 0) v.etaSeconds else Int.MAX_VALUE
+                    if (a1 < a0) best = v
+                }
+            }
+            return best
+        }
 
         /** 按钟点排序：字符串排序会把 "6:24" 排到 "10:00" 后面，得按分钟数比。 */
         @JvmStatic

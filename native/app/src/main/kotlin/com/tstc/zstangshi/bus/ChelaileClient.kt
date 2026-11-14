@@ -46,6 +46,12 @@ class ChelaileClient private constructor() {
 
         /** 官方明说车在候车站上（state=1），跟「小于1分钟」是两回事 */
         @JvmField var arrived: Boolean = false
+
+        /**
+         * 这几项是**哪一辆车**算出来的（buses[].busId）。大字说「到站了 / N 分钟」时，
+         * 小字里的车牌、距本站距离、到达时刻必须读同一辆，不能再去按站序另挑一辆。
+         */
+        @JvmField var busId: String = ""
         @JvmField var depDesc: String = ""
         @JvmField var preArrival: String = ""
     }
@@ -476,9 +482,13 @@ class ChelaileClient private constructor() {
                     v.plate = if (plate.isEmpty()) BusText.sanitizePlate(v.id) else plate
                     v.speedKmh = b.optDouble("speed", 0.0)
                     v.nextStopName = b.optString("nextStationName").trim()
-                    // 这个响应没带 targetOrder，distanceToWaitStn 只当兜底，busDetail 回来会覆盖
-                    val dw = b.optInt("distanceToWaitStn", -1)
-                    v.distanceMeters = if (dw > 0) dw else -1
+                    // ⚠️ lineDetail 里的 distanceToWaitStn 是「到这次请求 targetOrder 那一站的距离」，
+                    // 而我们这次请求没带 targetOrder，上游给的是「到终点站的距离」
+                    // （实测北京夜2：order 18/38/46 分别 19.8km / 8.6km / 2.7km，一路递减）。
+                    // 拿它当「距本站」会显示十几公里，而且车子到站、busDetail 回了 -1 时
+                    // 还会保留这个陈值 —— 就是「到站了 · 距本站 11.7公里」的来源。
+                    // 距离一律留空，等 fillEta 用 busDetail 的逐车值回填。
+                    v.distanceMeters = -1
                     d.vehicles.add(v)
 
                     val cur = stopByOrder(d.stops, order) ?: continue
@@ -583,6 +593,10 @@ class ChelaileClient private constructor() {
                 d.etaMinutes = if (pr.secs > 0 && pr.secs < 60) 0 else (pr.secs + 59) / 60
                 d.etaStops = pr.stops
                 d.etaDistanceMeters = pr.dist
+                // 大字是这辆车算出来的：小字（车牌 / 距离 / 到达时刻 / 时速）也只准读它。
+                // 这辆车刚停靠完时，lineDetail 里它的 order 已经走到下一站，按站序另挑
+                // 就会挑到后面那辆 —— 「到站了 · 快去上车 · 距本站 11.7公里」就是这么来的
+                d.etaBusId = pr.busId
             } else if (pr.preArrival.isNotEmpty()) {
                 // 没车在途：官方按发车计划估的「预计到站」时刻（preArrivalTime），
                 // 有车在途时不给。取里面的 HH:mm，取不到就原样透传
@@ -853,13 +867,13 @@ class ChelaileClient private constructor() {
                         bd.byBus[bId] = e
                     }
 
-                    if (secs < 0 || secs >= bestSecs) {
-                        // 秒数不可比时（-1 / 同值）也要接住「车到站」的信号
-                        if (arrived) bestArrived = true
-                        continue
-                    }
+                    if (secs < 0) continue
+                    // 取秒数最小的那辆（同秒数先到先得，别在两辆车之间来回跳），
+                    // 并把它的 busId 记下来：秒数 / 距离是这辆车的，界面上的小字也只准读这辆
+                    if (secs >= bestSecs) continue
                     bestSecs = secs
-                    bestArrived = arrived || bestArrived
+                    bestArrived = arrived
+                    out.busId = bId
                     val busOrder = b.optInt("order", 0)
                     // 虚拟站组的 order 是 999，真站序藏在 sId 里（999$30$1 → 30），
                     // 直接拿 999 去减会算出「还有 974 站」

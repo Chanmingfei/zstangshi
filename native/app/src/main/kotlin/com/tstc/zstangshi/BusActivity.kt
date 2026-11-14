@@ -2150,7 +2150,10 @@ class BusActivity : BaseActivity() {
                 tone = toneGo()
             }
             d.etaMinutes == 0 -> {
-                value = "到站了"
+                // 「分钟位是 0」= 上游说还不到 1 分钟，车还在路上（常见 300 米、40 秒）。
+                // 以前这里也写「到站了」，于是出现「到站了 · 距本站 301米」这种自相矛盾。
+                // 和 BusText.rowEtaText 同一口径：真到站才写「到站了」，否则「即将到站」
+                value = "即将到站"
                 size = 28f
                 tone = toneGo()
             }
@@ -2202,17 +2205,25 @@ class BusActivity : BaseActivity() {
     private fun arrivalFacts(d: BusModels.LineDetail, order: Int): String {
         val bits = ArrayList<String>()
         if (d.etaArrived) bits.add("快去上车")
-        val v = nearestVehicle(d, order)
+        // 必须是大字那辆车：小字里的距离 / 时刻要是换成「后面那辆」，就会出现
+        // 「到站了 · 距本站 11.7公里」。见 BusModels.displayVehicle
+        val v = BusModels.displayVehicle(d, order)
         if (v != null) {
             if (!d.etaArrived && order > 0 && v.order > 0) {
                 val left = order - v.order
                 bits.add(if (left <= 0) "下一站就到" else "还有 $left 站")
             }
             if (v.plate.isNotEmpty()) bits.add(v.plate)
-            val dist = BusText.distanceText(v.distanceMeters)
-            if (dist.isNotEmpty()) bits.add("距本站 " + dist)
-            val clock = BusText.clockAfter(v.etaSeconds, System.currentTimeMillis())
-            if (clock.isNotEmpty()) bits.add(clock + " 到")
+            // 到站了就不再报里程和到达时刻：车已经在站上，这两个数字要么是刚才那一段的，
+            // 要么是后一辆车的，写在「到站了」下面只会自相矛盾
+            if (!d.etaArrived) {
+                if (order <= 0 || v.order <= order) {
+                    val dist = BusText.distanceText(v.distanceMeters)
+                    if (dist.isNotEmpty()) bits.add("距本站 " + dist)
+                }
+                val clock = BusText.clockAfter(v.etaSeconds, System.currentTimeMillis())
+                if (clock.isNotEmpty()) bits.add(clock + " 到")
+            }
             if (v.speedKmh > 0) bits.add(v.speedKmh.toInt().toString() + " km/h")
         }
         if (bits.isEmpty()) {
@@ -2224,17 +2235,7 @@ class BusActivity : BaseActivity() {
 
     /** 「下一辆 28 分钟 · 12 站」；只有一样就只说一样；都没有就「后面还有车」。 */
     private fun followingText(d: BusModels.LineDetail, order: Int): String {
-        val v = nearestVehicle(d, order) ?: return ""
-        val rest = ArrayList<BusModels.Vehicle>()
-        for (x in d.vehicles) {
-            if (x !== v) rest.add(x)
-        }
-        var following: BusModels.Vehicle? = null
-        for (x in rest) {
-            if (order > 0 && x.order > order) continue
-            if (following == null || x.order > following!!.order) following = x
-        }
-        val f = following ?: return ""
+        val f = BusModels.followingVehicle(d, order, BusModels.displayVehicle(d, order)) ?: return ""
         val mins = if (f.etaSeconds > 0) Math.round(f.etaSeconds / 60.0).toInt().coerceAtLeast(1) else null
         val stops = if (order > 0 && f.order > 0 && order - f.order >= 0) order - f.order else null
         return when {
@@ -2758,15 +2759,8 @@ class BusActivity : BaseActivity() {
         return false
     }
 
-    /** 离候车站最近、还没开过去的那辆车。 */
-    private fun nearestVehicle(d: BusModels.LineDetail, order: Int): BusModels.Vehicle? {
-        var best: BusModels.Vehicle? = null
-        for (v in d.vehicles) {
-            if (order > 0 && v.order > order) continue
-            if (best == null || v.order > best!!.order) best = v
-        }
-        return best
-    }
+    // 选车的口径只留一份：BusModels.displayVehicle（大字那辆）+ followingVehicle（下一辆）。
+    // 页面里再各写一套「按站序挑最近」就又会挑出和大字不是同一辆的车来。
 
     private fun followedVehicle(d: BusModels.LineDetail): BusModels.Vehicle? {
         for (v in d.vehicles) {

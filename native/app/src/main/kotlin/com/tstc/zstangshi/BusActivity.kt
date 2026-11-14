@@ -106,6 +106,21 @@ class BusActivity : BaseActivity() {
      */
     private var heroKey = ""
 
+    /**
+     * 滚动区结构（站线 + 时刻表槽 + 站表）的身份，只跟线路和方向有关。
+     *
+     * 换候车站、20 秒一轮的例行刷新都不会让它变 —— 这时**不重铺整页**，
+     * 只换主卡、站线上车的位置和选中态、站表的选中态。追客就是这么做的：
+     * 它的 `static.stops` 不变时 LazyColumn 一个 item 都不动，所以点别的站页面纹丝不动。
+     * 我们如果每次 removeAllViews 再 post{scrollTo} 恢复，网络那几百毫秒里用户滑过的位置
+     * 就白滑了，这就是「偶尔跳一下」的来源。
+     */
+    private var structKey = ""
+
+    /** 站线的内层横排 / 站表卡片：结构没变时只重填这两个容器。 */
+    private var stripInner: LinearLayout? = null
+    private var stopListInner: LinearLayout? = null
+
     /** 顶栏「收藏」按钮：收藏是加进首页常用，页面里只有这一个入口。 */
     private var favBtn: TextView? = null
 
@@ -1619,8 +1634,6 @@ class BusActivity : BaseActivity() {
     private fun fetchLine(silent: Boolean, keepScroll: Boolean) {
         if (fetching) return
         fetching = true
-        val keepY = if (keepScroll && pageScroll != null) pageScroll!!.scrollY else -1
-        val keepX = if (keepScroll && stripScroll != null) stripScroll!!.scrollX else -1
         if (!silent) {
             body.removeAllViews()
             body.addView(loadingCard())
@@ -1654,6 +1667,10 @@ class BusActivity : BaseActivity() {
                 detail = data
                 selectedOrder = data.waitingOrder
                 selectedStopId = data.waitingStopId
+                // 滚动位置在这里才取：请求发出去到回来这几百毫秒里用户可能已经滑走了，
+                // 拿发请求时的位置去恢复，就会把人拽回去 —— 这就是「偶尔跳一下」的来源
+                val keepY = if (keepScroll && pageScroll != null) pageScroll!!.scrollY else -1
+                val keepX = if (keepScroll && stripScroll != null) stripScroll!!.scrollX else -1
                 renderLine(keepY, keepX)
                 // 站表先上屏，时刻表晚一步补：它要多一次请求，别拖慢首屏
                 loadTimetable(data)
@@ -1714,6 +1731,17 @@ class BusActivity : BaseActivity() {
 
     private fun renderLine(keepY: Int, keepX: Int) {
         val d = detail ?: return
+        val key = lineId + "#" + d.line.direction + "#" + d.stops.size
+        // 结构没变（换候车站 / 例行刷新）：只换内容，一个视图都不增删。
+        // 和追客一样 —— 它换站时 LazyColumn 的 item 不动，所以页面完全不跳。
+        if (key == structKey && heroHost?.parent === body && body.childCount > 1) {
+            renderHero()
+            restyleStops(d)
+            if (ttKey != lineId + "#" + d.line.direction) tt = null
+            fillTimetableSlot()
+            return
+        }
+        structKey = key
         body.removeAllViews()
         // 主卡在滚动区最上面（不置顶），跟着页面一起滚
         heroHost?.let { h ->
@@ -1726,8 +1754,10 @@ class BusActivity : BaseActivity() {
         }
         // 主卡内容：换站、轮询只换卡片里的字
         renderHero()
-        // 滚动区：① 主卡 → ② 线路图 → ③ 首站发车 → ④ 全部站点
-        body.addView(sectionTitle("全线 " + d.stops.size + " 站 · 左右滑动查看"))
+        // 线路信息：方向 / 运营时间 / 票价 / 全程站数（换向按钮就在方向那一行）
+        body.addView(lineInfoCard(d))
+        // 滚动区：① 主卡 → ② 线路信息 → ③ 线路图 → ④ 首站发车 → ⑤ 全部站点
+        body.addView(sectionTitle("线路图 · 左右滑动查看"))
         // 站线只在首进页面时居中一次；之后不管换候车站还是例行刷新，
         // 一律恢复用户当前的滚动位置——用户能点到那站，说明它就在屏幕里，
         // 擅自居中只会产生跳动感
@@ -1909,6 +1939,128 @@ class BusActivity : BaseActivity() {
         lp.bottomMargin = dp(10f)
         c.layoutParams = lp
         return c
+    }
+
+    // ── 线路信息：方向 / 运营时间 / 票价 / 全程站数 ──
+
+    /**
+     * 线路信息卡。放在主卡下面、站线上面：先回答「车什么时候到」，再交代「这是哪条线、
+     * 开往哪儿、几点到几点、多少钱」。
+     *
+     * 换向按钮就贴在「方向」这一行右边 —— 它改的就是方向，放底栏没人知道它是干嘛的。
+     */
+    private fun lineInfoCard(d: BusModels.LineDetail): View {
+        val c = card()
+        c.setPadding(dp(16f), dp(13f), dp(16f), dp(13f))
+
+        val top = LinearLayout(this)
+        top.orientation = LinearLayout.HORIZONTAL
+        top.gravity = Gravity.CENTER_VERTICAL
+
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        val lab = TextView(this)
+        lab.text = "方向"
+        lab.textSize = 11f
+        lab.setTextColor(getColor(R.color.text_tertiary))
+        col.addView(lab)
+        val dir = TextView(this)
+        val from = d.line.startName
+        val to = d.line.endName
+        dir.text = when {
+            from.isNotEmpty() && to.isNotEmpty() -> "$from → $to"
+            to.isNotEmpty() -> "开往 $to"
+            from.isNotEmpty() -> "开往 $from"
+            else -> "—"
+        }
+        dir.textSize = 15f
+        dir.typeface = Typeface.DEFAULT_BOLD
+        dir.setTextColor(getColor(R.color.text_primary))
+        dir.setPadding(0, dp(3f), 0, 0)
+        dir.maxLines = 1
+        dir.ellipsize = android.text.TextUtils.TruncateAt.END
+        col.addView(dir)
+        top.addView(
+            col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        )
+        if (d.reversible()) {
+            val pill = swapPill()
+            val plp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            plp.leftMargin = dp(10f)
+            top.addView(pill, plp)
+            swapBtn = pill
+        }
+        c.addView(top)
+
+        val dlp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(0.7f))
+        )
+        dlp.topMargin = dp(11f)
+        dlp.bottomMargin = dp(10f)
+        val div = View(this)
+        div.setBackgroundColor(getColor(R.color.border_subtle))
+        c.addView(div, dlp)
+
+        val cells = LinearLayout(this)
+        cells.orientation = LinearLayout.HORIZONTAL
+        val first = if (d.line.firstTime.isEmpty()) "" else d.line.firstTime
+        val last = if (d.line.lastTime.isEmpty()) "" else d.line.lastTime
+        val hours = when {
+            first.isNotEmpty() && last.isNotEmpty() -> "$first - $last"
+            first.isNotEmpty() -> "$first 起"
+            last.isNotEmpty() -> "至 $last"
+            else -> "—"
+        }
+        cells.addView(infoCell("运营时间", hours))
+        cells.addView(infoCell("票价", if (d.line.price.isEmpty()) "—" else d.line.price))
+        val total = if (d.line.stationsNum > 0) d.line.stationsNum else d.stops.size
+        cells.addView(infoCell("全程", if (total > 0) "$total 站" else "—"))
+        c.addView(cells)
+        return c
+    }
+
+    /** 信息卡里的一栏：上面灰色小标签，下面深色数值，左对齐。 */
+    private fun infoCell(label: String, value: String): View {
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        col.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        val l = TextView(this)
+        l.text = label
+        l.textSize = 11f
+        l.setTextColor(getColor(R.color.text_tertiary))
+        col.addView(l)
+        val v = TextView(this)
+        v.text = value
+        v.textSize = 14f
+        v.typeface = Typeface.DEFAULT_BOLD
+        v.setTextColor(getColor(R.color.text_primary))
+        v.setPadding(0, dp(3f), 0, 0)
+        v.maxLines = 1
+        v.ellipsize = android.text.TextUtils.TruncateAt.END
+        col.addView(v)
+        return col
+    }
+
+    /** 换向：品牌色描边 + 淡底 + 图标文字，和顶栏「收藏」区分开，一眼看出能点。 */
+    private fun swapPill(): TextView {
+        val t = TextView(this)
+        t.text = "⇄  换向"
+        t.textSize = 13f
+        t.typeface = Typeface.DEFAULT_BOLD
+        t.gravity = Gravity.CENTER
+        t.setTextColor(getColor(R.color.brand))
+        t.background = RippleDrawable(
+            ColorStateList.valueOf(0x1F0A84FF),
+            outlineBox(getColor(R.color.brand), getColor(R.color.brand_soft), dp(16f)),
+            null
+        )
+        t.setPadding(dp(14f), dp(9f), dp(14f), dp(9f))
+        t.isClickable = true
+        t.setOnClickListener { swapDirection() }
+        pressScale(t)
+        return t
     }
 
     // ── 状态一：站点到站 ──
@@ -2624,7 +2776,7 @@ class BusActivity : BaseActivity() {
         sc.smoothScrollTo(0, y)
     }
 
-    // ── 底栏：乘车码（主）+ 换向 ──
+    // ── 底栏：乘车码（换向在「线路信息」卡里，那儿才是它该待的地方） ──
 
     private fun bottomBar(): View {
         val wrap = LinearLayout(this)
@@ -2636,7 +2788,7 @@ class BusActivity : BaseActivity() {
         row.gravity = Gravity.CENTER_VERTICAL
         row.setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
 
-        // 乘车码是这一页最常用的动作：占满左边，图标 + 文字（和追客的 FAB 一个形状）
+        // 乘车码是这一页最常用的动作：整条占满，图标 + 文字（和追客的 FAB 一个形状）
         val code = LinearLayout(this)
         code.orientation = LinearLayout.HORIZONTAL
         code.gravity = Gravity.CENTER
@@ -2659,36 +2811,12 @@ class BusActivity : BaseActivity() {
         lab.setTextColor(android.graphics.Color.WHITE)
         lab.setPadding(dp(8f), 0, 0, 0)
         code.addView(lab)
-        row.addView(code, LinearLayout.LayoutParams(0, dp(52f), 1f))
-
-        val swap = circleAction("⇄")
-        swap.setOnClickListener { swapDirection() }
-        swapBtn = swap
-        val slp = LinearLayout.LayoutParams(dp(52f), dp(52f))
-        slp.leftMargin = dp(8f)
-        row.addView(swap, slp)
+        row.addView(code, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(52f)
+        ))
 
         wrap.addView(row)
         return wrap
-    }
-
-    private fun circleAction(text: String): FrameLayout {
-        val box = FrameLayout(this)
-        box.background = RippleDrawable(
-            ColorStateList.valueOf(0x0F000000), roundRect(getColor(R.color.brand_soft), dp(26f)), null
-        )
-        box.isClickable = true
-        if (text.isNotEmpty()) {
-            val t = TextView(this)
-            t.text = text
-            t.textSize = 20f
-            t.gravity = Gravity.CENTER
-            t.setTextColor(getColor(R.color.brand))
-            box.addView(t, FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-            ))
-        }
-        return box
     }
 
     /** 乘车码小图标：三个定位方块 + 几个点，几何画出来，不用图片资源。 */
@@ -3057,19 +3185,15 @@ class BusActivity : BaseActivity() {
         strip.gravity = Gravity.TOP
         strip.clipChildren = false
         strip.setPadding(dp(8f), dp(12f), dp(8f), dp(14f))
+        stripInner = strip
+        fillStrip(strip, d)
 
-        val n = d.stops.size
         var pickedCol: View? = null
         var nearestCol: View? = null
+        val n = d.stops.size
         for (i in 0 until n) {
             val s = d.stops[i]
-            val col = stripColumn(s, i == 0, i == n - 1)
-            strip.addView(
-                col, LinearLayout.LayoutParams(
-                    dp(STRIP_COL.toFloat()),
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            )
+            val col = strip.getChildAt(i) ?: continue
             if (pickedCol == null && isPicked(s)) pickedCol = col
             if (nearestCol == null && s.nearest) nearestCol = col
         }
@@ -3086,6 +3210,38 @@ class BusActivity : BaseActivity() {
             }
         }
         return wrap
+    }
+
+    /** 按当前数据填满站线（换站、轮询时只重填这里，不动页面）。 */
+    private fun fillStrip(strip: LinearLayout, d: BusModels.LineDetail) {
+        strip.removeAllViews()
+        val n = d.stops.size
+        for (i in 0 until n) {
+            strip.addView(
+                stripColumn(d.stops[i], i == 0, i == n - 1), LinearLayout.LayoutParams(
+                    dp(STRIP_COL.toFloat()),
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+    }
+
+    /**
+     * 结构没变时的「原地换内容」：站线上车的位置与选中态、站表的选中态。
+     * 不 removeAllViews 外层容器，也不碰 ScrollView —— 页面因此纹丝不动。
+     */
+    private fun restyleStops(d: BusModels.LineDetail) {
+        val strip = stripInner
+        if (strip == null) {
+            // 站线不见了（上一次渲染失败之类），退回整页重铺
+            structKey = ""
+            renderLine(-1, -1)
+            return
+        }
+        val x = stripScroll?.scrollX ?: 0
+        fillStrip(strip, d)
+        if (x > 0) stripScroll?.scrollTo(x, 0)
+        stopListInner?.let { fillStationList(it, d) }
     }
 
     /**
@@ -3211,6 +3367,14 @@ class BusActivity : BaseActivity() {
     /** 站线下面的全站清单：35 站的线路靠横滑找站不现实，竖着也能翻。 */
     private fun stationListCard(d: BusModels.LineDetail): View {
         val c = card()
+        stopListInner = c
+        fillStationList(c, d)
+        return c
+    }
+
+    /** 按当前数据填满站表（换站、轮询时只重填这里）。 */
+    private fun fillStationList(c: LinearLayout, d: BusModels.LineDetail) {
+        c.removeAllViews()
         for (i in d.stops.indices) {
             if (i > 0) {
                 val div = divider()
@@ -3222,7 +3386,6 @@ class BusActivity : BaseActivity() {
             }
             c.addView(stationRow(d.stops[i]))
         }
-        return c
     }
 
     private fun stationRow(s: BusModels.Stop): View {

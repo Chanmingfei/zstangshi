@@ -87,7 +87,7 @@ object TransitCode {
         return when (norm(id)) {
             ALIPAY -> "打开支付宝里的乘车码"
             UNIONPAY -> "打开云闪付里的乘车码"
-            WECHAT -> "打开微信里的「城市通」小程序出示乘车码"
+            WECHAT -> "复制链接，在微信里粘贴打开「城市通」"
             else -> "每次点乘车码时再问一次"
         }
     }
@@ -153,7 +153,7 @@ object TransitCode {
             if (startScheme(ctx, SCHEME_WECHAT_TICKET, null)) return true
         }
         copyShareLink(ctx)
-        val tip = "已复制「城市通」小程序链接，粘到微信任意聊天里点一下就能进"
+        val tip = "已复制「城市通」链接：在微信任意聊天框粘贴后点一下即可进入"
         if (startScheme(ctx, SCHEME_WECHAT, PACKAGE_WECHAT)) {
             Toast.makeText(ctx, tip, Toast.LENGTH_LONG).show()
             return true

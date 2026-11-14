@@ -39,8 +39,29 @@ object TransitCode {
     /** 云闪付全国通用乘车码路由（不用地区限定版，避免换城市后失效）。 */
     private const val SCHEME_UNIONPAY = "upwallet://rn/rnhtmlridingcode"
 
-    /** 微信主界面。微信没有公开的「打开某个小程序」scheme。 */
+    /** 微信主界面。 */
     private const val SCHEME_WECHAT = "weixin://"
+
+    /**
+     * 「城市通」小程序的分享短链（微信里「分享 → 复制链接」得到的那种）。
+     * 粘进微信任意聊天框点一下就能进小程序，是外部 App 唯一不依赖对方后台的入口。
+     */
+    private const val WECHAT_SHARE = "#小程序://城市通/kGiKiIMYbioAfDI"
+
+    /**
+     * 「城市通」的 URL Scheme 票据，形如 `weixin://dl/business/?t=xxxxxxxx`。
+     *
+     * 微信只认这种票据，**没有**「用 appid 拼一个 scheme」的公开写法：
+     * 实测 `weixin://dl/business/?appid=wx...&path=...` 会被微信拒成
+     * 「对不起，当前页面无法访问」，`?t=分享短链` 同样不行。
+     * 票据必须由「城市通」这个小程序自己在后台
+     * （小程序后台 → 工具 → 生成 URL Scheme / URL Link）用它的 appid+secret 生成，
+     * 最长 30 天有效，外部拼不出来。
+     *
+     * 拿到票据后把它填在这里，首次点击就会直达小程序；留空则走下面的
+     * 「复制分享链接 + 打开微信」流程。
+     */
+    private const val SCHEME_WECHAT_TICKET = ""
 
     /**
      * 所有渠道的固定展示顺序：支付宝 → 云闪付 → 微信。
@@ -66,7 +87,7 @@ object TransitCode {
         return when (norm(id)) {
             ALIPAY -> "打开支付宝里的乘车码"
             UNIONPAY -> "打开云闪付里的乘车码"
-            WECHAT -> "打开微信「城市通」小程序出示乘车码"
+            WECHAT -> "打开微信里的「城市通」小程序出示乘车码"
             else -> "每次点乘车码时再问一次"
         }
     }
@@ -119,32 +140,35 @@ object TransitCode {
     // ---------------- 微信（城市通） ----------------
 
     /**
-     * 微信只能「打开微信 + 提示用户自己搜小程序」，原因记在这里，别再有人去猜 scheme：
+     * 微信「城市通」小程序。
      *
-     * 微信官方要求小程序方在「小程序管理后台 → 设置 → 基本设置 → 基础功能 → URL Scheme」
-     * 里生成专属 scheme（形如 `weixin://dl/business/?t=xxxxxx`），第三方 App 才能凭它
-     * 直达某个小程序。这个 t 值是小程序方自己生成、跟 appid 绑定的，外部拼不出来，
-     * 也没有「用小程序名字当参数」的写法 —— 所以 `weixin://dl/business/?t=城市通`
-     * 这类拼法是无效的，绝不能写进代码里假装能用。
-     *
-     * 唐山公交的「城市通」小程序没有公开过它的 scheme，因此这里只降级到：
-     *   1. `weixin://` 拉起微信主界面；
-     *   2. 不行就 getLaunchIntentForPackage 打开微信；
-     *   3. 拉起成功后 Toast 告诉用户去哪儿搜。
-     *
-     * 将来拿到「城市通」的 scheme，只要在下面第 1 步前面插一行
-     * `if (startScheme(ctx, 那个scheme, PACKAGE_WECHAT)) return true` 即可，
-     * 其余降级链不用动。
+     * 三级：
+     *  1. 配了 URL Scheme 票据 → 直接拉起小程序（最理想，需要城市通后台生成，见 [SCHEME_WECHAT_TICKET]）；
+     *  2. 把「#小程序://城市通/…」分享短链复制到剪贴板，再打开微信 —— 用户粘到任意聊天框点一下即可；
+     *  3. 微信都拉不起来 → 提示未安装。
      */
     private fun openWechat(ctx: Context): Boolean {
+        if (SCHEME_WECHAT_TICKET.isNotEmpty()) {
+            if (startScheme(ctx, SCHEME_WECHAT_TICKET, PACKAGE_WECHAT)) return true
+            if (startScheme(ctx, SCHEME_WECHAT_TICKET, null)) return true
+        }
+        copyShareLink(ctx)
+        val tip = "已复制「城市通」小程序链接，粘到微信任意聊天里点一下就能进"
         if (startScheme(ctx, SCHEME_WECHAT, PACKAGE_WECHAT)) {
-            Toast.makeText(ctx, "已打开微信，请在顶部搜索「城市通」小程序出示乘车码",
-                Toast.LENGTH_LONG).show()
+            Toast.makeText(ctx, tip, Toast.LENGTH_LONG).show()
             return true
         }
-        val ok = startHome(ctx, PACKAGE_WECHAT, "已打开微信，请在顶部搜索「城市通」小程序出示乘车码",
-            "未安装微信")
-        return ok
+        return startHome(ctx, PACKAGE_WECHAT, tip, "未安装微信")
+    }
+
+    /** 把小程序分享短链塞进剪贴板；失败也不影响后面的「打开微信」。 */
+    private fun copyShareLink(ctx: Context) {
+        try {
+            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("城市通", WECHAT_SHARE))
+        } catch (ignored: Exception) {
+            // 部分 ROM 对剪贴板有额外限制，复制不上就只提示用户自己在微信里搜
+        }
     }
 
     // ---------------- 公共小工具 ----------------

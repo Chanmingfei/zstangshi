@@ -8,6 +8,17 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- Android 11（API 30）起，包可见性默认是「看不见」：不声明 queries 时，
+         startActivity 的隐式 intent 解析不到别的 App，getPackageInfo /
+         getLaunchIntentForPackage 也一律抛 NameNotFoundException。
+         表现就是乘车码点了没反应（支付宝、云闪付、微信全都跳不动）。
+         这里列出三个要唤起的 App。 -->
+    <queries>
+        <package android:name="com.eg.android.AlipayGphone" />
+        <package android:name="com.unionpay" />
+        <package android:name="com.tencent.mm" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

@@ -106,12 +106,10 @@ class BusActivity : BaseActivity() {
      */
     private var heroKey = ""
 
-    /** 顶栏「收藏」按钮：底栏的「追踪这班车」和它是同一个状态，要一起改文案。 */
+    /** 顶栏「收藏」按钮：收藏是加进首页常用，页面里只有这一个入口。 */
     private var favBtn: TextView? = null
 
-    /** 底栏三个按钮（追踪 / 换向 / 乘车码），刷新时要跟着改文案与可用性。 */
-    private var trackBtn: TextView? = null
-    private var trackIcon: TextView? = null
+    /** 底栏两个动作（换向 / 乘车码），刷新时要跟着改可用性与可用状态。 */
     private var swapBtn: View? = null
     private var codeBtn: View? = null
 
@@ -262,18 +260,14 @@ class BusActivity : BaseActivity() {
             }
             false
         }
-        // 线路详情：主卡固定在顶部（不跟着列表滚），站点列表自己滚，底部一条操作栏。
-        // 这套骨架和追客一致 —— 点别的站、来回切「全部车辆 / 单车跟随」时，
-        // 页面纹丝不动，只有卡片里的内容在换。
+        // 线路详情：主卡不单独置顶，和站线、时刻表一起放在滚动区最上面，跟着页面滚。
+        // 只留底部一条操作栏（乘车码 / 换向）。
         val host = LinearLayout(this)
         host.orientation = LinearLayout.VERTICAL
         if (MODE_LINE == mode) {
-            val hero = FrameLayout(this)
-            hero.setPadding(dp(16f), dp(10f), dp(16f), 0)
-            heroHost = hero
-            host.addView(hero, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
+            // 复用同一个 FrameLayout：每次重铺都把它挂到 body 顶端，
+            // 只换里面的卡片，不新建视图（换面板时才能做高度过渡）
+            heroHost = FrameLayout(this)
         }
         host.addView(
             scroller, LinearLayout.LayoutParams(
@@ -1720,10 +1714,19 @@ class BusActivity : BaseActivity() {
 
     private fun renderLine(keepY: Int, keepX: Int) {
         val d = detail ?: return
-        // 主卡在滚动区外面：换站、轮询只换卡片里的字，页面本身一动不动
-        renderHero()
         body.removeAllViews()
-        // 滚动区：① 线路图 → ② 首站发车 → ③ 全部站点
+        // 主卡在滚动区最上面（不置顶），跟着页面一起滚
+        heroHost?.let { h ->
+            h.setPadding(0, 0, 0, 0)
+            body.addView(
+                h, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        // 主卡内容：换站、轮询只换卡片里的字
+        renderHero()
+        // 滚动区：① 主卡 → ② 线路图 → ③ 首站发车 → ④ 全部站点
         body.addView(sectionTitle("全线 " + d.stops.size + " 站 · 左右滑动查看"))
         // 站线只在首进页面时居中一次；之后不管换候车站还是例行刷新，
         // 一律恢复用户当前的滚动位置——用户能点到那站，说明它就在屏幕里，
@@ -1894,12 +1897,11 @@ class BusActivity : BaseActivity() {
         v.animate().alpha(1f).setDuration(200).setStartDelay(30).start()
     }
 
-    /** 主卡外壳：和全站卡片同一套白底、18dp 圆角，只多一点点浮起。 */
+    /** 主卡外壳：和全站卡片同一套白底、18dp 圆角，不另加阴影，和别的卡片齐平。 */
     private fun heroCard(): LinearLayout {
         val c = LinearLayout(this)
         c.orientation = LinearLayout.VERTICAL
         c.background = getDrawable(R.drawable.card_bg)
-        c.elevation = dp(2f).toFloat()
         c.setPadding(dp(16f), dp(14f), dp(16f), dp(12f))
         val lp = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -2622,7 +2624,7 @@ class BusActivity : BaseActivity() {
         sc.smoothScrollTo(0, y)
     }
 
-    // ── 底栏：追踪这班车 + 换向 + 乘车码 ──
+    // ── 底栏：乘车码（主）+ 换向 ──
 
     private fun bottomBar(): View {
         val wrap = LinearLayout(this)
@@ -2634,18 +2636,30 @@ class BusActivity : BaseActivity() {
         row.gravity = Gravity.CENTER_VERTICAL
         row.setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
 
-        val track = TextView(this)
-        track.gravity = Gravity.CENTER
-        track.textSize = 15f
-        track.typeface = Typeface.DEFAULT_BOLD
-        track.text = "▶  追踪这班车"
-        track.setTextColor(android.graphics.Color.WHITE)
-        track.background = RippleDrawable(
+        // 乘车码是这一页最常用的动作：占满左边，图标 + 文字（和追客的 FAB 一个形状）
+        val code = LinearLayout(this)
+        code.orientation = LinearLayout.HORIZONTAL
+        code.gravity = Gravity.CENTER
+        code.background = RippleDrawable(
             ColorStateList.valueOf(0x33FFFFFF), roundRect(getColor(R.color.brand), dp(14f)), null
         )
-        track.setOnClickListener { toggleTrack() }
-        trackBtn = track
-        row.addView(track, LinearLayout.LayoutParams(0, dp(52f), 1f))
+        code.isClickable = true
+        code.setOnClickListener { openTransitCode() }
+        code.setOnLongClickListener {
+            pickTransitCode()
+            true
+        }
+        codeBtn = code
+        val icon = qrGlyph()
+        code.addView(icon, LinearLayout.LayoutParams(dp(20f), dp(20f)))
+        val lab = TextView(this)
+        lab.text = "乘车码"
+        lab.textSize = 15f
+        lab.typeface = Typeface.DEFAULT_BOLD
+        lab.setTextColor(android.graphics.Color.WHITE)
+        lab.setPadding(dp(8f), 0, 0, 0)
+        code.addView(lab)
+        row.addView(code, LinearLayout.LayoutParams(0, dp(52f), 1f))
 
         val swap = circleAction("⇄")
         swap.setOnClickListener { swapDirection() }
@@ -2653,18 +2667,6 @@ class BusActivity : BaseActivity() {
         val slp = LinearLayout.LayoutParams(dp(52f), dp(52f))
         slp.leftMargin = dp(8f)
         row.addView(swap, slp)
-
-        val code = circleAction("")
-        code.addView(qrGlyph(), FrameLayout.LayoutParams(dp(24f), dp(24f), Gravity.CENTER))
-        code.setOnClickListener { openTransitCode() }
-        code.setOnLongClickListener {
-            pickTransitCode()
-            true
-        }
-        codeBtn = code
-        val clp = LinearLayout.LayoutParams(dp(52f), dp(52f))
-        clp.leftMargin = dp(8f)
-        row.addView(code, clp)
 
         wrap.addView(row)
         return wrap
@@ -2690,9 +2692,8 @@ class BusActivity : BaseActivity() {
     }
 
     /** 乘车码小图标：三个定位方块 + 几个点，几何画出来，不用图片资源。 */
-    private fun qrGlyph(): View {
-        return QrGlyph(this, getColor(R.color.brand))
-    }
+    /** 乘车码图标：画在品牌色按钮上，所以用白色。 */
+    private fun qrGlyph(): View = QrGlyph(this, android.graphics.Color.WHITE)
 
     private fun toggleTrack() {
         val d = detail
@@ -2708,23 +2709,14 @@ class BusActivity : BaseActivity() {
         val on = store.toggle(f)
         refreshTrackBtn()
         android.widget.Toast.makeText(
-            this, if (on) "已加入追踪，可在首页查看" else "已结束追踪",
+            this, if (on) "已收藏，可在首页查看" else "已取消收藏",
             android.widget.Toast.LENGTH_SHORT
         ).show()
     }
 
+    /** 顶栏「收藏」跟着 store 走：收藏就是加进首页常用，不再有第二个入口。 */
     private fun refreshTrackBtn() {
-        val on = store.isFavorite(cityId, lineId)
-        // 顶栏「收藏」和底栏「追踪这班车」是同一个状态，文案必须一起变
-        favBtn?.text = if (on) "已收藏" else "收藏"
-        val btn = trackBtn ?: return
-        btn.text = if (on) "结束追踪" else "▶  追踪这班车"
-        btn.setTextColor(if (on) getColor(R.color.text_secondary) else android.graphics.Color.WHITE)
-        btn.background = RippleDrawable(
-            ColorStateList.valueOf(0x0F000000),
-            roundRect(if (on) getColor(R.color.bg_sunken) else getColor(R.color.brand), dp(14f)),
-            null
-        )
+        favBtn?.text = if (store.isFavorite(cityId, lineId)) "已收藏" else "收藏"
     }
 
     private fun openTransitCode() {
@@ -2766,35 +2758,48 @@ class BusActivity : BaseActivity() {
         }
     }
 
-    /** 乘车码图标：三个定位角 + 右下几个点，纯几何画，深浅色都跟品牌色走。 */
+    /**
+     * 乘车码图标。几何逐格照搬追客用的 material `ic_qr_code`（24×24 视口）：
+     * 三个 8×8 的定位方块（2 单位粗的方环，中间 4×4 挖空）+ 右下 8 个 2×2 码点。
+     * 只把填充色换成本 App 的品牌色/白色，形状不再自己乱画。
+     */
     private class QrGlyph(c: Context, private val color: Int) : View(c) {
 
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val rect = Path()
 
         override fun onDraw(canvas: Canvas) {
-            val d = resources.displayMetrics.density
-            val s = Math.min(width, height).toFloat()
-            val unit = s / 12f
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1.6f * d
+            val u = Math.min(width, height).toFloat() / 24f
+            if (u <= 0f) return
+            paint.style = Paint.Style.FILL
             paint.color = color
             // 左上、右上、左下三个定位方块
-            drawFinder(canvas, 0.6f * unit, 0.6f * unit, 3.4f * unit)
-            drawFinder(canvas, s - 4.0f * unit, 0.6f * unit, 3.4f * unit)
-            drawFinder(canvas, 0.6f * unit, s - 4.0f * unit, 3.4f * unit)
-            // 右下的小码点
-            paint.style = Paint.Style.FILL
-            canvas.drawRect(s - 4.3f * unit, s - 4.3f * unit, s - 2.9f * unit, s - 2.9f * unit, paint)
-            canvas.drawRect(s - 2.6f * unit, s - 3.4f * unit, s - 1.2f * unit, s - 2.0f * unit, paint)
-            canvas.drawRect(s - 4.0f * unit, s - 2.4f * unit, s - 3.0f * unit, s - 1.4f * unit, paint)
+            finder(canvas, 3f * u, 3f * u, u)
+            finder(canvas, 13f * u, 3f * u, u)
+            finder(canvas, 3f * u, 13f * u, u)
+            // 右下 8 个码点（坐标取自 ic_qr_code 的 pathData）
+            for (i in DOTS.indices step 2) {
+                val x = DOTS[i] * u
+                val y = DOTS[i + 1] * u
+                canvas.drawRect(x, y, x + 2f * u, y + 2f * u, paint)
+            }
         }
 
-        private fun drawFinder(canvas: Canvas, x: Float, y: Float, size: Float) {
-            val r = size / 2f
-            canvas.drawCircle(x + r, y + r, r, paint)
-            paint.style = Paint.Style.FILL
-            canvas.drawCircle(x + r, y + r, r * 0.42f, paint)
-            paint.style = Paint.Style.STROKE
+        /** 8×8 方环：外框实心 + 内框挖空（EVEN_ODD 让中间不填色）。 */
+        private fun finder(canvas: Canvas, x: Float, y: Float, u: Float) {
+            rect.reset()
+            rect.fillType = Path.FillType.EVEN_ODD
+            rect.addRect(x, y, x + 8f * u, y + 8f * u, Path.Direction.CW)
+            rect.addRect(x + 2f * u, y + 2f * u, x + 6f * u, y + 6f * u, Path.Direction.CW)
+            canvas.drawPath(rect, paint)
+        }
+
+        companion object {
+            /** 码点左上角坐标（单位 = 24 分之一个图标边长），x,y 成对。 */
+            private val DOTS = floatArrayOf(
+                13f, 13f, 15f, 15f, 13f, 17f, 17f, 17f,
+                19f, 19f, 15f, 19f, 17f, 13f, 19f, 15f
+            )
         }
     }
 

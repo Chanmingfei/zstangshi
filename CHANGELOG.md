@@ -56,6 +56,27 @@
   - 未安装的渠道照常列出、标注「（未安装）」，点了只提示不关面板；
   - 底部「记住选择，下次直接打开」勾上后写入 `zsts_bus`，下次点按钮直接唤起，不再问。
 
+### 4.0.0 修补 · 乘车码跳不动 + 主卡不置顶（同日 follow-up）
+
+- **乘车码点了完全没反应（三个渠道都不行）**：根因不是 scheme 写错，是 Android 11+ 的
+  包可见性。targetSdk 34 下若 Manifest 不声明 `<queries>`，别的 App 对本进程「不存在」——
+  `startActivity` 的隐式 intent 解析不到（ActivityNotFoundException），
+  `getPackageInfo` / `getLaunchIntentForPackage` 也一律抛 NameNotFoundException。
+  已在 Manifest 里补 `com.eg.android.AlipayGphone` / `com.unionpay` / `com.tencent.mm` 三条。
+- **微信小程序**：实测微信只认 `weixin://dl/business/?t=<票据>`。
+  `?appid=wx…&path=…` 这种拼法会被微信拒成「对不起，当前页面无法访问」，
+  把分享短链塞进 `?t=` 同样不行——票据必须由「城市通」在小程序后台用它的
+  appid+secret 生成（最长 30 天），外部拼不出来。
+  所以代码里留了 `SCHEME_WECHAT_TICKET` 常量（填上就直达），
+  没填时走「复制 `#小程序://城市通/kGiKiIMYbioAfDI` 到剪贴板 + 打开微信 + 提示粘贴点开」。
+- **主卡不再单独置顶**：主卡回到滚动区最上面，和站线、时刻表一起滚；同时去掉卡片阴影
+  （`elevation`），和别的卡片齐平。
+- **底栏改成「乘车码」主按钮 + 换向圆按钮**，去掉「追踪这班车」（顶栏收藏就是同一个功能，
+  不再重复给入口）。
+- **乘车码图标重画**：照搬追客用的 material `ic_qr_code`（24×24 视口），
+  三个 8×8 方环定位角（EVEN_ODD 挖空）+ 右下 8 个 2×2 码点，纯几何绘制，白色画在品牌色按钮上。
+  原来那版把定位角画成同心圆，看着像准星，是「显示有问题」的原因。
+
 ---
 
 ## v3.1.1 · 收班线路里外文案统一（versionCode 56）

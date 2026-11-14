@@ -144,62 +144,15 @@ object TransitCodeSheet {
         nlp.topMargin = dp * 2
         box.addView(note, nlp)
 
-        // 底部「记住选择」一行：自绘方块 + 勾，跟这套浅色卡片一致（系统的 CheckBox 会带主题色）
-        val checkRow = LinearLayout(host)
-        checkRow.orientation = LinearLayout.HORIZONTAL
-        checkRow.gravity = Gravity.CENTER_VERTICAL
-        checkRow.setPadding(dp * 2, dp * 6, dp * 2, dp * 2)
-
-        val tickBg = FrameLayout(host)
-        val tick = TextView(host)
-        tick.setText("✓")
-        tick.setTextSize(12f)
-        tick.typeface = Typeface.DEFAULT_BOLD
-        tick.gravity = Gravity.CENTER
-        tickBg.addView(
-            tick,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        )
-        checkRow.addView(tickBg, LinearLayout.LayoutParams(dp * 20, dp * 20))
-
-        val checkLabel = TextView(host)
-        checkLabel.setText("记住选择，下次直接打开")
-        checkLabel.setTextSize(13f)
-        checkLabel.setTextColor(host.getColor(R.color.text_secondary))
+        // 底部「记住选择」：和登录页「记住密码」同一个控件（ui/Checks），
+        // 原来那个自绘方块 +「✓」字符是另起一套，字号/圆角/颜色都对不上
+        val rememberBox = Checks.create(host, "记住选择，下次直接打开", remember[0])
+        rememberBox.setOnCheckedChangeListener { _, on -> remember[0] = on }
         val clp = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        clp.leftMargin = dp * 9
-        checkRow.addView(checkLabel, clp)
-
-        val paintCheck = Runnable {
-            if (remember[0]) {
-                tickBg.background = rounded(host.getColor(R.color.brand), dp * 5)
-                tick.visibility = View.VISIBLE
-                tick.setTextColor(0xFFFFFFFF.toInt())
-            } else {
-                tickBg.background = roundedWithStroke(
-                    host.getColor(R.color.border_subtle), 0, dp * 5, dp * 1.5f
-                )
-                tick.visibility = View.INVISIBLE
-            }
-        }
-        paintCheck.run()
-
-        checkRow.isClickable = true
-        pressable(checkRow)
-        checkRow.setOnClickListener {
-            remember[0] = !remember[0]
-            paintCheck.run()
-        }
-        box.addView(
-            checkRow,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
+        clp.topMargin = dp * 4
+        box.addView(rememberBox, clp)
 
         // 一行极小提示：告诉用户这个默认值随时能改，别担心「记住了就改不回来」
         val tip = TextView(host)
@@ -210,7 +163,7 @@ object TransitCodeSheet {
         box.addView(tip)
 
         // 高度估算（和 OptionSheet 一样按行数算，不去 measure）：标题 + 两行 + 微信说明 + 勾选行 + 提示
-        val h = dp * (40 + ids.size * 71 + 44 + 48 + 30)
+        val h = dp * (40 + ids.size * 71 + 44 + 52 + 30)
         val cap = Math.round(host.resources.displayMetrics.heightPixels * 0.6f)
         handle[0] = Sheet.show(host, box, Math.min(h, cap))
     }
@@ -222,15 +175,6 @@ object TransitCodeSheet {
         val g = GradientDrawable()
         g.setColor(color)
         g.setCornerRadius(radius.toFloat())
-        return g
-    }
-
-    /** 圆角块 + 描边（fill 透明时只画框）。 */
-    private fun roundedWithStroke(color: Int, fill: Int, radius: Int, stroke: Float): GradientDrawable {
-        val g = GradientDrawable()
-        g.setColor(fill)
-        g.setCornerRadius(radius.toFloat())
-        g.setStroke(Math.max(1, Math.round(stroke)), color)
         return g
     }
 

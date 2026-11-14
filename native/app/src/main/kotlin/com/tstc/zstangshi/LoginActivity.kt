@@ -18,6 +18,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.tstc.zstangshi.data.Store
 import com.tstc.zstangshi.jw.Auth
+import com.tstc.zstangshi.ui.Checks
 import com.tstc.zstangshi.widget.TodayWidget
 
 /**
@@ -409,19 +410,8 @@ class LoginActivity : BaseActivity() {
     }
 
     private fun check(label: String, on: Boolean): CheckBox {
-        val c = CheckBox(this)
-        c.text = label
-        c.setTextSize(13f)
-        c.setTextColor(getColor(R.color.text_secondary))
-        c.isChecked = on
-        c.buttonTintList = ColorStateList(
-            arrayOf(
-                intArrayOf(android.R.attr.state_checked),
-                intArrayOf()
-            ),
-            intArrayOf(getColor(R.color.brand), getColor(R.color.text_tertiary))
-        )
-        return c
+        // 样式收在 ui/Checks 里：乘车码弹层的「记住选择」用的是同一个控件同一套颜色
+        return Checks.create(this, label, on)
     }
 
     // ---------- 登录 ----------

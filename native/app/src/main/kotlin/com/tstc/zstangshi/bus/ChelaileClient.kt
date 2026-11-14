@@ -642,30 +642,43 @@ class ChelaileClient private constructor() {
                 t.endName = lo.optString("endSn")
             }
 
+            // ── 时刻表数据源检测 ──
+            //
+            // 上游同时给三块，按「越新越优先」取：
+            //   ① timetable                 今日发车预测
+            //   ② yesterdayTimetable        昨日实际班次
+            //   ③ beforeYesterdayTimetable  前日实际班次
+            //
+            // 最近上游经常把 ①② 一起回空，只留 ③（实测唐山 1 路：0 段 / 0 段 / 4 段，
+            // timeTableType=2）。原来只认 ①②，于是判成「没有时刻表」，
+            // 线路详情里那张首站发车卡整张消失。
+            //
+            // 所以逐块探一遍：块里**真有班次**才算数（光有分组、班次列表空的也算空，
+            // 否则会渲染出一堆空网格）；取到哪块就在文案里标清是哪天的数据。
             val todayBlock = data.optJSONObject("timetable")
             val yBlock = data.optJSONObject("yesterdayTimetable")
             val bBlock = data.optJSONObject("beforeYesterdayTimetable")
-            if (todayBlock != null) {
-                t.depTitle = todayBlock.optString("depTitle")
-                t.tip = todayBlock.optString("tip")
-                t.today.addAll(readTtSegments(todayBlock))
+
+            val todaySegs = readScheduled(todayBlock)
+            val ySegs = readScheduled(yBlock)
+            val bSegs = readScheduled(bBlock)
+
+            if (todaySegs.isNotEmpty()) {
+                t.depTitle = todayBlock?.optString("depTitle").orEmpty()
+                t.tip = todayBlock?.optString("tip").orEmpty()
+                t.today.addAll(todaySegs)
             }
-            if (yBlock != null) {
-                if (t.depTitle.isEmpty()) t.depTitle = yBlock.optString("depTitle")
-                if (t.tip.isEmpty()) t.tip = yBlock.optString("tip")
-                t.history.addAll(readTtSegments(yBlock))
-            }
-            // 上游现在常常「今日预测 / 昨日实际」两块都是空的，只有前天的历史班次
-            // （timeTableType=2、today 段数 0、yesterday 段数 0、beforeYesterday 有 4 段）。
-            // 只认前两块就会判成「没有时刻表」，线路详情里那张首站发车卡整张消失。
-            // 前天那份一样是首站发车时间，退一步用它，文案跟着改成「前日」。
-            if (t.history.isEmpty() && bBlock != null) {
-                if (t.depTitle.isEmpty()) t.depTitle = bBlock.optString("depTitle")
-                t.history.addAll(readTtSegments(bBlock))
-                if (t.history.isNotEmpty()) {
-                    t.historyTitle = "前日实际班次"
-                    if (t.tip.isEmpty()) t.tip = "本时刻表取自前日的实际发车记录，仅供参考"
-                }
+            if (ySegs.isNotEmpty()) {
+                t.history.addAll(ySegs)
+                t.historyTitle = "昨日实际班次"
+                if (t.depTitle.isEmpty()) t.depTitle = yBlock?.optString("depTitle").orEmpty()
+                if (t.tip.isEmpty()) t.tip = yBlock?.optString("tip").orEmpty()
+            } else if (bSegs.isNotEmpty()) {
+                // 前两天都空：退到前日的实际班次，一样是首站发车时间，能参考
+                t.history.addAll(bSegs)
+                t.historyTitle = "前日实际班次"
+                if (t.depTitle.isEmpty()) t.depTitle = bBlock?.optString("depTitle").orEmpty()
+                if (t.tip.isEmpty()) t.tip = "本时刻表取自前日的实际发车记录，仅供参考"
             }
 
             val todayTimes = t.todayTimes()
@@ -729,6 +742,20 @@ class ChelaileClient private constructor() {
                 }
                 BusModels.sortByClock(seg.times)
                 out.add(seg)
+            }
+            return out
+        }
+
+        /**
+         * 读一块时刻表，只留**真有班次**的分组。
+         * 上游有时候会回「分组有、班次列表是空的」的壳子，直接当数据用会渲染出一排空网格，
+         * 下一班也算不出来 —— 这种和「没有数据」一样处理。
+         */
+        private fun readScheduled(block: JSONObject?): List<BusModels.TtSegment> {
+            if (block == null) return emptyList()
+            val out = ArrayList<BusModels.TtSegment>()
+            for (s in readTtSegments(block)) {
+                if (s.times.isNotEmpty()) out.add(s)
             }
             return out
         }

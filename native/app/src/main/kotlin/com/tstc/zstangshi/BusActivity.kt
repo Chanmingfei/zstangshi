@@ -99,6 +99,9 @@ class BusActivity : BaseActivity() {
     /** 刚点进「跟随」时，把行程流里那辆车所在站滚到视线里（只做一次）。 */
     private var flowScrollPending = false
 
+    /** 行程流窗口的滚动位置：卡每 20 秒重建一次，位置存在这儿才不会跳回顶部。 */
+    private var flowScrollY = 0
+
     /** 主卡高度/淡入动画；换面板时先 cancel，免得两次动画抢 */
     private var heroAnim: ValueAnimator? = null
 
@@ -2564,38 +2567,34 @@ class BusActivity : BaseActivity() {
         flow.setPadding(0, dp(12f), 0, dp(2f))
         c.addView(flow)
 
-        // 行程流直接摊在卡里、跟着页面一起滚。
-        // 原来这里套了一个 240dp 高的 ScrollView：竖的 ScrollView 套在竖的
-        // ScrollView 里，父级 onInterceptTouchEvent 先到先得，手指一划就被外层
-        // 抢走，里面这块永远「划不动」。摊平之后没有嵌套，也就没有抢手势这回事。
+        // 行程流还是原来那个 240dp 的窗口：摊平会把「距终点 / 时速 / 到终点预测」
+        // 和下面的线路图一路推下去，点进车辆详情就不像一张卡了。
+        // 但套普通 ScrollView 会划不动（见 [FlowScroll]），所以换成自己写的那一版：
+        // 手指按下先让这块吃手势，滑到顶/底再把手势还给页面。
+        val sc = FlowScroll(this)
         val list = LinearLayout(this)
         list.orientation = LinearLayout.VERTICAL
-        list.layoutParams = LinearLayout.LayoutParams(
+        sc.addView(list, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        c.addView(list)
+        ))
+        c.addView(sc, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(240f)
+        ))
+        // 20 秒一轮的刷新会整张卡重建，滚动位置得记在 Activity 上，
+        // 否则用户刚翻到第 20 站，下一轮数据回来自动跳回第 1 站
+        sc.setOnScrollChangeListener { _, _, y, _, _ -> flowScrollY = y }
 
         val last = d.stops.size - 1
-        var curRow: View? = null
         for (i in d.stops.indices) {
-            val row = flowRow(d.stops[i], v, i == 0, i == last)
-            if (curRow == null && d.stops[i].order >= v.order) curRow = row
-            list.addView(row)
+            list.addView(flowRow(d.stops[i], v, i == 0, i == last))
         }
-        // 主动点进「跟随」这一下，把当前车所在站滚到屏幕中上部（追客同款）；
-        // 之后 20 秒一轮的轮询只原地换内容，页面一动不动
+        // 点进跟随这一下，把当前车所在的那一站滚到窗口中间偏上（追客同款）
         if (flowScrollPending) {
             flowScrollPending = false
-            val target = curRow
-            val sc = pageScroll
-            if (target != null && sc != null) c.post {
-                val p = IntArray(2)
-                val q = IntArray(2)
-                target.getLocationInWindow(p)
-                sc.getLocationInWindow(q)
-                sc.smoothScrollTo(0, Math.max(0, sc.scrollY + (p[1] - q[1]) - dp(110f)))
-            }
+            flowScrollY = Math.max(0, v.order - 3) * dp(36f)
         }
+        val restore = flowScrollY
+        sc.post { if (restore > 0) sc.scrollTo(0, restore) }
         c.addView(lineInfoFooter(d, false))
         return c
     }
@@ -2809,6 +2808,7 @@ class BusActivity : BaseActivity() {
         when (panel) {
             PANEL_BUS_FOLLOW -> {
                 panel = PANEL_BUS_LIST
+                flowScrollY = 0
                 // 跟随页为了看行程流常常滚到很深的地方，退回列表时卡片会矮一大截，
                 // 不回到顶部就只剩一屏空白
                 pageScroll?.smoothScrollTo(0, 0)
@@ -3105,6 +3105,16 @@ class BusActivity : BaseActivity() {
             sub.setTextColor(getColor(R.color.text_tertiary))
             sub.setPadding(0, dp(3f), 0, 0)
             c.addView(sub)
+        }
+
+        // 今日预测缺席时把数据来源写清楚：不写的话「还有 N 分钟发车」看着像实时预测
+        if (t.today.isEmpty() && t.history.isNotEmpty()) {
+            val warn = TextView(this)
+            warn.text = "今日暂无发车预测，按" + t.historyTitle + "推算"
+            warn.textSize = 11.5f
+            warn.setTextColor(getColor(R.color.text_tertiary))
+            warn.setPadding(0, dp(4f), 0, 0)
+            c.addView(warn)
         }
 
         val lp = LinearLayout.LayoutParams(
@@ -4067,6 +4077,54 @@ class BusActivity : BaseActivity() {
         override fun onDetachedFromWindow() {
             anim.cancel()
             super.onDetachedFromWindow()
+        }
+    }
+
+    /**
+     * 「全线途经站行程流」那个 240dp 高的滚动窗口。
+     *
+     * 普通 ScrollView 套在页面 ScrollView 里就是划不动：手指一划，外层的
+     * `onInterceptTouchEvent` 在分发的每一步都排在前面，滑过触摸阈值就先把这一串
+     * 事件整个吞掉，里面这块永远收不到 MOVE。
+     *
+     * 这里反过来做：**手指按下的瞬间**就告诉父级别拦（`requestDisallowInterceptTouchEvent`），
+     * 先把这一串手势交给行程流自己；等它已经滚到顶还想往下拖、或者滚到底还想往上拖，
+     * 才把手势还回去让页面继续滚 —— 既不会「划不动」，也不会出现「滑到头就卡住、页面也上不去」。
+     * 这就是 Compose 里 LazyColumn 嵌套滚动的等价物（追客的做法）。
+     */
+    private class FlowScroll(c: Context) : ScrollView(c) {
+        private var lastY = 0f
+
+        init {
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }
+
+        override fun onInterceptTouchEvent(ev: android.view.MotionEvent): Boolean {
+            when (ev.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> lastY = ev.y
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val dy = ev.y - lastY
+                    lastY = ev.y
+                    // dy > 0 = 手指往下走（想看上面的内容）
+                    val handOver = (dy > 0 && scrollY <= 0) || (dy < 0 && atBottom())
+                    parent?.requestDisallowInterceptTouchEvent(!handOver)
+                }
+            }
+            return super.onInterceptTouchEvent(ev)
+        }
+
+        override fun onTouchEvent(ev: android.view.MotionEvent): Boolean {
+            if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                parent?.requestDisallowInterceptTouchEvent(true)
+            }
+            return super.onTouchEvent(ev)
+        }
+
+        /** 内容已经滚到底（内容不足一屏时恒为 true，整块交给页面滚）。 */
+        private fun atBottom(): Boolean {
+            val child = getChildAt(0) ?: return true
+            return scrollY >= child.height - height
         }
     }
 

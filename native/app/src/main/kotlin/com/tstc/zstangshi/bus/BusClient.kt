@@ -40,6 +40,11 @@ class BusClient private constructor() {
         @JvmField var busId: String = ""
         @JvmField var depDesc: String = ""
         @JvmField var preArrival: String = ""
+
+        /** 紧随其后的那辆车（同一次预测里的真值）；-1 = 上游只给了一辆。 */
+        @JvmField var nextSecs: Int = -1
+        @JvmField var nextStops: Int = -1
+        @JvmField var nextBusId: String = ""
     }
 
     /**
@@ -309,11 +314,12 @@ class BusClient private constructor() {
         ) {
             val pr = predict(cityId, lineId, wait.order, wait.id, lat, lng) ?: return
             if (pr.secs >= 0) {
-                d.etaMinutes = (pr.secs + 59) / 60
+                d.etaMinutes = BusText.minutesOfSecs(pr.secs)
                 d.etaStops = pr.stops
                 d.etaDistanceMeters = pr.dist
                 // 小字（车牌 / 距离 / 时刻 / 时速）必须读大字那辆车，见 BusModels.displayVehicle
                 d.etaBusId = pr.busId
+                d.etaNextBusId = pr.nextBusId
             }
             d.etaArrived = pr.arrived
             if (d.status.isEmpty()) {
@@ -354,6 +360,9 @@ class BusClient private constructor() {
                 out.busId = p.busId
                 out.depDesc = p.depDesc
                 out.preArrival = p.preArrival
+                out.nextSecs = p.nextSecs
+                out.nextStops = p.nextStops
+                out.nextBusId = p.nextBusId
                 return out
             }
             try {
@@ -381,6 +390,16 @@ class BusClient private constructor() {
                 } else {
                     out.secs = -1
                     out.depDesc = shortStatusOf(rt)
+                }
+                // 掌上公交 104 的 etas 已按分钟升序排好，第二项就是「下辆」；
+                // 同样不拿别处的数字来凑，没给就不写
+                if (rt.etas.size > 1) {
+                    val s2 = rt.etas[1]
+                    if (s2.minutes >= 0) {
+                        out.nextSecs = s2.minutes * 60
+                        out.nextStops = s2.count
+                        out.nextBusId = s2.busNumber
+                    }
                 }
                 return out
             } catch (ignored: Exception) {
@@ -502,12 +521,16 @@ class BusClient private constructor() {
                                 pr = predict(cityId, a.lineId, a.orderInLine, stopIds[k], lat, lng)
                             }
                             if (pr != null && pr.secs >= 0) {
-                                a.minutes = (pr.secs + 59) / 60
+                                // 和线路详情 / 车来了链路同一步换算：1..59 秒写 0（即将到站）
+                                a.minutes = BusText.minutesOfSecs(pr.secs)
                                 a.stopsAway = pr.stops
                                 a.distanceMeters = pr.dist
                                 a.realtime = true
                                 // 「已到站」只认上游明说；0 分钟是「即将到站」，别混
                                 if (pr.arrived) a.arrived = true
+                                // 「下辆」与大字来自同一次预测，上游没给第二辆就清空
+                                a.nextMinutes = BusText.minutesOfSecs(pr.nextSecs)
+                                a.nextStopsAway = if (pr.nextSecs >= 0) pr.nextStops else -1
                             } else if (pr != null && pr.depDesc.isNotEmpty()) {
                                 // 补不到分钟数，但官方给了线路状态（如「非运营时间」）：
                                 // 覆掉首页 105 给的那句，让首页和点进详情看到同一句话

@@ -90,16 +90,18 @@ class BusModels private constructor() {
         }
 
         /**
-         * 一行的「大字」。口径统一到 [BusText.rowEtaText]，和线路详情主卡一模一样，
-         * 同一个数字在首页和详情页必须是同一句话。
+         * 一行右端的「蓝色大字」：「12分钟 · 7站」。
+         * 分钟数和站数取自同一辆车的同一次预测，口径统一到 [BusText.rowPrimaryText]；
+         * 线路详情主卡的「N 分钟 / 还有 N 站」也由同一份数据算出，内外一致。
          */
-        fun etaCompact(): String = BusText.rowEtaText(minutes, stopsAway, arrived, status, realtime, pending)
+        fun etaCompact(): String =
+            BusText.rowPrimaryText(minutes, stopsAway, arrived, status, realtime, pending)
 
         /**
-         * 一行的「小字」：「还有 2 站 · 下一辆 12 分钟」。
-         * 口径统一到 [BusText.rowDetailText]，和线路详情主卡的小字、底栏一致。
+         * 一行右端的「灰色小字」：「下辆 37分钟 22站」。
+         * 只写 [nextMinutes] / [nextStopsAway] 里上游真给的数，没有就整行收起。
          */
-        fun nextLabel(): String = BusText.rowDetailText(stopsAway, minutes, arrived, nextMinutes, nextStopsAway)
+        fun nextLabel(): String = BusText.rowNextText(nextMinutes, nextStopsAway)
 
         /** 终点站，用来区分同号线路的两个方向 */
         fun destination(): String {
@@ -296,6 +298,12 @@ class BusModels private constructor() {
          * [BusModels.displayVehicle] 按站序兜底。
          */
         @JvmField var etaBusId: String = ""
+
+        /**
+         * 「下一辆」是哪辆车（同一次预测里秒数次小的那辆）。
+         * 首页那行「下辆 …」和线路详情的「下一辆 …」都认它，内外才是同一辆车。
+         */
+        @JvmField var etaNextBusId: String = ""
 
         /** 没车在途时上游估的到站时刻（车来了 preArrivalTime，形如 19:34），掌上公交没有这数据 */
         @JvmField var estArrival: String = ""

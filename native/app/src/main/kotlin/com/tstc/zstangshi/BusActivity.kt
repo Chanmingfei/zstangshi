@@ -272,8 +272,12 @@ class BusActivity : BaseActivity() {
         val scroller: View = p
         body = LinearLayout(this)
         body.orientation = LinearLayout.VERTICAL
-        // 线路详情底部有一颗悬浮的「乘车码」，内容要留出它占的高度，最后一条才不会被压在下面
-        body.setPadding(dp(16f), dp(12f), dp(16f), if (MODE_LINE == mode) dp(96f) else dp(28f))
+        // 首页 / 线路详情底部有一颗悬浮的「乘车码」，内容要留出它占的高度，
+        // 最后一条才不会被压在下面
+        body.setPadding(
+            dp(16f), dp(12f), dp(16f),
+            if (MODE_LINE == mode || MODE_HOME == mode) dp(96f) else dp(28f)
+        )
         p.scrollView().addView(
             body, FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -290,7 +294,9 @@ class BusActivity : BaseActivity() {
             false
         }
         // 线路详情：主卡不单独置顶，和站线、时刻表一起放在滚动区最上面，跟着页面滚。
-        // 乘车码不再是底部一整条，改成浮在右下角的悬浮按钮（追客首页那颗 FAB 的形状与动画）。
+        // 乘车码不再是底部一整条，改成浮在右下角的悬浮按钮（追客首页那颗 FAB 的形状与动画），
+        // 首页和线路详情共用同一颗。
+        val hasFab = MODE_LINE == mode || MODE_HOME == mode
         val host = FrameLayout(this)
         if (MODE_LINE == mode) {
             // 复用同一个 FrameLayout：每次重铺都把它挂到 body 顶端，
@@ -302,7 +308,7 @@ class BusActivity : BaseActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
             )
         )
-        if (MODE_LINE == mode) {
+        if (hasFab) {
             val lp = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(56f)
             )
@@ -310,12 +316,10 @@ class BusActivity : BaseActivity() {
             lp.rightMargin = dp(16f)
             lp.bottomMargin = dp(16f)
             host.addView(transitCodeFab(), lp)
-            // 往下翻收成只有图标、往上翻再展开 —— 追客的 FAB 就是跟着列表滚动收放的
+            // 往下翻收成只有图标、往上翻再展开 —— 追客的 FAB 就是跟着列表滚动收放的。
+            // 首页的滚动监听稍后会被 attachScrollPager 接管，那边也会调 onPageScrolled。
             pageScroll?.setOnScrollChangeListener { _, _, y, _, oldY ->
-                val dy = y - oldY
-                if (y <= 0) setCodeFabExpanded(true)
-                else if (dy > dp(4f)) setCodeFabExpanded(false)
-                else if (dy < -dp(4f)) setCodeFabExpanded(true)
+                onPageScrolled(y, oldY)
             }
         }
         root.addView(host, LinearLayout.LayoutParams(
@@ -889,6 +893,8 @@ class BusActivity : BaseActivity() {
     private fun attachScrollPager() {
         val ps = pageScroll ?: return
         ps.setOnScrollChangeListener { v, sx, sy, ox, oy ->
+            // 这个监听会顶掉 onCreate 里挂的那个，所以 FAB 的收放也得在这里做一份
+            onPageScrolled(sy, oy)
             val child = (v as ViewGroup).getChildAt(0) ?: return@setOnScrollChangeListener
             if (sy + v.height < child.height - dp(260f)) return@setOnScrollChangeListener
             if (showingSearch) loadMoreSearch()
@@ -1123,6 +1129,8 @@ class BusActivity : BaseActivity() {
         name.textSize = 16f
         name.typeface = Typeface.DEFAULT_BOLD
         name.setTextColor(getColor(R.color.text_primary))
+        name.maxLines = 1
+        name.ellipsize = android.text.TextUtils.TruncateAt.END
         left.addView(name)
 
         val dest = TextView(this)
@@ -1139,24 +1147,37 @@ class BusActivity : BaseActivity() {
             )
         )
 
+        // 右侧一列必须是 WRAP_CONTENT 且子控件也显式 WRAP_CONTENT：
+        // 竖排 LinearLayout 默认给子控件 MATCH_PARENT 宽，套在「左边 weight=1」的
+        // 横排里会被量成只剩一两个字宽，大字「到站了」就被裁成一个「到」。
         val right = LinearLayout(this)
         right.orientation = LinearLayout.VERTICAL
         right.gravity = Gravity.END
 
         val eta = TextView(this)
-        eta.textSize = 16f
+        // 车来了那一行的排版：蓝色大字「12分钟 · 7站」，下面一行灰色小字「下辆 …」
+        eta.textSize = 22f
         eta.typeface = Typeface.DEFAULT_BOLD
         eta.gravity = Gravity.END
-        right.addView(eta)
+        eta.maxLines = 1
+        // 万一还是被挤窄，至少显示「到站…」而不是只剩一个「到」字
+        eta.ellipsize = android.text.TextUtils.TruncateAt.END
+        right.addView(eta, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
 
         // 「下辆」先占好位置再按需显示，补预测回来时只换字不插行，列表不会跳一下
         val next = TextView(this)
-        next.textSize = 11f
+        next.textSize = 12f
         next.setTextColor(getColor(R.color.text_tertiary))
-        next.setPadding(0, dp(3f), 0, 0)
+        next.setPadding(0, dp(2f), 0, 0)
         next.gravity = Gravity.END
-        right.addView(next)
-        bindEta(a, eta, next)
+        next.maxLines = 1
+        next.ellipsize = android.text.TextUtils.TruncateAt.END
+        right.addView(next, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+        bindEta(a, eta, next, true)
 
         val rlp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -1166,22 +1187,47 @@ class BusActivity : BaseActivity() {
         return row
     }
 
-    /** 把一行的到站文案绑到 Arrival 上，补预测回来后直接改这几个 TextView。 */
-    private fun bindEta(a: BusModels.Arrival, eta: TextView, next: TextView) {
+    /**
+     * 把一行的到站文案绑到 Arrival 上，补预测回来后直接改这几个 TextView。
+     * [bigStyle] 是首页线路行：有真实数字时用蓝色 22sp 大字；状态文案没有数字，
+     * 降回 14sp，免得「末班已过」被放大成一整屏。站点详情卡用 15sp 的小号。
+     */
+    private fun bindEta(a: BusModels.Arrival, eta: TextView, next: TextView, bigStyle: Boolean = false) {
         val r = Runnable {
-            eta.text = a.etaCompact()
+            val big = a.etaCompact()
+            eta.text = big
+            val numeric = big == "…" || big == "到站了" || big == "即将到站" ||
+                big.contains("分钟") || big.contains("站")
+            eta.textSize = when {
+                !bigStyle -> 15f
+                numeric -> 22f
+                else -> 14f
+            }
             eta.setTextColor(etaColor(a))
             val nx = a.nextLabel()
             next.text = nx
             next.visibility = if (nx.isEmpty()) View.GONE else View.VISIBLE
+            // 再兜一层：显式按文字真实宽度给右列一个下限。竖排列被左边 weight=1
+            // 挤压时，大字曾被裁成只剩「到」一个字（2026-11-15 实测）。
+            val box = eta.parent
+            if (bigStyle && box is LinearLayout) {
+                val spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                eta.measure(spec, spec)
+                var need = eta.measuredWidth
+                if (nx.isNotEmpty()) {
+                    next.measure(spec, spec)
+                    need = Math.max(need, next.measuredWidth)
+                }
+                if (need != box.minimumWidth) box.minimumWidth = need
+            }
         }
         r.run()
         etaBinders[a] = r
     }
 
-    /** 到站时间的颜色：已到站 / 3 分钟内用暖色提醒，其余用品牌蓝。 */
+    /** 大字颜色：常态品牌蓝（和截图一致）；真到站用暖色提醒；完全没数据压成灰色。 */
     private fun etaColor(a: BusModels.Arrival): Int {
-        if (a.arrived || (a.minutes >= 0 && a.minutes <= 3)) return 0xFFE8734A.toInt()
+        if (a.arrived) return 0xFFE8734A.toInt()
         if (a.minutes < 0 && a.stopsAway < 0) return getColor(R.color.text_tertiary)
         return getColor(R.color.brand)
     }
@@ -2255,7 +2301,19 @@ class BusActivity : BaseActivity() {
 
     /** 「下一辆 28 分钟 · 12 站」；只有一样就只说一样；都没有就「后面还有车」。 */
     private fun followingText(d: BusModels.LineDetail, order: Int): String {
-        val f = BusModels.followingVehicle(d, order, BusModels.displayVehicle(d, order)) ?: return ""
+        // 首页那行「下辆 …」取的是预测里秒数次小的那辆车；这里优先认同一个 busId，
+        // 别再按站序另挑一辆，否则点进详情看到的「下一辆」和首页对不上
+        var v: BusModels.Vehicle? = null
+        if (d.etaNextBusId.isNotEmpty()) {
+            for (x in d.vehicles) {
+                if (x.id == d.etaNextBusId) {
+                    v = x
+                    break
+                }
+            }
+        }
+        if (v == null) v = BusModels.followingVehicle(d, order, BusModels.displayVehicle(d, order))
+        val f = v ?: return ""
         val mins = if (f.etaSeconds > 0) Math.round(f.etaSeconds / 60.0).toInt().coerceAtLeast(1) else null
         val stops = if (order > 0 && f.order > 0 && order - f.order >= 0) order - f.order else null
         return when {
@@ -2851,6 +2909,14 @@ class BusActivity : BaseActivity() {
         fab.addView(lab, lp)
         codeFabText = lab
         return fab
+    }
+
+    /** 列表滚了一段：到顶必展开，往下翻收起，往回翻展开，4dp 内的抖动不切换。 */
+    private fun onPageScrolled(y: Int, oldY: Int) {
+        val dy = y - oldY
+        if (y <= 0) setCodeFabExpanded(true)
+        else if (dy > dp(4f)) setCodeFabExpanded(false)
+        else if (dy < -dp(4f)) setCodeFabExpanded(true)
     }
 
     /** 文字展开时的宽度只量一次；动画过程中 lab.width 会被改掉，不能每帧重新量。 */

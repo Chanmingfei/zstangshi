@@ -29,6 +29,20 @@ object BusText {
     }
 
     /**
+     * 上游秒数 → 界面上的分钟位，首页、站点页、线路详情必须同一步换算：
+     *   · 0 秒 = 车在站上（由 arrived 说了算）
+     *   · 1..59 秒 = 0（写「即将到站」，不能算成 1 分钟）
+     *   · 其余向上取整；-1 = 上游没给
+     */
+    @JvmStatic
+    fun minutesOfSecs(secs: Int): Int = when {
+        secs < 0 -> -1
+        secs == 0 -> 0
+        secs < 60 -> 0
+        else -> (secs + 59) / 60
+    }
+
+    /**
      * 首页 / 站点详情里一行的「大字」，和线路详情主卡同一个口径：
      * 到站了 · N 分钟 · 即将到站 · N 站 · 状态文案 · 暂无实时 · 暂无车。
      * 对应 Trackr `ArrivalText.format` 的 value+unit 部分。
@@ -77,6 +91,50 @@ object BusText {
             nextStopsAway > 0 -> bits.add("下一辆还有 $nextStopsAway 站")
         }
         return bits.joinToString(" · ")
+    }
+
+    /**
+     * 首页 / 站点页线路行右端的「蓝色大字」：把**同一辆车**的分钟数与站数并成一句，
+     * 形如「12分钟 · 7站」（对应车来了那一行的排版）。
+     *
+     * 只写上游真给了的：没有分钟就只写「7站」，没有站数就只写「12分钟」，
+     * 绝不按站数反推分钟，也不拿第二辆车的数据来凑。状态文案原样照抄上游。
+     */
+    @JvmStatic
+    fun rowPrimaryText(
+        minutes: Int,
+        stopsAway: Int,
+        arrived: Boolean,
+        status: String,
+        realtime: Boolean,
+        pending: Boolean
+    ): String {
+        if (pending) return "…"
+        if (arrived) return "到站了"
+        val tail = if (stopsAway > 0) " · ${stopsAway}站" else ""
+        if (minutes > 0) return "${minutes}分钟$tail"
+        // 车来了把「不到 1 分钟」给成 0；官方口径是「即将到站」，不是到站
+        if (minutes == 0) return "即将到站$tail"
+        if (stopsAway > 0) return "${stopsAway}站"
+        if (status.isNotEmpty()) return status
+        if (!realtime) return "暂无实时"
+        return "暂无车"
+    }
+
+    /**
+     * 首页 / 站点页线路行右端的「灰色小字」：紧跟着那辆车的真实数据，
+     * 形如「下辆 37分钟 22站」。两个数都来自同一辆车的预测，缺哪个就不写哪个；
+     * 上游没给第二辆车时返回空串，整行收起，不编一个数字出来。
+     */
+    @JvmStatic
+    fun rowNextText(nextMinutes: Int, nextStopsAway: Int): String {
+        if (nextMinutes < 0 && nextStopsAway <= 0) return ""
+        val bits = ArrayList<String>(2)
+        if (nextMinutes > 0) bits.add("${nextMinutes}分钟")
+        else if (nextMinutes == 0) bits.add("即将到站")
+        if (nextStopsAway > 0) bits.add("${nextStopsAway}站")
+        if (bits.isEmpty()) return ""
+        return "下辆 " + bits.joinToString(" ")
     }
 
     /** 「350米」「1.2公里」；<=0 返回 "" */

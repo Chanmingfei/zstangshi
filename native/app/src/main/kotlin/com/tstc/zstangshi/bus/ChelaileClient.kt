@@ -54,6 +54,18 @@ class ChelaileClient private constructor() {
         @JvmField var busId: String = ""
         @JvmField var depDesc: String = ""
         @JvmField var preArrival: String = ""
+
+        /**
+         * 紧随其后的那辆车，也取自**这一份** busDetail 响应（秒数次小的一辆）。
+         * 首页那行「下辆 37分钟 22站」只读这里，不拿 nearSts 里另一个时刻、
+         * 另一套口径的第二条 stnStates 来拼 —— 否则点进详情看到的「下一辆」对不上。
+         * -1 = 这一轮上游只给了一辆车。
+         */
+        @JvmField var nextSecs: Int = -1
+        @JvmField var nextStops: Int = -1
+
+        /** 第二辆车的 busId：线路详情那句「下一辆」也认这一辆，和首页「下辆」对得上。 */
+        @JvmField var nextBusId: String = ""
     }
 
     /**
@@ -597,6 +609,7 @@ class ChelaileClient private constructor() {
                 // 这辆车刚停靠完时，lineDetail 里它的 order 已经走到下一站，按站序另挑
                 // 就会挑到后面那辆 —— 「到站了 · 快去上车 · 距本站 11.7公里」就是这么来的
                 d.etaBusId = pr.busId
+                d.etaNextBusId = pr.nextBusId
             } else if (pr.preArrival.isNotEmpty()) {
                 // 没车在途：官方按发车计划估的「预计到站」时刻（preArrivalTime），
                 // 有车在途时不给。取里面的 HH:mm，取不到就原样透传
@@ -843,6 +856,9 @@ class ChelaileClient private constructor() {
 
                 var bestSecs = Int.MAX_VALUE
                 var bestArrived = false
+                var nextSecs = Int.MAX_VALUE
+                var nextStops = -1
+                var nextBusId = ""
                 for (i in 0 until buses.length()) {
                     val b = buses.optJSONObject(i) ?: continue
                     val travels = b.optJSONArray("travels")
@@ -868,22 +884,37 @@ class ChelaileClient private constructor() {
                     }
 
                     if (secs < 0) continue
-                    // 取秒数最小的那辆（同秒数先到先得，别在两辆车之间来回跳），
-                    // 并把它的 busId 记下来：秒数 / 距离是这辆车的，界面上的小字也只准读这辆
-                    if (secs >= bestSecs) continue
-                    bestSecs = secs
-                    bestArrived = arrived
-                    out.busId = bId
                     val busOrder = b.optInt("order", 0)
                     // 虚拟站组的 order 是 999，真站序藏在 sId 里（999$30$1 → 30），
                     // 直接拿 999 去减会算出「还有 974 站」
                     val mine = effectiveOrder(order, stopId)
-                    out.stops = if (busOrder > 0) Math.max(0, mine - busOrder) else -1
+                    val stops = if (busOrder > 0) Math.max(0, mine - busOrder) else -1
                     val dist = b.optInt("distanceToWaitStn", -1)
-                    out.dist = if (dist > 0) dist else -1
+                    // 取秒数最小的那辆（同秒数先到先得，别在两辆车之间来回跳），
+                    // 并把它的 busId 记下来：秒数 / 距离是这辆车的，界面上的小字也只准读这辆。
+                    // 被顶下来的那辆顺势成为「下辆」，秒数和站数都是同一份响应里的真值。
+                    if (secs < bestSecs) {
+                        if (bestSecs != Int.MAX_VALUE) {
+                            nextSecs = bestSecs
+                            nextStops = out.stops
+                            nextBusId = out.busId
+                        }
+                        bestSecs = secs
+                        bestArrived = arrived
+                        out.busId = bId
+                        out.stops = stops
+                        out.dist = if (dist > 0) dist else -1
+                    } else if (secs < nextSecs) {
+                        nextSecs = secs
+                        nextStops = stops
+                        nextBusId = bId
+                    }
                 }
                 out.secs = if (bestSecs == Int.MAX_VALUE) -1 else bestSecs
                 out.arrived = bestArrived
+                out.nextSecs = if (nextSecs == Int.MAX_VALUE) -1 else nextSecs
+                out.nextStops = nextStops
+                out.nextBusId = nextBusId
                 return bd
             } catch (ignored: Exception) {
                 // 预测是加分项，失败就只显示站表
@@ -952,12 +983,16 @@ class ChelaileClient private constructor() {
                             }
                             if (pr != null && pr.secs >= 0) {
                                 // 与线路详情同一口径：60 秒内都是「即将到站」
-                                a.minutes = if (pr.secs > 0 && pr.secs < 60) 0 else (pr.secs + 59) / 60
+                                a.minutes = BusText.minutesOfSecs(pr.secs)
                                 a.stopsAway = pr.stops
                                 a.distanceMeters = pr.dist
                                 a.realtime = true
                                 // travelTime==0 是官方的「已到站」
                                 if (pr.arrived) a.arrived = true
+                                // 第二辆车也用这一份 busDetail 的真值替换 nearSts 的旧值；
+                                // 这一轮上游只给一辆车就清空，绝不把别的时刻的数字留着当真
+                                a.nextMinutes = BusText.minutesOfSecs(pr.nextSecs)
+                                a.nextStopsAway = if (pr.nextSecs >= 0) pr.nextStops else -1
                             }
                             // 补不到就老实收起「…」，别一直转
                             a.pending = false
@@ -1226,13 +1261,13 @@ class ChelaileClient private constructor() {
                     a.stopsAway = f.stops
                     a.distanceMeters = f.dist
                     // 与线路详情同一口径：60 秒内是「即将到站」（分钟位写 0），
-                    // travelTime==0 是「已到站」
+                    // travelTime==0 是「已到站」。先算分钟再判到站，别拿还没赋值的字段
+                    a.minutes = BusText.minutesOfSecs(f.secs)
                     a.arrived = arrivedOf(a.minutes, f.secs, f.state, f.stops)
-                    a.minutes = if (f.secs > 0) (if (f.secs < 60) 0 else (f.secs + 59) / 60) else -1
                     if (cand.size > 1) {
                         val s2 = cand[1]
                         a.nextStopsAway = s2.stops
-                        a.nextMinutes = if (s2.secs > 0) (if (s2.secs < 60) 0 else (s2.secs + 59) / 60) else -1
+                        a.nextMinutes = BusText.minutesOfSecs(s2.secs)
                     }
                 }
                 into.add(a)

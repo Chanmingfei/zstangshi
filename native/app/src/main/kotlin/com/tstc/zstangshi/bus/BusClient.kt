@@ -247,6 +247,8 @@ class BusClient private constructor() {
             for (s in d.stops) {
                 if (s.busRatio >= 0) s.busHere = s.busRatio >= 0.9
             }
+            // 逐车卡片：站表上的 busRatio 只是「哪段有车」，车辆列表要另一套字段
+            MygolbsClient.fillVehicles(d, rt)
 
             d.status = statusOf(rt, route, 0)
             d.nextDeparture = rt.planTime

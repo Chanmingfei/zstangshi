@@ -89,32 +89,17 @@ class BusModels private constructor() {
             return "暂无车"
         }
 
-        /** 车来了风格的「23分钟·14站」；没有分钟就只给站数。 */
-        fun etaCompact(): String {
-            if (pending) return "…"
-            if (arrived) return "已到站"
-            // 官方口径：小于 1 分钟是「即将到站」，不是「已到站」
-            if (minutes == 0) return "即将到站"
-            if (minutes > 0 && stopsAway > 0) return BusModels.minutesText(minutes) + "·" + stopsAway + "站"
-            if (minutes > 0) return BusModels.minutesText(minutes)
-            if (status.isNotEmpty()) return status
-            if (stopsAway > 0) return "${stopsAway}站外"
-            if (!realtime) return "暂无实时"
-            return "暂无车"
-        }
+        /**
+         * 一行的「大字」。口径统一到 [BusText.rowEtaText]，和线路详情主卡一模一样，
+         * 同一个数字在首页和详情页必须是同一句话。
+         */
+        fun etaCompact(): String = BusText.rowEtaText(minutes, stopsAway, arrived, status, realtime, pending)
 
-        /** 「下辆 46分钟 25站」，没有第二辆返回空串。 */
-        fun nextLabel(): String {
-            if (nextMinutes < 0 && nextStopsAway < 0) return ""
-            val sb = StringBuilder("下辆 ")
-            if (nextMinutes == 0) sb.append("即将到站")
-            else if (nextMinutes > 0) sb.append(nextMinutes).append("分钟")
-            if (nextStopsAway > 0) {
-                if (nextMinutes >= 0) sb.append(' ')
-                sb.append(nextStopsAway).append("站")
-            }
-            return sb.toString()
-        }
+        /**
+         * 一行的「小字」：「还有 2 站 · 下一辆 12 分钟」。
+         * 口径统一到 [BusText.rowDetailText]，和线路详情主卡的小字、底栏一致。
+         */
+        fun nextLabel(): String = BusText.rowDetailText(stopsAway, minutes, arrived, nextMinutes, nextStopsAway)
 
         /** 终点站，用来区分同号线路的两个方向 */
         fun destination(): String {
@@ -247,6 +232,24 @@ class BusModels private constructor() {
         }
     }
 
+    /**
+     * 一辆在途车（线路详情「全部车辆 / 单车跟随」用）。字段可缺省，缺省就是上游没给。
+     *
+     * 两个数据源能给的字段不一样，界面按缺省值降级：
+     *  - 掌上公交：没有时速、没有车牌（只有 busNumber 自编号），plate 可能是空串
+     *  - 车来了：时速、车牌、下一站、到候车站距离都有，ETA 要另问一次车辆预测
+     */
+    class Vehicle {
+        @JvmField var id: String = ""          // 上游车辆标识（掌上公交 busNumber / 车来了 busId）
+        @JvmField var plate: String = ""       // 车牌或自编号（清洗过的、给人看的）
+        @JvmField var order: Int = 0           // 正开往（或已停靠在）第几站，1-based
+        @JvmField var isArrived: Boolean = false
+        @JvmField var etaSeconds: Int = -1     // 到候车站的剩余秒；-1 = 无
+        @JvmField var distanceMeters: Int = -1 // 到候车站的直线距离（米）；-1 = 无
+        @JvmField var speedKmh: Double = 0.0   // 时速；0 = 上游没给
+        @JvmField var nextStopName: String = ""
+    }
+
     /** 线路详情：站表 + 在途车辆 + 反向线路 + 到候车站的预测。 */
     class LineDetail {
         @JvmField var line: Line = Line()
@@ -256,6 +259,9 @@ class BusModels private constructor() {
         @JvmField var reverseStart: String = ""
         @JvmField var reverseEnd: String = ""
         @JvmField val stops: MutableList<Stop> = ArrayList()
+
+        /** 逐车卡片（「全部车辆 / 单车跟随」）。按 order 升序；空 = 上游没给车，不要伪造。 */
+        @JvmField val vehicles: MutableList<Vehicle> = ArrayList()
 
         /** 在途车辆数 */
         @JvmField var busCount: Int = 0

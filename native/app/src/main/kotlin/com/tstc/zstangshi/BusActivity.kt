@@ -1,6 +1,8 @@
 package com.tstc.zstangshi
 
 import android.Manifest
+import android.animation.Animator
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -32,12 +34,15 @@ import android.widget.TextView
 import com.tstc.zstangshi.bus.BusClient
 import com.tstc.zstangshi.bus.BusModels
 import com.tstc.zstangshi.bus.BusStore
+import com.tstc.zstangshi.bus.BusText
+import com.tstc.zstangshi.bus.TransitCode
 import com.tstc.zstangshi.ui.ConfirmDialog
 import com.tstc.zstangshi.ui.HeaderBar
 import com.tstc.zstangshi.ui.OptionSheet
 import com.tstc.zstangshi.ui.PageSlide
 import com.tstc.zstangshi.ui.PullRefreshLayout
 import com.tstc.zstangshi.ui.Sheet
+import com.tstc.zstangshi.ui.TransitCodeSheet
 
 /**
  * 实时公交（二级页）。
@@ -78,6 +83,37 @@ class BusActivity : BaseActivity() {
     private var selectedStopId = ""
     private var pageScroll: ScrollView? = null
     private var stripScroll: HorizontalScrollView? = null
+
+    /**
+     * 线路详情顶部那张固定主卡。三态共用这一块：
+     * 站点到站（[PANEL_STATION]）→ 全部车辆（[PANEL_BUS_LIST]）→ 单车跟随（[PANEL_BUS_FOLLOW]）。
+     * 卡片在滚动区外面，所以点站、切面板都不会带动页面滚动。
+     */
+    private var heroHost: FrameLayout? = null
+    private var panel = PANEL_STATION
+
+    /** 单车跟随里正在看的那辆车（上游车辆标识）。 */
+    private var followedBusId = ""
+
+    /** 主卡高度/淡入动画；换面板时先 cancel，免得两次动画抢 */
+    private var heroAnim: ValueAnimator? = null
+
+    /**
+     * 主卡当前的身份（面板 + 线路 + 方向 + 跟随的车）。
+     * 身份没变就只是数据刷新（20 秒一轮的静默刷新、点别的站看同一张卡），
+     * **不播高度动画、不淡入**——卡在自己身上换字，页面一点不抖，
+     * 和追客「点其他站点页面完全不动」是同一个观感。
+     */
+    private var heroKey = ""
+
+    /** 顶栏「收藏」按钮：底栏的「追踪这班车」和它是同一个状态，要一起改文案。 */
+    private var favBtn: TextView? = null
+
+    /** 底栏三个按钮（追踪 / 换向 / 乘车码），刷新时要跟着改文案与可用性。 */
+    private var trackBtn: TextView? = null
+    private var trackIcon: TextView? = null
+    private var swapBtn: View? = null
+    private var codeBtn: View? = null
 
     private val ticker = android.os.Handler(android.os.Looper.getMainLooper())
     private var fetching = false
@@ -226,11 +262,32 @@ class BusActivity : BaseActivity() {
             }
             false
         }
-        root.addView(
+        // 线路详情：主卡固定在顶部（不跟着列表滚），站点列表自己滚，底部一条操作栏。
+        // 这套骨架和追客一致 —— 点别的站、来回切「全部车辆 / 单车跟随」时，
+        // 页面纹丝不动，只有卡片里的内容在换。
+        val host = LinearLayout(this)
+        host.orientation = LinearLayout.VERTICAL
+        if (MODE_LINE == mode) {
+            val hero = FrameLayout(this)
+            hero.setPadding(dp(16f), dp(10f), dp(16f), 0)
+            heroHost = hero
+            host.addView(hero, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+        }
+        host.addView(
             scroller, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
             )
         )
+        if (MODE_LINE == mode) {
+            host.addView(bottomBar(), LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+        }
+        root.addView(host, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
 
         setContentView(root)
         applyInsets(root)
@@ -238,6 +295,12 @@ class BusActivity : BaseActivity() {
         slide = sld
         sld.enter()
         sld.attachBack()
+        if (MODE_LINE == mode) {
+            // 卡片里退一级（车辆列表 / 单车跟随 → 站点卡）不该把整页带走，
+            // 所以返回手势先问页面：要不要自己消化掉这次返回
+            sld.backInterceptor = { panel != PANEL_STATION }
+            sld.backAction = { backToStation() }
+        }
 
         if (MODE_HOME == mode) {
             // 先用手里的旧坐标铺一屏（不至于白屏），紧接着就要一帧「此刻的位置」：
@@ -263,15 +326,21 @@ class BusActivity : BaseActivity() {
             h.addView(HeaderBar.action(this, "刷新") { reload() })
         } else if (MODE_LINE == mode) {
             val fav = store.isFavorite(cityId, lineId)
-            h.addView(
-                HeaderBar.action(this, if (fav) "已收藏" else "收藏") { v ->
-                    toggleFavorite(v as TextView)
-                })
+            val btn = HeaderBar.action(this, if (fav) "已收藏" else "收藏") {
+                toggleTrack()
+            }
+            favBtn = btn
+            h.addView(btn)
         }
         return h
     }
 
     private fun closePage() {
+        // 顶栏返回和系统返回手势同一个口径：卡片里退一级，不直接关页
+        if (MODE_LINE == mode && panel != PANEL_STATION) {
+            backToStation()
+            return
+        }
         val s = slide
         if (s != null) s.finish()
         else finish()
@@ -1651,9 +1720,10 @@ class BusActivity : BaseActivity() {
 
     private fun renderLine(keepY: Int, keepX: Int) {
         val d = detail ?: return
+        // 主卡在滚动区外面：换站、轮询只换卡片里的字，页面本身一动不动
+        renderHero()
         body.removeAllViews()
-        // 模块顺序学车来了：① 候车站 + 等车时间 → ② 线路图 → ③ 首站发车
-        body.addView(lineHeadCard(d))
+        // 滚动区：① 线路图 → ② 首站发车 → ③ 全部站点
         body.addView(sectionTitle("全线 " + d.stops.size + " 站 · 左右滑动查看"))
         // 站线只在首进页面时居中一次；之后不管换候车站还是例行刷新，
         // 一律恢复用户当前的滚动位置——用户能点到那站，说明它就在屏幕里，
@@ -1726,121 +1796,112 @@ class BusActivity : BaseActivity() {
     }
 
     /** 头部：候车站 + 还有几分钟 + 站数/距离，右侧换向。 */
-    private fun lineHeadCard(d: BusModels.LineDetail): View {
-        val c = card()
-        c.setPadding(dp(16f), dp(14f), dp(16f), dp(14f))
+    // ─────────────── 线路详情 · 主卡（站点到站 / 全部车辆 / 单车跟随） ───────────────
+    //
+    // 三态与文案逐字对齐追客（github.com/5151561/Trackr，MIT）：
+    //   · 站点卡：候车站胶囊 + 大字到站 +「还有 1 站 · 31512070 · 距本站 1.2公里 · 22:46 到 · 3 km/h」
+    //             + 分隔线 +「下一辆 28 分钟 · 12 站」+「全线 2 辆车在途 · 查看」
+    //   · 车辆列表：「到「丰润区车场」的全部车辆」+「共 2 辆」，每辆一行，右侧是到站徽标
+    //   · 单车跟随：「单车跟随 · 31512055」+「开往 丰润区车场」+ 距终点 / 时速 / 到终点预测
+    //             + 「全线途经站行程流：」+ 逐站时间轴（已过 / 正在接近 / 下一站）
+    // 卡片钉在滚动区上方：切面板只换卡片里的内容（淡入 + 高度动画），页面本身一动不动。
 
-        val top = LinearLayout(this)
-        top.orientation = LinearLayout.HORIZONTAL
-        top.gravity = Gravity.CENTER_VERTICAL
-
-        val left = LinearLayout(this)
-        left.orientation = LinearLayout.VERTICAL
-        val lab = TextView(this)
-        lab.text = "候车站"
-        lab.textSize = 11.5f
-        lab.setTextColor(getColor(R.color.text_tertiary))
-        left.addView(lab)
-        val st = TextView(this)
-        st.text = if (d.waitingStopName.isEmpty()) "—" else d.waitingStopName
-        st.textSize = 15f
-        st.typeface = Typeface.DEFAULT_BOLD
-        st.setTextColor(getColor(R.color.text_primary))
-        st.setPadding(0, dp(3f), 0, 0)
-        left.addView(st)
-
-        if (d.line.endName.isNotEmpty()) {
-            val dir = TextView(this)
-            dir.text = "开往 " + d.line.endName
-            dir.textSize = 11.5f
-            dir.setTextColor(getColor(R.color.text_tertiary))
-            dir.setPadding(0, dp(2f), 0, 0)
-            left.addView(dir)
+    private fun renderHero() {
+        val d = detail ?: return
+        val host = heroHost ?: return
+        val key = when (panel) {
+            PANEL_BUS_LIST -> "B|" + cityId + "|" + lineId + "|" + direction
+            PANEL_BUS_FOLLOW -> "F|" + cityId + "|" + lineId + "|" + direction + "|" + followedBusId
+            else -> "S|" + cityId + "|" + lineId + "|" + direction
         }
-        top.addView(
-            left, LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+        // 第一次上屏、换面板、换线、换车才播动画；同一张卡的例行刷新原地换字
+        val animate = key != heroKey || host.childCount != 1
+        heroKey = key
+        val v = when (panel) {
+            PANEL_BUS_LIST -> busListCard(d)
+            PANEL_BUS_FOLLOW -> followCard(d)
+            else -> stationCard(d)
+        }
+        swapHero(host, v, animate)
+        refreshTrackBtn()
+    }
+
+    /**
+     * 换掉主卡内容：新卡淡入，高度用 200ms 从旧卡走过去（结束后交回 wrap_content）。
+     * 整页只有卡片自己在长高/缩矮，下面的滚动区不动 —— 和追客的 AnimatedContent 同一个观感。
+     *
+     * @param animate false = 同一张卡的例行刷新：直接换、不淡入、不做高度动画
+     */
+    private fun swapHero(host: FrameLayout, v: View, animate: Boolean) {
+        val old = if (host.childCount > 0) host.getChildAt(0) else null
+        val w = host.width - host.paddingLeft - host.paddingRight
+        if (old == null || w <= 0 || !animate) {
+            heroAnim?.cancel()
+            val p = host.layoutParams
+            if (p.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                p.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                host.layoutParams = p
+            }
+            host.removeAllViews()
+            host.addView(
+                v, FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+            v.alpha = 1f
+            return
+        }
+        // 先把新卡量出来，拿到高度动画的终点
+        v.measure(
+            View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val from = host.height
+        val to = v.measuredHeight
+        host.removeAllViews()
+        host.addView(
+            v, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
-
-        if (d.reversible()) {
-            val rev = TextView(this)
-            rev.text = "⇄ 换向"
-            rev.textSize = 12.5f
-            rev.gravity = Gravity.CENTER
-            rev.setTextColor(getColor(R.color.brand))
-            rev.background = roundRect(getColor(R.color.brand_soft), dp(14f))
-            rev.setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
-            rev.setOnClickListener { swapDirection() }
-            top.addView(rev)
+        if (from > 0 && to > 0 && from != to) {
+            val lp = host.layoutParams
+            lp.height = from
+            host.layoutParams = lp
+            heroAnim?.cancel()
+            val a = ValueAnimator.ofInt(from, to)
+            a.duration = 200
+            a.interpolator = android.view.animation.DecelerateInterpolator()
+            a.addUpdateListener { va ->
+                val h = va.animatedValue as Int
+                val p = host.layoutParams
+                if (p.height != h) {
+                    p.height = h
+                    host.layoutParams = p
+                }
+            }
+            a.addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    val p = host.layoutParams
+                    p.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    host.layoutParams = p
+                }
+            })
+            a.start()
+            heroAnim = a
         }
-        c.addView(top)
+        v.alpha = 0f
+        v.animate().alpha(1f).setDuration(200).setStartDelay(30).start()
+    }
 
-        // 大字：还有几分钟
-        val big = LinearLayout(this)
-        big.orientation = LinearLayout.HORIZONTAL
-        big.gravity = Gravity.BOTTOM
-        big.setPadding(0, dp(12f), 0, 0)
-
-        val num = TextView(this)
-        if (d.etaArrived) {
-            num.text = "已到站"
-            num.textSize = 26f
-        } else if (d.etaMinutes >= 60) {
-            // 长途线一小时开外，直接写「1小时44分」，别让大字撑成「104」
-            num.text = BusModels.minutesText(d.etaMinutes)
-            num.textSize = 30f
-        } else if (d.etaMinutes > 0) {
-            num.text = d.etaMinutes.toString()
-            num.textSize = 34f
-        } else if (d.etaMinutes == 0) {
-            // 官方口径：小于 1 分钟叫「即将到站」，配「小于1分钟·X站·X米」
-            num.text = "即将到站"
-            num.textSize = 26f
-        } else if (d.estArrival.isNotEmpty()) {
-            // 没车在途：车来了的 preArrivalTime，官方估的到站时刻
-            num.text = "预计" + d.estArrival + "到站"
-            num.textSize = 24f
-        } else {
-            num.text = if (d.status.isEmpty()) "暂无预测" else d.status
-            // 官方状态偶尔是长句（如「首班预计明日 06:00 发车」），字号跟着收一点
-            num.textSize = if (d.status.length > 8) 16f else 22f
-        }
-        num.typeface = Typeface.DEFAULT_BOLD
-        num.setTextColor(
-            if (d.etaMinutes >= 0 || d.etaArrived || d.estArrival.isNotEmpty())
-                getColor(R.color.brand) else getColor(R.color.text_secondary)
-        )
-        big.addView(num)
-
-        if (d.etaMinutes > 0 && d.etaMinutes < 60) {
-            val unit = TextView(this)
-            unit.text = " 分钟"
-            unit.textSize = 14f
-            unit.setTextColor(getColor(R.color.text_secondary))
-            unit.setPadding(0, 0, 0, dp(6f))
-            big.addView(unit)
-        }
-        c.addView(big)
-
-        val detailText = d.etaDetail()
-        if (detailText.isNotEmpty()) {
-            val sub = TextView(this)
-            sub.text = detailText
-            sub.textSize = 12.5f
-            sub.setTextColor(getColor(R.color.text_tertiary))
-            sub.setPadding(0, dp(2f), 0, 0)
-            c.addView(sub)
-        }
-
-        val meta = TextView(this)
-        meta.text = headMeta(d)
-        meta.textSize = 11.5f
-        meta.setTextColor(getColor(R.color.text_tertiary))
-        meta.setPadding(0, dp(8f), 0, 0)
-        c.addView(meta)
-
-        val lp = LinearLayout.LayoutParams(
+    /** 主卡外壳：和全站卡片同一套白底、18dp 圆角，只多一点点浮起。 */
+    private fun heroCard(): LinearLayout {
+        val c = LinearLayout(this)
+        c.orientation = LinearLayout.VERTICAL
+        c.background = getDrawable(R.drawable.card_bg)
+        c.elevation = dp(2f).toFloat()
+        c.setPadding(dp(16f), dp(14f), dp(16f), dp(12f))
+        val lp = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         )
         lp.bottomMargin = dp(10f)
@@ -1848,16 +1909,893 @@ class BusActivity : BaseActivity() {
         return c
     }
 
-    private fun headMeta(d: BusModels.LineDetail): String {
+    // ── 状态一：站点到站 ──
+
+    private fun stationCard(d: BusModels.LineDetail): View {
+        val c = heroCard()
+        val order = if (selectedOrder > 0) selectedOrder else d.waitingOrder
+        val name = if (d.waitingStopName.isEmpty()) "选择候车站" else d.waitingStopName
+
+        val top = LinearLayout(this)
+        top.orientation = LinearLayout.HORIZONTAL
+        top.gravity = Gravity.CENTER_VERTICAL
+
+        val chip = TextView(this)
+        chip.text = name
+        chip.textSize = 15f
+        chip.typeface = Typeface.DEFAULT_BOLD
+        chip.setTextColor(getColor(R.color.brand))
+        chip.background = roundRect(getColor(R.color.brand_soft), dp(8f))
+        chip.setPadding(dp(10f), dp(4f), dp(10f), dp(4f))
+        chip.maxWidth = resources.displayMetrics.widthPixels * 55 / 100
+        chip.isSingleLine = true
+        chip.ellipsize = android.text.TextUtils.TruncateAt.END
+        // 点站名：把下面的站表滚到这一站，在那儿换站
+        chip.setOnClickListener { scrollStationListTo(order) }
+        top.addView(chip)
+
+        top.addView(
+            View(this), LinearLayout.LayoutParams(0, dp(1f), 1f)
+        )
+        if (order > 0) {
+            val ord = TextView(this)
+            ord.text = "第 $order 站"
+            ord.textSize = 12f
+            ord.setTextColor(getColor(R.color.text_tertiary))
+            top.addView(ord)
+        }
+        c.addView(top)
+
+        val head = arrivalHeadline(d)
+        head.setPadding(0, dp(10f), 0, 0)
+        c.addView(head)
+
+        // 这行小字不管有没有内容都占住位置：拿不到车牌/距离时只是留白，
+        // 卡片高度不变，下面那张卡片就不会跟着往上顶一下
+        val facts = arrivalFacts(d, order)
+        val f = TextView(this)
+        f.text = if (facts.isEmpty()) " " else facts
+        f.textSize = 13f
+        f.setTextColor(getColor(R.color.text_secondary))
+        f.setPadding(0, dp(4f), 0, 0)
+        f.maxLines = 1
+        f.ellipsize = android.text.TextUtils.TruncateAt.END
+        c.addView(f)
+
+        val dv = View(this)
+        dv.setBackgroundColor(getColor(R.color.border_subtle))
+        val dlp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(0.7f))
+        )
+        dlp.topMargin = dp(12f)
+        dlp.bottomMargin = dp(10f)
+        dv.layoutParams = dlp
+        c.addView(dv)
+
+        val bottom = LinearLayout(this)
+        bottom.orientation = LinearLayout.HORIZONTAL
+        bottom.gravity = Gravity.CENTER_VERTICAL
+        val next = TextView(this)
+        next.text = followingText(d, order)
+        next.textSize = 13f
+        next.setTextColor(getColor(R.color.text_secondary))
+        next.isSingleLine = true
+        next.ellipsize = android.text.TextUtils.TruncateAt.END
+        bottom.addView(next, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+        val count = if (d.vehicles.isNotEmpty()) d.vehicles.size else d.busCount
+        val look = TextView(this)
+        look.text = if (count > 0) "全线 $count 辆车在途 · 查看" else "全线暂无在途车辆"
+        look.textSize = 13f
+        look.typeface = Typeface.DEFAULT_BOLD
+        look.setTextColor(if (count > 0) getColor(R.color.brand) else getColor(R.color.text_tertiary))
+        look.setPadding(dp(8f), dp(6f), 0, dp(6f))
+        if (count > 0) look.setOnClickListener { openBusList() }
+        bottom.addView(look)
+        c.addView(bottom)
+        return c
+    }
+
+    /** 大字：到站了 / N 分钟 / N 站 / 下一班 19:34 / 状态文案。 */
+    private fun arrivalHeadline(d: BusModels.LineDetail): View {
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.BOTTOM
+
+        var value = ""
+        var unit: String? = null
+        var size = 40f
+        var unitSize = 17f
+        var tone = getColor(R.color.text_primary)
+
+        when {
+            d.etaArrived -> {
+                value = "到站了"
+                size = 28f
+                tone = toneGo()
+            }
+            d.etaMinutes == 0 -> {
+                value = "到站了"
+                size = 28f
+                tone = toneGo()
+            }
+            d.etaMinutes in 1..59 -> {
+                value = d.etaMinutes.toString()
+                unit = "分钟"
+                tone = if (d.etaMinutes <= 3) toneGo() else getColor(R.color.text_primary)
+            }
+            d.etaMinutes >= 60 -> {
+                value = BusModels.minutesText(d.etaMinutes)
+                size = 28f
+            }
+            d.etaStops > 0 -> {
+                value = d.etaStops.toString()
+                unit = "站"
+                tone = if (d.etaStops <= 1) toneGo() else getColor(R.color.text_primary)
+            }
+            d.estArrival.isNotEmpty() -> {
+                value = "下一班 " + d.estArrival
+                size = 24f
+                tone = getColor(R.color.text_secondary)
+            }
+            else -> {
+                value = if (d.status.isEmpty()) "暂无预测" else d.status
+                size = if (d.status.length > 8) 16f else 22f
+                tone = getColor(R.color.text_secondary)
+            }
+        }
+
+        val big = TextView(this)
+        big.text = value
+        big.textSize = size
+        big.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        big.setTextColor(tone)
+        row.addView(big)
+        if (unit != null) {
+            val u = TextView(this)
+            u.text = unit
+            u.textSize = unitSize
+            u.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            u.setTextColor(tone)
+            u.setPadding(dp(4f), 0, 0, dp(6f))
+            row.addView(u)
+        }
+        return row
+    }
+
+    /** 大字下面那行小字：快去上车 / 还有几站 · 车牌 · 距本站 · 几点到 · 时速（拿不到的不写）。 */
+    private fun arrivalFacts(d: BusModels.LineDetail, order: Int): String {
         val bits = ArrayList<String>()
-        if (d.line.firstTime.isNotEmpty() || d.line.lastTime.isNotEmpty()) {
-            bits.add("首 " + d.line.firstTime + " · 末 " + d.line.lastTime)
+        if (d.etaArrived) bits.add("快去上车")
+        val v = nearestVehicle(d, order)
+        if (v != null) {
+            if (!d.etaArrived && order > 0 && v.order > 0) {
+                val left = order - v.order
+                bits.add(if (left <= 0) "下一站就到" else "还有 $left 站")
+            }
+            if (v.plate.isNotEmpty()) bits.add(v.plate)
+            val dist = BusText.distanceText(v.distanceMeters)
+            if (dist.isNotEmpty()) bits.add("距本站 " + dist)
+            val clock = BusText.clockAfter(v.etaSeconds, System.currentTimeMillis())
+            if (clock.isNotEmpty()) bits.add(clock + " 到")
+            if (v.speedKmh > 0) bits.add(v.speedKmh.toInt().toString() + " km/h")
         }
-        if (d.line.price.isNotEmpty()) {
-            bits.add("票价 " + d.line.price)
+        if (bits.isEmpty()) {
+            val detail = d.etaDetail()
+            if (detail.isNotEmpty()) bits.add(detail)
         }
-        if (d.busCount > 0) bits.add("在途 " + d.busCount + " 辆")
         return bits.joinToString(" · ")
+    }
+
+    /** 「下一辆 28 分钟 · 12 站」；只有一样就只说一样；都没有就「后面还有车」。 */
+    private fun followingText(d: BusModels.LineDetail, order: Int): String {
+        val v = nearestVehicle(d, order) ?: return ""
+        val rest = ArrayList<BusModels.Vehicle>()
+        for (x in d.vehicles) {
+            if (x !== v) rest.add(x)
+        }
+        var following: BusModels.Vehicle? = null
+        for (x in rest) {
+            if (order > 0 && x.order > order) continue
+            if (following == null || x.order > following!!.order) following = x
+        }
+        val f = following ?: return ""
+        val mins = if (f.etaSeconds > 0) Math.round(f.etaSeconds / 60.0).toInt().coerceAtLeast(1) else null
+        val stops = if (order > 0 && f.order > 0 && order - f.order >= 0) order - f.order else null
+        return when {
+            mins != null && stops != null -> "下一辆 $mins 分钟 · $stops 站"
+            mins != null -> "下一辆 $mins 分钟"
+            stops != null -> "下一辆还有 $stops 站"
+            else -> "后面还有车"
+        }
+    }
+
+    // ── 状态二：到「候车站」的全部车辆 ──
+
+    private fun busListCard(d: BusModels.LineDetail): View {
+        val c = heroCard()
+        val order = if (selectedOrder > 0) selectedOrder else d.waitingOrder
+        val name = if (d.waitingStopName.isEmpty()) "当前站" else d.waitingStopName
+
+        val top = LinearLayout(this)
+        top.orientation = LinearLayout.HORIZONTAL
+        top.gravity = Gravity.CENTER_VERTICAL
+        top.addView(backChip())
+        val title = TextView(this)
+        title.text = "到「" + name + "」的全部车辆"
+        title.textSize = 17f
+        title.typeface = Typeface.DEFAULT_BOLD
+        title.setTextColor(getColor(R.color.text_primary))
+        title.maxLines = 2
+        val tlp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        tlp.leftMargin = dp(4f)
+        top.addView(title, tlp)
+        val cnt = TextView(this)
+        cnt.text = "共 " + d.vehicles.size + " 辆"
+        cnt.textSize = 13f
+        cnt.setTextColor(getColor(R.color.text_secondary))
+        top.addView(cnt)
+        c.addView(top)
+
+        if (d.vehicles.isEmpty()) {
+            val empty = TextView(this)
+            empty.text = "当前线路上暂无在途运营车辆"
+            empty.textSize = 14f
+            empty.setTextColor(getColor(R.color.text_secondary))
+            empty.gravity = Gravity.CENTER
+            empty.setPadding(0, dp(24f), 0, dp(24f))
+            c.addView(empty)
+            return c
+        }
+
+        // 排序和追客一致：还没过本站的按到站时间升序在前，已过站的沉底
+        val sorted = d.vehicles.sortedWith(
+            compareBy<BusModels.Vehicle> { if (order > 0 && it.order > order) 1 else 0 }
+                .thenBy { if (it.etaSeconds > 0) it.etaSeconds else Int.MAX_VALUE }
+                .thenBy { order - it.order }
+        )
+        for (v in sorted) {
+            val row = busRow(v, order)
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.topMargin = dp(8f)
+            c.addView(row, lp)
+        }
+        return c
+    }
+
+    /** 车辆列表里的一行：圆标 + 车牌/时速 + 状态文字 + 到站徽标 + 到达时刻 + ›。 */
+    private fun busRow(v: BusModels.Vehicle, order: Int): View {
+        val passed = order > 0 && v.order > order
+        val atStop = order > 0 && v.order == order && v.isArrived
+        val stopsLeft = if (order > 0 && v.order > 0) order - v.order else -1
+
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.background = RippleDrawable(
+            ColorStateList.valueOf(0x0F000000),
+            outlineBox(getColor(R.color.border_subtle), getColor(R.color.bg_surface), dp(12f)),
+            null
+        )
+        row.setPadding(dp(12f), dp(12f), dp(12f), dp(12f))
+        row.isClickable = true
+        row.setOnClickListener { openFollow(v) }
+        pressScale(row)
+
+        val icon = FrameLayout(this)
+        val circle = View(this)
+        circle.background = roundRect(
+            if (passed) getColor(R.color.bg_sunken) else getColor(R.color.brand_soft), dp(18f)
+        )
+        icon.addView(circle, FrameLayout.LayoutParams(dp(36f), dp(36f)))
+        val busImg = ImageView(this)
+        busImg.setImageResource(R.drawable.ic_quick_bus)
+        busImg.setColorFilter(if (passed) getColor(R.color.text_tertiary) else getColor(R.color.brand))
+        icon.addView(busImg, FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER))
+        row.addView(icon, LinearLayout.LayoutParams(dp(36f), dp(36f)))
+
+        val mid = LinearLayout(this)
+        mid.orientation = LinearLayout.VERTICAL
+        mid.setPadding(dp(12f), 0, 0, 0)
+        val l1 = LinearLayout(this)
+        l1.orientation = LinearLayout.HORIZONTAL
+        l1.gravity = Gravity.CENTER_VERTICAL
+        val plate = TextView(this)
+        plate.text = if (v.plate.isNotEmpty()) v.plate else when {
+            passed -> "已过站车辆"
+            atStop -> "已到站车辆"
+            else -> "在途车辆"
+        }
+        plate.textSize = 15f
+        plate.typeface = Typeface.DEFAULT_BOLD
+        plate.setTextColor(if (passed) getColor(R.color.text_tertiary) else getColor(R.color.text_primary))
+        plate.isSingleLine = true
+        plate.ellipsize = android.text.TextUtils.TruncateAt.END
+        l1.addView(plate)
+        if (!passed && v.speedKmh > 0) {
+            val sp = TextView(this)
+            sp.text = v.speedKmh.toInt().toString() + " km/h"
+            sp.textSize = 11f
+            sp.setTextColor(getColor(R.color.text_secondary))
+            sp.setPadding(dp(6f), 0, 0, 0)
+            l1.addView(sp)
+        }
+        mid.addView(l1)
+
+        val st = TextView(this)
+        st.text = when {
+            passed -> "已过该站"
+            atStop -> "已到站"
+            stopsLeft > 0 -> "还有 $stopsLeft 站 · 正在接近第 " + v.order + " 站"
+            else -> "正在进站"
+        }
+        st.textSize = 12f
+        st.setTextColor(if (passed) getColor(R.color.text_tertiary) else getColor(R.color.text_secondary))
+        st.setPadding(0, dp(2f), 0, 0)
+        mid.addView(st)
+        row.addView(mid, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+        val right = LinearLayout(this)
+        right.orientation = LinearLayout.VERTICAL
+        right.gravity = Gravity.END
+        val hot = atStop || (!passed && stopsLeft == 1)
+        val badgeText = when {
+            passed -> "已过站"
+            atStop -> "已到站"
+            v.etaSeconds > 0 -> BusText.etaText(v.etaSeconds, false)
+            BusText.distanceText(v.distanceMeters).isNotEmpty() -> "距本站 " + BusText.distanceText(v.distanceMeters)
+            else -> "暂无预测"
+        }
+        right.addView(statusBadge(badgeText, hot && !passed))
+        if (!passed && v.etaSeconds > 0) {
+            val clock = BusText.clockAfter(v.etaSeconds, System.currentTimeMillis())
+            if (clock.isNotEmpty()) {
+                val t = TextView(this)
+                t.text = clock + " 到"
+                t.textSize = 11f
+                t.setTextColor(getColor(R.color.text_secondary))
+                t.setPadding(0, dp(2f), 0, 0)
+                right.addView(t)
+            }
+        }
+        val rlp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        rlp.leftMargin = dp(8f)
+        row.addView(right, rlp)
+
+        val chev = TextView(this)
+        chev.text = "›"
+        chev.textSize = 18f
+        chev.setTextColor(getColor(R.color.text_tertiary))
+        chev.setPadding(dp(4f), 0, 0, 0)
+        row.addView(chev)
+        return row
+    }
+
+    // ── 状态三：单车跟随 ──
+
+    private fun followCard(d: BusModels.LineDetail): View {
+        val c = heroCard()
+        val v = followedVehicle(d)
+
+        val top = LinearLayout(this)
+        top.orientation = LinearLayout.HORIZONTAL
+        top.gravity = Gravity.CENTER_VERTICAL
+        top.addView(backChip())
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        val title = TextView(this)
+        title.text = "单车跟随 · " + if (v != null && v.plate.isNotEmpty()) v.plate else "指定车辆"
+        title.textSize = 17f
+        title.typeface = Typeface.DEFAULT_BOLD
+        title.setTextColor(getColor(R.color.text_primary))
+        title.isSingleLine = true
+        title.ellipsize = android.text.TextUtils.TruncateAt.END
+        col.addView(title)
+        val heading = TextView(this)
+        heading.text = "开往  " + (if (d.line.endName.isEmpty()) "终点站" else d.line.endName)
+        heading.textSize = 12f
+        heading.setTextColor(getColor(R.color.text_secondary))
+        col.addView(heading)
+        val clp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        clp.leftMargin = dp(4f)
+        top.addView(col, clp)
+        c.addView(top)
+
+        if (v == null) {
+            val gone = TextView(this)
+            gone.text = "这辆车已不在线上（可能已收班或已到达终点）。"
+            gone.textSize = 13f
+            gone.setTextColor(getColor(R.color.text_secondary))
+            gone.gravity = Gravity.CENTER
+            gone.setPadding(dp(8f), dp(24f), dp(8f), dp(24f))
+            c.addView(gone)
+            return c
+        }
+
+        val toTerminus = if (d.stops.isNotEmpty()) Math.max(0, d.stops.size - v.order) else 0
+        val summary = LinearLayout(this)
+        summary.orientation = LinearLayout.HORIZONTAL
+        summary.background = roundRect(getColor(R.color.bg_sunken), dp(12f))
+        summary.setPadding(dp(8f), dp(12f), dp(8f), dp(12f))
+        val slp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        slp.topMargin = dp(10f)
+        summary.layoutParams = slp
+
+        summary.addView(summaryColumn("距终点", toTerminus.toString() + " 站", null))
+        summary.addView(
+            summaryColumn(
+                "时速",
+                if (v.speedKmh > 0) v.speedKmh.toInt().toString() + " km/h" else "—",
+                null
+            )
+        )
+        summary.addView(
+            summaryColumn(
+                "到终点预测",
+                null,
+                if (v.etaSeconds > 0) BusText.etaText(v.etaSeconds, false) else "无预测"
+            )
+        )
+        c.addView(summary)
+
+        val dist = BusText.distanceText(v.distanceMeters)
+        if (dist.isNotEmpty()) {
+            val t = TextView(this)
+            t.text = "距候车站 " + dist
+            t.textSize = 13f
+            t.setTextColor(getColor(R.color.text_secondary))
+            t.setPadding(0, dp(8f), 0, 0)
+            c.addView(t)
+        }
+
+        val flow = TextView(this)
+        flow.text = "全线途经站行程流："
+        flow.textSize = 13f
+        flow.typeface = Typeface.DEFAULT_BOLD
+        flow.setTextColor(getColor(R.color.text_secondary))
+        flow.setPadding(0, dp(12f), 0, dp(2f))
+        c.addView(flow)
+
+        val sc = ScrollView(this)
+        val list = LinearLayout(this)
+        list.orientation = LinearLayout.VERTICAL
+        sc.addView(list, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+        c.addView(sc, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(240f)
+        ))
+
+        val last = d.stops.size - 1
+        for (i in d.stops.indices) {
+            list.addView(flowRow(d.stops[i], v, i == 0, i == last))
+        }
+        // 默认把当前车所在的那一站滚到中间偏上，跟追客一致
+        val idx = Math.max(0, v.order - 3)
+        sc.post { sc.scrollTo(0, idx * dp(36f)) }
+        return c
+    }
+
+    /** 概览三列：一列标签 + 一行值（值可能是徽标）。 */
+    private fun summaryColumn(label: String, value: String?, badge: String?): View {
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        col.gravity = Gravity.CENTER_HORIZONTAL
+        col.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        val l = TextView(this)
+        l.text = label
+        l.textSize = 11f
+        l.setTextColor(getColor(R.color.text_tertiary))
+        col.addView(l)
+        if (value != null) {
+            val t = TextView(this)
+            t.text = value
+            t.textSize = 15f
+            t.typeface = Typeface.DEFAULT_BOLD
+            t.setTextColor(getColor(R.color.text_primary))
+            t.setPadding(0, dp(3f), 0, 0)
+            col.addView(t)
+        }
+        if (badge != null) {
+            val b = statusBadge(badge, true)
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.topMargin = dp(2f)
+            col.addView(b, lp)
+        }
+        return col
+    }
+
+    /** 行程流里的一行：竖轨 + 节点 + 站序 + 站名 + 右侧状态。 */
+    private fun flowRow(s: BusModels.Stop, v: BusModels.Vehicle, first: Boolean, last: Boolean): View {
+        val passed = s.order < v.order
+        val current = s.order == v.order
+        val next = s.order == v.order + 1
+
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.minimumHeight = dp(36f)
+
+        val rail = FrameLayout(this)
+        val lineColor = if (s.order <= v.order) alphaOf(getColor(R.color.text_tertiary), 0.35f)
+        else getColor(R.color.brand)
+        rail.addView(
+            TimelineRail(this, first, last, lineColor),
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        if (current) {
+            val ring = FrameLayout(this)
+            ring.background = roundRect(toneGo(), dp(10f))
+            val ic = ImageView(this)
+            ic.setImageResource(R.drawable.ic_quick_bus)
+            ic.setColorFilter(android.graphics.Color.WHITE)
+            ring.addView(ic, FrameLayout.LayoutParams(dp(12f), dp(12f), Gravity.CENTER))
+            rail.addView(ring, FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER))
+        } else {
+            val dot = View(this)
+            dot.background = roundRect(
+                if (passed) alphaOf(getColor(R.color.text_tertiary), 0.45f) else getColor(R.color.brand),
+                dp(4f)
+            )
+            rail.addView(dot, FrameLayout.LayoutParams(dp(8f), dp(8f), Gravity.CENTER))
+        }
+        row.addView(rail, LinearLayout.LayoutParams(dp(28f), ViewGroup.LayoutParams.MATCH_PARENT))
+
+        val ord = TextView(this)
+        ord.text = (if (s.orderLabel.isEmpty()) s.order.toString() else s.orderLabel)
+        ord.textSize = 11f
+        ord.typeface = if (current) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        ord.setTextColor(
+            when {
+                current -> toneGo()
+                passed -> alphaOf(getColor(R.color.text_tertiary), 0.6f)
+                else -> getColor(R.color.brand)
+            }
+        )
+        val olp = LinearLayout.LayoutParams(dp(30f), ViewGroup.LayoutParams.WRAP_CONTENT)
+        olp.leftMargin = dp(6f)
+        row.addView(ord, olp)
+
+        val nm = TextView(this)
+        nm.text = s.name
+        nm.textSize = if (current) 14f else 13f
+        nm.typeface = if (current) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        nm.setTextColor(
+            when {
+                current -> toneGo()
+                passed -> getColor(R.color.text_tertiary)
+                else -> getColor(R.color.text_primary)
+            }
+        )
+        nm.isSingleLine = true
+        nm.ellipsize = android.text.TextUtils.TruncateAt.END
+        val nlp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        nlp.rightMargin = dp(6f)
+        row.addView(nm, nlp)
+
+        when {
+            current -> row.addView(statusBadge(if (v.isArrived) "已到站停靠" else "正在接近", true))
+            next -> row.addView(statusBadge("下一站", false))
+            passed -> {
+                val p = TextView(this)
+                p.text = "已过"
+                p.textSize = 11f
+                p.setTextColor(alphaOf(getColor(R.color.text_tertiary), 0.6f))
+                p.setPadding(0, 0, dp(4f), 0)
+                row.addView(p)
+            }
+        }
+        return row
+    }
+
+    // ── 主卡共用小件 ──
+
+    private fun backChip(): View {
+        val tv = TextView(this)
+        tv.text = "←"
+        tv.textSize = 18f
+        tv.gravity = Gravity.CENTER
+        tv.setTextColor(getColor(R.color.text_secondary))
+        tv.background = RippleDrawable(
+            ColorStateList.valueOf(0x0F000000), roundRect(getColor(R.color.bg_sunken), dp(16f)), null
+        )
+        tv.layoutParams = LinearLayout.LayoutParams(dp(32f), dp(32f))
+        tv.setOnClickListener { backToStation() }
+        return tv
+    }
+
+    /** 到站徽标：品牌浅底 + 品牌字；普通态用浅灰底。 */
+    private fun statusBadge(text: String, hot: Boolean): View {
+        val v = TextView(this)
+        v.text = text
+        v.textSize = 11.5f
+        v.typeface = Typeface.DEFAULT_BOLD
+        v.gravity = Gravity.CENTER
+        v.setTextColor(if (hot) getColor(R.color.brand) else getColor(R.color.text_secondary))
+        v.background = roundRect(
+            if (hot) getColor(R.color.brand_soft) else getColor(R.color.bg_sunken), dp(8f)
+        )
+        v.setPadding(dp(8f), dp(4f), dp(8f), dp(4f))
+        return v
+    }
+
+    /** 带描边的圆角盒子（车辆行外框）。 */
+    private fun outlineBox(stroke: Int, fill: Int, radius: Int): GradientDrawable {
+        val g = GradientDrawable()
+        g.setColor(fill)
+        g.cornerRadius = radius.toFloat()
+        g.setStroke(Math.max(1, dp(1f)), stroke)
+        return g
+    }
+
+    /** 按下轻微内缩，松手弹回 —— 卡片上的行点起来有反馈，但不抢点击。 */
+    private fun pressScale(v: View) {
+        v.setOnTouchListener { view, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN ->
+                    view.animate().scaleX(0.985f).scaleY(0.985f).setDuration(110).start()
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL ->
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
+            }
+            false
+        }
+    }
+
+    private fun alphaOf(color: Int, f: Float): Int {
+        val a = Math.round(android.graphics.Color.alpha(color) * f)
+        return android.graphics.Color.argb(
+            a, android.graphics.Color.red(color),
+            android.graphics.Color.green(color), android.graphics.Color.blue(color)
+        )
+    }
+
+    /** 到站大字的「绿」：本站有车、马上到，和追客同一个语义色位。 */
+    private fun toneGo(): Int = getColor(R.color.course_2)
+
+    // ── 三态切换 ──
+
+    private fun openBusList() {
+        panel = PANEL_BUS_LIST
+        followedBusId = ""
+        renderHero()
+    }
+
+    private fun openFollow(v: BusModels.Vehicle) {
+        followedBusId = v.id
+        panel = PANEL_BUS_FOLLOW
+        renderHero()
+    }
+
+    private fun backToStation() {
+        if (panel == PANEL_STATION) return
+        panel = PANEL_STATION
+        followedBusId = ""
+        renderHero()
+    }
+
+    /** 离候车站最近、还没开过去的那辆车。 */
+    private fun nearestVehicle(d: BusModels.LineDetail, order: Int): BusModels.Vehicle? {
+        var best: BusModels.Vehicle? = null
+        for (v in d.vehicles) {
+            if (order > 0 && v.order > order) continue
+            if (best == null || v.order > best!!.order) best = v
+        }
+        return best
+    }
+
+    private fun followedVehicle(d: BusModels.LineDetail): BusModels.Vehicle? {
+        for (v in d.vehicles) {
+            if (v.id == followedBusId) return v
+        }
+        for (v in d.vehicles) {
+            if (v.plate.isNotEmpty() && v.plate == followedBusId) return v
+        }
+        return null
+    }
+
+    /** 点胶囊：把「全部站点」那一块滚到这一站附近（页面自己不动，只动滚动区）。 */
+    private fun scrollStationListTo(order: Int) {
+        if (order <= 0) return
+        val d = detail ?: return
+        var index = -1
+        for (i in d.stops.indices) {
+            if (d.stops[i].order == order) {
+                index = i
+                break
+            }
+        }
+        if (index < 0) return
+        val sc = pageScroll ?: return
+        // 站表在页面下半部分，从顶往下估：站线（约 108dp）+ 标题 + 时刻表槽
+        val y = dp(210f) + index * dp(46f)
+        sc.smoothScrollTo(0, y)
+    }
+
+    // ── 底栏：追踪这班车 + 换向 + 乘车码 ──
+
+    private fun bottomBar(): View {
+        val wrap = LinearLayout(this)
+        wrap.orientation = LinearLayout.VERTICAL
+        wrap.setBackgroundColor(getColor(R.color.bg_surface))
+        wrap.elevation = dp(8f).toFloat()
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
+
+        val track = TextView(this)
+        track.gravity = Gravity.CENTER
+        track.textSize = 15f
+        track.typeface = Typeface.DEFAULT_BOLD
+        track.text = "▶  追踪这班车"
+        track.setTextColor(android.graphics.Color.WHITE)
+        track.background = RippleDrawable(
+            ColorStateList.valueOf(0x33FFFFFF), roundRect(getColor(R.color.brand), dp(14f)), null
+        )
+        track.setOnClickListener { toggleTrack() }
+        trackBtn = track
+        row.addView(track, LinearLayout.LayoutParams(0, dp(52f), 1f))
+
+        val swap = circleAction("⇄")
+        swap.setOnClickListener { swapDirection() }
+        swapBtn = swap
+        val slp = LinearLayout.LayoutParams(dp(52f), dp(52f))
+        slp.leftMargin = dp(8f)
+        row.addView(swap, slp)
+
+        val code = circleAction("")
+        code.addView(qrGlyph(), FrameLayout.LayoutParams(dp(24f), dp(24f), Gravity.CENTER))
+        code.setOnClickListener { openTransitCode() }
+        code.setOnLongClickListener {
+            pickTransitCode()
+            true
+        }
+        codeBtn = code
+        val clp = LinearLayout.LayoutParams(dp(52f), dp(52f))
+        clp.leftMargin = dp(8f)
+        row.addView(code, clp)
+
+        wrap.addView(row)
+        return wrap
+    }
+
+    private fun circleAction(text: String): FrameLayout {
+        val box = FrameLayout(this)
+        box.background = RippleDrawable(
+            ColorStateList.valueOf(0x0F000000), roundRect(getColor(R.color.brand_soft), dp(26f)), null
+        )
+        box.isClickable = true
+        if (text.isNotEmpty()) {
+            val t = TextView(this)
+            t.text = text
+            t.textSize = 20f
+            t.gravity = Gravity.CENTER
+            t.setTextColor(getColor(R.color.brand))
+            box.addView(t, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+            ))
+        }
+        return box
+    }
+
+    /** 乘车码小图标：三个定位方块 + 几个点，几何画出来，不用图片资源。 */
+    private fun qrGlyph(): View {
+        return QrGlyph(this, getColor(R.color.brand))
+    }
+
+    private fun toggleTrack() {
+        val d = detail
+        val f = BusStore.Fav()
+        f.cityId = cityId
+        f.lineId = lineId
+        f.name = lineName
+        f.direction = direction
+        if (d != null) {
+            f.startName = d.line.startName
+            f.endName = d.line.endName
+        }
+        val on = store.toggle(f)
+        refreshTrackBtn()
+        android.widget.Toast.makeText(
+            this, if (on) "已加入追踪，可在首页查看" else "已结束追踪",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun refreshTrackBtn() {
+        val on = store.isFavorite(cityId, lineId)
+        // 顶栏「收藏」和底栏「追踪这班车」是同一个状态，文案必须一起变
+        favBtn?.text = if (on) "已收藏" else "收藏"
+        val btn = trackBtn ?: return
+        btn.text = if (on) "结束追踪" else "▶  追踪这班车"
+        btn.setTextColor(if (on) getColor(R.color.text_secondary) else android.graphics.Color.WHITE)
+        btn.background = RippleDrawable(
+            ColorStateList.valueOf(0x0F000000),
+            roundRect(if (on) getColor(R.color.bg_sunken) else getColor(R.color.brand), dp(14f)),
+            null
+        )
+    }
+
+    private fun openTransitCode() {
+        val id = store.transitCode()
+        if (TransitCode.ASK == id) {
+            pickTransitCode()
+            return
+        }
+        if (!TransitCode.open(this, id)) pickTransitCode()
+    }
+
+    private fun pickTransitCode() {
+        TransitCodeSheet.show(this, store.transitCode()) { id, remember ->
+            if (remember) store.setTransitCode(id)
+            TransitCode.open(this, id)
+        }
+    }
+
+    /**
+     * 行程流左侧的竖轨：上半段接上一站，下半段接下一站，首末站各截掉一半。
+     * 必须是 static 嵌套类（d8 不允许非静态内部类），所以颜色都由外面传进来。
+     */
+    private class TimelineRail(
+        c: Context,
+        private val first: Boolean,
+        private val last: Boolean,
+        private val color: Int
+    ) : View(c) {
+
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        override fun onDraw(canvas: Canvas) {
+            val cx = width / 2f
+            val mid = height / 2f
+            paint.color = color
+            paint.strokeWidth = 2f * resources.displayMetrics.density
+            if (!first) canvas.drawLine(cx, 0f, cx, mid, paint)
+            if (!last) canvas.drawLine(cx, mid, cx, height.toFloat(), paint)
+        }
+    }
+
+    /** 乘车码图标：三个定位角 + 右下几个点，纯几何画，深浅色都跟品牌色走。 */
+    private class QrGlyph(c: Context, private val color: Int) : View(c) {
+
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        override fun onDraw(canvas: Canvas) {
+            val d = resources.displayMetrics.density
+            val s = Math.min(width, height).toFloat()
+            val unit = s / 12f
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.6f * d
+            paint.color = color
+            // 左上、右上、左下三个定位方块
+            drawFinder(canvas, 0.6f * unit, 0.6f * unit, 3.4f * unit)
+            drawFinder(canvas, s - 4.0f * unit, 0.6f * unit, 3.4f * unit)
+            drawFinder(canvas, 0.6f * unit, s - 4.0f * unit, 3.4f * unit)
+            // 右下的小码点
+            paint.style = Paint.Style.FILL
+            canvas.drawRect(s - 4.3f * unit, s - 4.3f * unit, s - 2.9f * unit, s - 2.9f * unit, paint)
+            canvas.drawRect(s - 2.6f * unit, s - 3.4f * unit, s - 1.2f * unit, s - 2.0f * unit, paint)
+            canvas.drawRect(s - 4.0f * unit, s - 2.4f * unit, s - 3.0f * unit, s - 1.4f * unit, paint)
+        }
+
+        private fun drawFinder(canvas: Canvas, x: Float, y: Float, size: Float) {
+            val r = size / 2f
+            canvas.drawCircle(x + r, y + r, r, paint)
+            paint.style = Paint.Style.FILL
+            canvas.drawCircle(x + r, y + r, r * 0.42f, paint)
+            paint.style = Paint.Style.STROKE
+        }
     }
 
     // ───────────────────── 首站发车时刻表 ─────────────────────
@@ -2850,6 +3788,11 @@ class BusActivity : BaseActivity() {
         private const val AUTO_MS = 20000L
 
         /** 一轮最多重算几条（3 并发 + 每条间隔 70ms，12 条约 3~4 秒）。 */
+        /** 线路详情主卡的三态：站点到站 / 全部车辆 / 单车跟随 */
+        private const val PANEL_STATION = 0
+        private const val PANEL_BUS_LIST = 1
+        private const val PANEL_BUS_FOLLOW = 2
+
         private const val ETA_PER_TICK = 12
 
         /** 刚进页面 / 刚铺完一屏时先整体算一遍，多给一些名额。 */

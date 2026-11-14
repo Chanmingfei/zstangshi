@@ -11,6 +11,7 @@ import java.util.ArrayList
 import java.util.Calendar
 import java.util.Collections
 import java.util.Comparator
+import java.util.HashMap
 import java.util.LinkedHashMap
 import java.util.Locale
 import java.util.TimeZone
@@ -89,6 +90,18 @@ class MygolbsClient private constructor() {
         @JvmField var statusTips: String = ""
         @JvmField val buses: MutableList<Bus> = ArrayList()
         @JvmField val etas: MutableList<Eta> = ArrayList()
+
+        /**
+         * busNumber → 到请求那一站的剩余秒数。
+         *
+         * 和 [etas] 不是一回事：[etas] 只留「还没过站、有分钟数」的车（首页算最快那辆用），
+         * 这里把 `routeOnStationRTimeInfoList` 里每辆车的 `busToStationTime`（分钟，可能是小数）
+         * 原样折成秒，供线路详情的逐车卡片用。
+         */
+        @JvmField val etaSecondsByBus: MutableMap<String, Int> = HashMap()
+
+        /** busNumber → 到请求那一站的直线距离（米）；上游只给 >0 的，其余不进来 */
+        @JvmField val distanceByBus: MutableMap<String, Int> = HashMap()
 
         /** 最快的一辆车。 */
         fun first(): Eta? {
@@ -422,6 +435,21 @@ class MygolbsClient private constructor() {
             if (eta != null) {
                 for (i in 0 until eta.length()) {
                     val e = eta.optJSONObject(i) ?: continue
+                    // 逐车卡片的两张表：这里不看 count / tips，凡上游给了车就先记下来，
+                    // 免得「已过站」「非运营」那些分支把它们一起 continue 掉
+                    val mapBus = e.optString("busNumber", "")
+                    if (mapBus.isNotEmpty()) {
+                        // busToStationTime 单位是分钟、可能带小数：≥1 分钟按秒折算，
+                        // 0~1 分钟算「即将到站」给 60 秒，0/负数是没预测
+                        val min = e.optDouble("busToStationTime", -1.0)
+                        rt.etaSecondsByBus[mapBus] = when {
+                            min >= 1.0 -> (min * 60).toInt()
+                            min > 0.0 -> 60
+                            else -> -1
+                        }
+                        val dm = e.optInt("busToStationDistance", -1)
+                        if (dm > 0) rt.distanceByBus[mapBus] = dm
+                    }
                     val tips = e.optString("busToStationTips", "")
                     val count = e.optInt("busToStationCount", -1)
                     // 收班/非运营时官方在这里明说「非运营时间」「已过末班时刻」（都配 count=-1），
@@ -460,6 +488,37 @@ class MygolbsClient private constructor() {
             // 状态只在线路确实没车可用时才生效
             if (rt.etas.isNotEmpty()) rt.statusTips = ""
             return rt
+        }
+
+        /**
+         * 把 [Realtime] 里的在途车摊成线路详情的逐车卡片（「全部车辆 / 单车跟随」）。
+         *
+         * 只读不写：`d.stops` 上的 busRatio / busHere 是另一套逻辑（BusClient 里算的），
+         * 这里只在 [BusModels.LineDetail.vehicles] 上追加，然后按站序排一次。
+         *
+         * 上游缺的字段一律用缺省值表示，不猜：掌上公交没有时速（speedKmh 恒为 0.0），
+         * 车牌只有 busNumber 这种自编号，清洗后仍可能是空串。
+         */
+        @JvmStatic
+        fun fillVehicles(d: BusModels.LineDetail, rt: Realtime) {
+            d.vehicles.clear()
+            for (b in rt.buses) {
+                // index 是 0 起，车正开往第 index+1 站；index 缺失（-1）时算不出位置，不硬塞
+                val order = b.index + 1
+                if (order <= 0) continue
+                val v = BusModels.Vehicle()
+                v.id = b.number
+                v.plate = BusText.sanitizePlate(b.number)
+                v.order = order
+                // statusType == "0" 是上游的「已到站」
+                v.isArrived = "0" == b.statusType
+                v.nextStopName = b.stationName
+                v.etaSeconds = rt.etaSecondsByBus[b.number] ?: -1
+                v.distanceMeters = rt.distanceByBus[b.number] ?: -1
+                v.speedKmh = 0.0
+                d.vehicles.add(v)
+            }
+            Collections.sort(d.vehicles, Comparator<BusModels.Vehicle> { a, b -> a.order - b.order })
         }
 
         /** CMD=114 线路搜索。同一线路的两个方向合成一条，返回的 lineId 指向正方向。 */

@@ -92,6 +92,27 @@ class BusStore(c: Context) {
         sp.edit().putString(ki, id).putString(kn, name).apply()
     }
 
+    /**
+     * 默认乘车码渠道（[TransitCode.ASK] / [TransitCode.ALIPAY] / [TransitCode.UNIONPAY] /
+     * [TransitCode.WECHAT]）。存脏值（老版本、手改的配置）就回退到「每次询问」，
+     * 不然点了乘车码按钮会既不打开也不弹层。
+     */
+    fun transitCode(): String {
+        val v = sp.getString(K_TRANSIT, TransitCode.ASK) ?: TransitCode.ASK
+        return when (v) {
+            TransitCode.ALIPAY, TransitCode.UNIONPAY, TransitCode.WECHAT, TransitCode.ASK -> v
+            else -> TransitCode.ASK
+        }
+    }
+
+    fun setTransitCode(id: String) {
+        val v = when (id) {
+            TransitCode.ALIPAY, TransitCode.UNIONPAY, TransitCode.WECHAT, TransitCode.ASK -> id
+            else -> TransitCode.ASK
+        }
+        sp.edit().putString(K_TRANSIT, v).apply()
+    }
+
     fun lastLat(): Double {
         return java.lang.Double.longBitsToDouble(sp.getLong(K_LAT, java.lang.Double.doubleToLongBits(0.0)))
     }
@@ -198,6 +219,9 @@ class BusStore(c: Context) {
         private const val K_CITY_ID_LEGACY = "city_id"
         private const val K_CITY_NAME_LEGACY = "city_name"
         private const val K_FAV = "favorites"
+
+        /** 默认乘车码渠道，见 [TransitCode]。 */
+        private const val K_TRANSIT = "transit_code"
         private const val K_LAT = "last_lat"
         private const val K_LNG = "last_lng"
     }

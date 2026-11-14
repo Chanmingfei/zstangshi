@@ -132,15 +132,38 @@ class PageSlide(a: Activity, pageColor: Int) {
 
     // ---------- 内部 ----------
 
+    /**
+     * 返回手势的页面内拦截器：返回 true 表示这次「返回」被页面自己消化掉了
+     * （例如实时公交的线路详情里，从「全部车辆 / 单车跟随」退回站点卡），
+     * 此时整页不位移、也不退出，只在松手时执行 [backAction]。
+     *
+     * 不拦截时一切照旧：手势拖多少、卡片走多少，松手滑出屏幕再 finish。
+     */
+    var backInterceptor: (() -> Boolean)? = null
+    /** 被拦截的那次返回，真正要做的事（在松手时调用，和滑出屏幕同一时机）。 */
+    var backAction: (() -> Unit)? = null
+
+    /** 本次手势是否已被页面消化（消化掉的手势不参与位移/退出）。 */
+    private var intercepted = false
+
     private fun gestureStart() {
+        val i = backInterceptor
+        intercepted = i != null && i()
+        if (intercepted) return
         stop()
     }
 
     private fun gestureProgress(progress: Float) {
+        if (intercepted) return
         apply(Math.max(0f, Math.min(1f, progress)))
     }
 
     private fun gestureCommit() {
+        if (intercepted) {
+            intercepted = false
+            backAction?.invoke()
+            return
+        }
         if (finishing) return
         finishing = true
         stop()
@@ -149,6 +172,10 @@ class PageSlide(a: Activity, pageColor: Int) {
     }
 
     private fun gestureCancel() {
+        if (intercepted) {
+            intercepted = false
+            return
+        }
         slideTo(0f, 200)
     }
 

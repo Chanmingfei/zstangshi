@@ -15,6 +15,7 @@ import java.util.ArrayList
 import java.util.Collections
 import java.util.Comparator
 import java.util.Date
+import java.util.HashMap
 import java.util.LinkedHashMap
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -55,6 +56,30 @@ class ChelaileClient private constructor() {
      */
     fun interface EtaWatcher {
         fun onEta(a: BusModels.Arrival)
+    }
+
+    /** 一辆车到候车站的明细（encryptedBusDetail 里 buses[].travels[0]）。 */
+    class BusEta {
+        @JvmField var busId: String = ""
+        @JvmField var seconds: Int = -1
+
+        /** 到候车站的直线距离（米）；-1 = 上游没给 */
+        @JvmField var distance: Int = -1
+
+        /** 上游的推荐文案（如「已到站」「即将到站」），空 = 没给 */
+        @JvmField var tip: String = ""
+
+        /** 车正开往第几站（1 基） */
+        @JvmField var order: Int = 0
+    }
+
+    /**
+     * 一次 encryptedBusDetail 的结果：既给「最快那辆」的 [Pred]（首页/详情大字用），
+     * 也把每辆车按 busId 摊开（线路详情逐车卡片用）。一次请求两处用，不重复打接口。
+     */
+    class BusDetail {
+        @JvmField var pred: Pred = Pred()
+        @JvmField val byBus: MutableMap<String, BusEta> = HashMap()
     }
 
     /** stnStates 里一辆车的原始状态。 */
@@ -442,6 +467,20 @@ class ChelaileClient private constructor() {
                     val b = buses.optJSONObject(i) ?: continue
                     val order = b.optInt("order", 0)
                     if (order <= 0) continue
+                    // 逐车卡片：上游这里给 order / busId / 车牌 / 时速 / 下一站，
+                    // 到站 ETA 与距离要等候车站定下来后另问一次（下面 fillEta 里回填）
+                    val v = BusModels.Vehicle()
+                    v.id = b.optString("busId")
+                    v.order = order
+                    val plate = BusText.sanitizePlate(b.optString("licence"))
+                    v.plate = if (plate.isEmpty()) BusText.sanitizePlate(v.id) else plate
+                    v.speedKmh = b.optDouble("speed", 0.0)
+                    v.nextStopName = b.optString("nextStationName").trim()
+                    // 这个响应没带 targetOrder，distanceToWaitStn 只当兜底，busDetail 回来会覆盖
+                    val dw = b.optInt("distanceToWaitStn", -1)
+                    v.distanceMeters = if (dw > 0) dw else -1
+                    d.vehicles.add(v)
+
                     val cur = stopByOrder(d.stops, order) ?: continue
                     val prev = stopByOrder(d.stops, order - 1)
                     val blat = b.optDouble("lat", 0.0)
@@ -507,6 +546,8 @@ class ChelaileClient private constructor() {
                 // 只要用户是从某个站点点进来的，这个数就该算出来
                 fillEta(d, cityId, lineId, wait, stationId, lat, lng)
             }
+            // 逐车卡片按站序升序：离候车站最近的车排最前
+            Collections.sort(d.vehicles, Comparator<BusModels.Vehicle> { a, b -> a.order - b.order })
             return d
         }
 
@@ -533,7 +574,8 @@ class ChelaileClient private constructor() {
         /** 拉一次到「候车站」的车辆预测，填分钟 / 站数 / 距离。失败不影响站表。 */
         private fun fillEta(d: BusModels.LineDetail, cityId: String, lineId: String,
                             wait: BusModels.Stop, stationId: String?, lat: Double, lng: Double) {
-            val pr = predict(cityId, lineId, wait.order, wait.id, lat, lng) ?: return
+            val bd = busDetail(cityId, lineId, wait.order, wait.id, lat, lng) ?: return
+            val pr = bd.pred
             if (pr.secs >= 0) {
                 // 官方口径透传：0 秒=已到站；60 秒内=即将到站（分钟位写 0，
                 // 由 UI 统一渲染成「即将到站」）；再往上才是「N 分钟」
@@ -549,6 +591,17 @@ class ChelaileClient private constructor() {
             if (d.status.isEmpty()) {
                 d.status = pr.depDesc
                 if (d.nextDeparture.isEmpty()) d.nextDeparture = pr.preArrival
+            }
+            // 逐车卡片：同一次响应里按 busId 回填到候车站的秒数 / 距离 / 到站判定
+            for (v in d.vehicles) {
+                val e = bd.byBus[v.id] ?: continue
+                v.etaSeconds = e.seconds
+                if (e.distance > 0) v.distanceMeters = e.distance
+                // 到站判定照抄 Trackr：车正开往候车站（order 相同）且剩余秒数极小，
+                // 或上游提示里明说「已到站」
+                if (v.order == wait.order && (e.seconds in 0..20 || e.tip.contains("已到站"))) {
+                    v.isArrived = true
+                }
             }
         }
 
@@ -687,6 +740,20 @@ class ChelaileClient private constructor() {
         @JvmStatic
         fun predict(cityId: String, lineId: String, order: Int, stopId: String?,
                     lat: Double, lng: Double): Pred? {
+            val bd = busDetail(cityId, lineId, order, stopId, lat, lng) ?: return null
+            return bd.pred
+        }
+
+        /**
+         * 一次 encryptedBusDetail，两样东西一起拿：
+         *  - [BusDetail.pred]：最快那辆的秒数 / 站数 / 距离（和 [predict] 的老口径完全一致）
+         *  - [BusDetail.byBus]：每辆车（busId）到候车站的 travelTime / 距离 / 推荐文案
+         *
+         * 逐车卡片和「最快一辆」必须来自同一次响应，否则同一个页面两处数字会打架。
+         */
+        @JvmStatic
+        fun busDetail(cityId: String, lineId: String, order: Int, stopId: String?,
+                      lat: Double, lng: Double): BusDetail? {
             try {
                 val p = base()
                 p["cshow"] = "busDetail"
@@ -712,11 +779,12 @@ class ChelaileClient private constructor() {
                 p["secret"] = ""
 
                 val data = call("/bus/line!encryptedBusDetail.action", p)
-                val out = Pred()
+                val bd = BusDetail()
+                val out = bd.pred
                 out.depDesc = data.optString("depDesc")
                 out.preArrival = data.optString("preArrivalTime")
 
-                val buses = data.optJSONArray("buses") ?: return out
+                val buses = data.optJSONArray("buses") ?: return bd
 
                 var bestSecs = Int.MAX_VALUE
                 var bestArrived = false
@@ -730,6 +798,20 @@ class ChelaileClient private constructor() {
                     // 别用 buses[].state——实测那只是「车停靠在任意一站」的标记，
                     // 离候车站 30 分钟开外的车也一样是 1，拿来判定永远误报
                     val arrived = secs == 0
+
+                    // 逐车明细：上游只给「还没过站」的车列 travels，正好是卡片要的那批
+                    val bId = b.optString("busId")
+                    if (bId.isNotEmpty()) {
+                        val e = BusEta()
+                        e.busId = bId
+                        e.seconds = secs
+                        e.tip = tr.optString("recommTip")
+                        e.order = b.optInt("order", 0)
+                        val dist = b.optInt("distanceToWaitStn", -1)
+                        e.distance = if (dist > 0) dist else -1
+                        bd.byBus[bId] = e
+                    }
+
                     if (secs < 0 || secs >= bestSecs) {
                         // 秒数不可比时（-1 / 同值）也要接住「车到站」的信号
                         if (arrived) bestArrived = true
@@ -747,7 +829,7 @@ class ChelaileClient private constructor() {
                 }
                 out.secs = if (bestSecs == Int.MAX_VALUE) -1 else bestSecs
                 out.arrived = bestArrived
-                return out
+                return bd
             } catch (ignored: Exception) {
                 // 预测是加分项，失败就只显示站表
                 return null

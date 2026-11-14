@@ -1754,9 +1754,7 @@ class BusActivity : BaseActivity() {
         }
         // 主卡内容：换站、轮询只换卡片里的字
         renderHero()
-        // 线路信息：方向 / 运营时间 / 票价 / 全程站数（换向按钮就在方向那一行）
-        body.addView(lineInfoCard(d))
-        // 滚动区：① 主卡 → ② 线路信息 → ③ 线路图 → ④ 首站发车 → ⑤ 全部站点
+        // 滚动区：① 主卡（含线路信息）→ ② 线路图 → ③ 首站发车 → ④ 全部站点
         body.addView(sectionTitle("线路图 · 左右滑动查看"))
         // 站线只在首进页面时居中一次；之后不管换候车站还是例行刷新，
         // 一律恢复用户当前的滚动位置——用户能点到那站，说明它就在屏幕里，
@@ -1944,103 +1942,81 @@ class BusActivity : BaseActivity() {
     // ── 线路信息：方向 / 运营时间 / 票价 / 全程站数 ──
 
     /**
-     * 线路信息卡。放在主卡下面、站线上面：先回答「车什么时候到」，再交代「这是哪条线、
-     * 开往哪儿、几点到几点、多少钱」。
+     * 主卡底部那一条线路信息。**不单独占一张卡**——上面已经有一张到站卡了，
+     * 两张卡各带一层 16dp 内边距和 10dp 外边距，页面上方会显得很臃肿。
+     * 拆成一条分隔线 + 两行小字：方向（右边跟换向按钮）、运营时间 / 票价 / 全程。
      *
-     * 换向按钮就贴在「方向」这一行右边 —— 它改的就是方向，放底栏没人知道它是干嘛的。
+     * 三个面板（到站 / 全部车辆 / 单车跟随）都挂在卡片末尾，信息一直在。
      */
-    private fun lineInfoCard(d: BusModels.LineDetail): View {
-        val c = card()
-        c.setPadding(dp(16f), dp(13f), dp(16f), dp(13f))
-
-        val top = LinearLayout(this)
-        top.orientation = LinearLayout.HORIZONTAL
-        top.gravity = Gravity.CENTER_VERTICAL
-
-        val col = LinearLayout(this)
-        col.orientation = LinearLayout.VERTICAL
-        val lab = TextView(this)
-        lab.text = "方向"
-        lab.textSize = 11f
-        lab.setTextColor(getColor(R.color.text_tertiary))
-        col.addView(lab)
-        val dir = TextView(this)
-        val from = d.line.startName
-        val to = d.line.endName
-        dir.text = when {
-            from.isNotEmpty() && to.isNotEmpty() -> "$from → $to"
-            to.isNotEmpty() -> "开往 $to"
-            from.isNotEmpty() -> "开往 $from"
-            else -> "—"
-        }
-        dir.textSize = 15f
-        dir.typeface = Typeface.DEFAULT_BOLD
-        dir.setTextColor(getColor(R.color.text_primary))
-        dir.setPadding(0, dp(3f), 0, 0)
-        dir.maxLines = 1
-        dir.ellipsize = android.text.TextUtils.TruncateAt.END
-        col.addView(dir)
-        top.addView(
-            col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        )
-        if (d.reversible()) {
-            val pill = swapPill()
-            val plp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            plp.leftMargin = dp(10f)
-            top.addView(pill, plp)
-            swapBtn = pill
-        }
-        c.addView(top)
+    private fun lineInfoFooter(d: BusModels.LineDetail, showDirection: Boolean = true): View {
+        val wrap = LinearLayout(this)
+        wrap.orientation = LinearLayout.VERTICAL
 
         val dlp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(0.7f))
         )
         dlp.topMargin = dp(11f)
-        dlp.bottomMargin = dp(10f)
+        dlp.bottomMargin = dp(9f)
         val div = View(this)
         div.setBackgroundColor(getColor(R.color.border_subtle))
-        c.addView(div, dlp)
+        wrap.addView(div, dlp)
 
-        val cells = LinearLayout(this)
-        cells.orientation = LinearLayout.HORIZONTAL
-        val first = if (d.line.firstTime.isEmpty()) "" else d.line.firstTime
-        val last = if (d.line.lastTime.isEmpty()) "" else d.line.lastTime
-        val hours = when {
-            first.isNotEmpty() && last.isNotEmpty() -> "$first - $last"
-            first.isNotEmpty() -> "$first 起"
-            last.isNotEmpty() -> "至 $last"
-            else -> "—"
+        // 单车跟随那张卡上面已经写了「开往 X」，这里就不再重复方向，只留运营信息
+        if (showDirection) {
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = Gravity.CENTER_VERTICAL
+            val dir = TextView(this)
+            val from = d.line.startName
+            val to = d.line.endName
+            dir.text = when {
+                from.isNotEmpty() && to.isNotEmpty() -> "$from → $to"
+                to.isNotEmpty() -> "开往 $to"
+                from.isNotEmpty() -> "开往 $from"
+                else -> "—"
+            }
+            dir.textSize = 13f
+            dir.setTextColor(getColor(R.color.text_secondary))
+            dir.maxLines = 1
+            dir.ellipsize = android.text.TextUtils.TruncateAt.END
+            row.addView(
+                dir, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            )
+            if (d.reversible()) {
+                val pill = swapPill()
+                val plp = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                plp.leftMargin = dp(10f)
+                row.addView(pill, plp)
+                swapBtn = pill
+            }
+            wrap.addView(row)
         }
-        cells.addView(infoCell("运营时间", hours))
-        cells.addView(infoCell("票价", if (d.line.price.isEmpty()) "—" else d.line.price))
-        val total = if (d.line.stationsNum > 0) d.line.stationsNum else d.stops.size
-        cells.addView(infoCell("全程", if (total > 0) "$total 站" else "—"))
-        c.addView(cells)
-        return c
-    }
 
-    /** 信息卡里的一栏：上面灰色小标签，下面深色数值，左对齐。 */
-    private fun infoCell(label: String, value: String): View {
-        val col = LinearLayout(this)
-        col.orientation = LinearLayout.VERTICAL
-        col.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        val l = TextView(this)
-        l.text = label
-        l.textSize = 11f
-        l.setTextColor(getColor(R.color.text_tertiary))
-        col.addView(l)
-        val v = TextView(this)
-        v.text = value
-        v.textSize = 14f
-        v.typeface = Typeface.DEFAULT_BOLD
-        v.setTextColor(getColor(R.color.text_primary))
-        v.setPadding(0, dp(3f), 0, 0)
-        v.maxLines = 1
-        v.ellipsize = android.text.TextUtils.TruncateAt.END
-        col.addView(v)
-        return col
+        // 运营时间 · 票价 · 全程，能拿到的才写
+        val bits = ArrayList<String>()
+        val first = d.line.firstTime
+        val last = d.line.lastTime
+        when {
+            first.isNotEmpty() && last.isNotEmpty() -> bits.add("$first - $last")
+            first.isNotEmpty() -> bits.add("$first 起")
+            last.isNotEmpty() -> bits.add("至 $last")
+        }
+        if (d.line.price.isNotEmpty()) bits.add(d.line.price)
+        val total = if (d.line.stationsNum > 0) d.line.stationsNum else d.stops.size
+        if (total > 0) bits.add("全程 $total 站")
+        if (bits.isNotEmpty()) {
+            val meta = TextView(this)
+            meta.text = bits.joinToString(" · ")
+            meta.textSize = 11.5f
+            meta.setTextColor(getColor(R.color.text_tertiary))
+            meta.setPadding(0, dp(3f), 0, 0)
+            meta.maxLines = 1
+            meta.ellipsize = android.text.TextUtils.TruncateAt.END
+            wrap.addView(meta)
+        }
+        return wrap
     }
 
     /** 换向：品牌色描边 + 淡底 + 图标文字，和顶栏「收藏」区分开，一眼看出能点。 */
@@ -2104,17 +2080,18 @@ class BusActivity : BaseActivity() {
         head.setPadding(0, dp(10f), 0, 0)
         c.addView(head)
 
-        // 这行小字不管有没有内容都占住位置：拿不到车牌/距离时只是留白，
-        // 卡片高度不变，下面那张卡片就不会跟着往上顶一下
+        // 这行小字有内容才写：没车牌也没距离时留一行空白，卡片会显得空荡荡的
         val facts = arrivalFacts(d, order)
-        val f = TextView(this)
-        f.text = if (facts.isEmpty()) " " else facts
-        f.textSize = 13f
-        f.setTextColor(getColor(R.color.text_secondary))
-        f.setPadding(0, dp(4f), 0, 0)
-        f.maxLines = 1
-        f.ellipsize = android.text.TextUtils.TruncateAt.END
-        c.addView(f)
+        if (facts.isNotEmpty()) {
+            val f = TextView(this)
+            f.text = facts
+            f.textSize = 13f
+            f.setTextColor(getColor(R.color.text_secondary))
+            f.setPadding(0, dp(4f), 0, 0)
+            f.maxLines = 1
+            f.ellipsize = android.text.TextUtils.TruncateAt.END
+            c.addView(f)
+        }
 
         val dv = View(this)
         dv.setBackgroundColor(getColor(R.color.border_subtle))
@@ -2147,6 +2124,7 @@ class BusActivity : BaseActivity() {
         if (count > 0) look.setOnClickListener { openBusList() }
         bottom.addView(look)
         c.addView(bottom)
+        c.addView(lineInfoFooter(d))
         return c
     }
 
@@ -2299,6 +2277,7 @@ class BusActivity : BaseActivity() {
             empty.gravity = Gravity.CENTER
             empty.setPadding(0, dp(24f), 0, dp(24f))
             c.addView(empty)
+            c.addView(lineInfoFooter(d))
             return c
         }
 
@@ -2316,6 +2295,7 @@ class BusActivity : BaseActivity() {
             lp.topMargin = dp(8f)
             c.addView(row, lp)
         }
+        c.addView(lineInfoFooter(d))
         return c
     }
 
@@ -2467,6 +2447,7 @@ class BusActivity : BaseActivity() {
             gone.gravity = Gravity.CENTER
             gone.setPadding(dp(8f), dp(24f), dp(8f), dp(24f))
             c.addView(gone)
+            c.addView(lineInfoFooter(d, false))
             return c
         }
 
@@ -2533,6 +2514,7 @@ class BusActivity : BaseActivity() {
         // 默认把当前车所在的那一站滚到中间偏上，跟追客一致
         val idx = Math.max(0, v.order - 3)
         sc.post { sc.scrollTo(0, idx * dp(36f)) }
+        c.addView(lineInfoFooter(d, false))
         return c
     }
 
@@ -3816,7 +3798,7 @@ class BusActivity : BaseActivity() {
         v.textSize = 13f
         v.typeface = Typeface.DEFAULT_BOLD
         v.setTextColor(getColor(R.color.text_tertiary))
-        v.setPadding(dp(4f), dp(16f), 0, dp(8f))
+        v.setPadding(dp(4f), dp(13f), 0, dp(7f))
         return v
     }
 

@@ -131,6 +131,19 @@ object TransitCodeSheet {
 
         box.addView(sc, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
+        // 微信渠道已下线：直接说明原因，别让用户以为是我们漏了
+        val note = TextView(host)
+        note.setText("由于微信限制，暂不提供微信乘车码跳转")
+        note.setTextSize(12f)
+        note.setTextColor(host.getColor(R.color.text_tertiary))
+        note.background = rounded(host.getColor(R.color.bg_sunken), dp * 10)
+        note.setPadding(dp * 12, dp * 9, dp * 12, dp * 9)
+        val nlp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        nlp.topMargin = dp * 2
+        box.addView(note, nlp)
+
         // 底部「记住选择」一行：自绘方块 + 勾，跟这套浅色卡片一致（系统的 CheckBox 会带主题色）
         val checkRow = LinearLayout(host)
         checkRow.orientation = LinearLayout.HORIZONTAL
@@ -196,8 +209,8 @@ object TransitCodeSheet {
         tip.setPadding(dp * 2, dp * 8, 0, 0)
         box.addView(tip)
 
-        // 高度估算（和 OptionSheet 一样按行数算，不去 measure）：标题 + 三行 + 勾选行 + 提示
-        val h = dp * (40 + ids.size * 71 + 48 + 30)
+        // 高度估算（和 OptionSheet 一样按行数算，不去 measure）：标题 + 两行 + 微信说明 + 勾选行 + 提示
+        val h = dp * (40 + ids.size * 71 + 44 + 48 + 30)
         val cap = Math.round(host.resources.displayMetrics.heightPixels * 0.6f)
         handle[0] = Sheet.show(host, box, Math.min(h, cap))
     }
@@ -265,7 +278,6 @@ object TransitCodeSheet {
         return when (id) {
             TransitCode.ALIPAY -> "未安装支付宝，无法打开乘车码"
             TransitCode.UNIONPAY -> "未安装云闪付客户端，无法打开乘车码"
-            TransitCode.WECHAT -> "未安装微信，无法打开乘车码"
             else -> "该应用未安装"
         }
     }

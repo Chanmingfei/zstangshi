@@ -93,21 +93,21 @@ class BusStore(c: Context) {
     }
 
     /**
-     * 默认乘车码渠道（[TransitCode.ASK] / [TransitCode.ALIPAY] / [TransitCode.UNIONPAY] /
-     * [TransitCode.WECHAT]）。存脏值（老版本、手改的配置）就回退到「每次询问」，
+     * 默认乘车码渠道（[TransitCode.ASK] / [TransitCode.ALIPAY] / [TransitCode.UNIONPAY]）。
+     * 存脏值（老版本存过已下线的 wechat、手改的配置）就回退到「每次询问」，
      * 不然点了乘车码按钮会既不打开也不弹层。
      */
     fun transitCode(): String {
         val v = sp.getString(K_TRANSIT, TransitCode.ASK) ?: TransitCode.ASK
         return when (v) {
-            TransitCode.ALIPAY, TransitCode.UNIONPAY, TransitCode.WECHAT, TransitCode.ASK -> v
+            TransitCode.ALIPAY, TransitCode.UNIONPAY, TransitCode.ASK -> v
             else -> TransitCode.ASK
         }
     }
 
     fun setTransitCode(id: String) {
         val v = when (id) {
-            TransitCode.ALIPAY, TransitCode.UNIONPAY, TransitCode.WECHAT, TransitCode.ASK -> id
+            TransitCode.ALIPAY, TransitCode.UNIONPAY, TransitCode.ASK -> id
             else -> TransitCode.ASK
         }
         sp.edit().putString(K_TRANSIT, v).apply()

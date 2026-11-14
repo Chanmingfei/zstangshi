@@ -1155,8 +1155,9 @@ class BusActivity : BaseActivity() {
         right.gravity = Gravity.END
 
         val eta = TextView(this)
-        // 车来了那一行的排版：蓝色大字「12分钟 · 7站」，下面一行灰色小字「下辆 …」
-        eta.textSize = 22f
+        // 车来了那一行的排版：蓝色大字「12分钟 · 7站」，下面一行灰色小字「下辆 …」。
+        // 蓝色这行和左侧线路名同为 16sp，再大就会压过线路名、抢掉左边的空间
+        eta.textSize = 16f
         eta.typeface = Typeface.DEFAULT_BOLD
         eta.gravity = Gravity.END
         eta.maxLines = 1
@@ -1189,7 +1190,7 @@ class BusActivity : BaseActivity() {
 
     /**
      * 把一行的到站文案绑到 Arrival 上，补预测回来后直接改这几个 TextView。
-     * [bigStyle] 是首页线路行：有真实数字时用蓝色 22sp 大字；状态文案没有数字，
+     * [bigStyle] 是首页线路行：数字用与左侧线路名同大的 16sp 蓝色字；状态文案没有数字，
      * 降回 14sp，免得「末班已过」被放大成一整屏。站点详情卡用 15sp 的小号。
      */
     private fun bindEta(a: BusModels.Arrival, eta: TextView, next: TextView, bigStyle: Boolean = false) {
@@ -1200,7 +1201,7 @@ class BusActivity : BaseActivity() {
                 big.contains("分钟") || big.contains("站")
             eta.textSize = when {
                 !bigStyle -> 15f
-                numeric -> 22f
+                numeric -> 16f
                 else -> 14f
             }
             eta.setTextColor(etaColor(a))

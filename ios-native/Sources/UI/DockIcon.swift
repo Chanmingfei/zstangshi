@@ -30,12 +30,15 @@ enum DockIcon {
         var filled: Bool = false
 
         func path(in rect: CGRect) -> Path {
-            var p = Path()
+            // Path 没有 translateBy/scaleBy，构造变换后用 applying(_:)。
+            // 24×24 viewport → 缩放到 rect，再居中。
             let s = min(rect.width, rect.height) / 24.0
-            p.translateBy(x: rect.midX - 12 * s, y: rect.midY - 12 * s)
-            p.scaleBy(x: s, y: s)
+            var t = CGAffineTransform(translationX: rect.midX, y: rect.midY)
+            t = t.scaledBy(x: s, y: s)
+            t = t.translatedBy(x: -12, y: -12)
+            var p = Path()
             SVGPath.append(Self.d(for: path), to: &p)
-            return p
+            return p.applying(t)
         }
 
         static func d(for tab: MainTab) -> String {
@@ -103,12 +106,13 @@ enum QuickIcon {
         }
 
         func path(in rect: CGRect) -> Path {
-            var p = Path()
             let s = min(rect.width, rect.height) / 24.0
-            p.translateBy(x: rect.midX - 12 * s, y: rect.midY - 12 * s)
-            p.scaleBy(x: s, y: s)
+            var t = CGAffineTransform(translationX: rect.midX, y: rect.midY)
+            t = t.scaledBy(x: s, y: s)
+            t = t.translatedBy(x: -12, y: -12)
+            var p = Path()
             SVGPath.append(Self.d(for: key), to: &p)
-            return p
+            return p.applying(t)
         }
     }
 }

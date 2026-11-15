@@ -40,11 +40,15 @@ struct GlassSurface<S: Shape>: ViewModifier {
         if #available(iOS 26.0, *) {
             content.glassEffect(makeGlass(), in: shape)
         } else {
-            // 回退：材质 + 极细高光边 + 极轻阴影，视觉上尽量贴近玻璃
+            // 回退：材质 + 极细高光边 + 极轻阴影，视觉上尽量贴近玻璃。
+            // 注意：`S: Shape` 本身没有 `strokeBorder`（那是 InsettableShape 的方法），
+            // 所以这里用 `shape.stroke(...)`，并显式给类型避免推断歧义。
             content
                 .background(shape.fill(.ultraThinMaterial))
-                .overlay(shape.strokeBorder(Color.white.opacity(0.28), lineWidth: 0.8))
-                .shadow(color: .black.opacity(0.10), radius: 16, y: 6)
+                .overlay(
+                    shape.stroke(Color.white.opacity(0.28), lineWidth: 0.8)
+                )
+                .shadow(color: Color.black.opacity(0.10), radius: 16, y: 6)
         }
     }
 

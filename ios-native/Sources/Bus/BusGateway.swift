@@ -85,7 +85,7 @@ struct MygolbsGateway: BusGateway {
         // 掌上公交的站点详情就是「该站经过的线路」，直接用搜索结果里的数据
         var st = station
         if st.arrivals.isEmpty {
-            let hit = try await client.search(station.name)
+            let hit = try await client.search(keyword: station.name)
             let match = hit.stations.first { $0.name == station.name }
             st.arrivals = match?.arrivals ?? []
         }
@@ -113,14 +113,26 @@ struct MygolbsGateway: BusGateway {
                                           stationId: stationId ?? "",
                                           stationOrder: targetOrder)
         var out = BusDetailResult()
-        for a in r.arrivals {
-            out.byBus[a.busId] = BusEta(busId: a.busId, seconds: a.seconds,
-                                        distance: a.distance, tip: "", order: a.order)
+        // 掌上公交的 realtime 已经直接给了车辆与到站，这里按 busId 摊开。
+        // 注意：BusArrival 没有 busId 字段（它描述的是「线路到站」而不是「某辆车」），
+        // 车辆维度的信息在 vehicles 里，所以用 车辆(vehicles) 与 到站(arrivals) 对齐下标。
+        for (i, a) in r.arrivals.enumerated() {
+            let v = i < r.vehicles.count ? r.vehicles[i] : nil
+            let busId = v?.busId ?? "mg_\(i)"
+            out.byBus[busId] = BusEta(busId: busId,
+                                      seconds: a.seconds,
+                                      distance: a.distanceMeters,
+                                      tip: a.status,
+                                      order: v?.order ?? 0)
         }
-        if let first = r.arrivals.first {
+        if let first = r.arrivals.first, let v = r.vehicles.first {
             out.prediction = BusPrediction(seconds: first.seconds,
-                                           distance: first.distance,
-                                           busId: first.busId,
+                                           distance: first.distanceMeters,
+                                           busId: v.busId,
+                                           arrived: first.seconds == 0)
+        } else if let first = r.arrivals.first {
+            out.prediction = BusPrediction(seconds: first.seconds,
+                                           distance: first.distanceMeters,
                                            arrived: first.seconds == 0)
         }
         return out

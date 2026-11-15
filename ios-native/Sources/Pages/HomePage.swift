@@ -241,18 +241,19 @@ struct HomePage: View {
 
             // 宫格：8 格铺满两行（顺序照抄安卓 HomePage.kt）
             VStack(spacing: 6) {
+                // 显式标注类型，避免编译器在混合闭包字面量时推断失败
                 gridRow([
-                    (.timetable, "我的课表", { app.setTab(1, animated: true) }),
+                    ("calendar", "我的课表", { app.setTab(1, animated: true) }),
                     ("chart.bar", "成绩", { route = .grades }),
                     ("chart.line.uptrend.xyaxis", "学分绩点", { route = .gpa }),
-                    ("calendar", "校历", { route = .calendar })
-                ])
+                    ("calendar.badge.clock", "校历", { route = .calendar })
+                ] as [(String, String, () -> Void)])
                 gridRow([
                     ("checklist", "选课", { route = .selection }),
                     ("square.grid.2x2", "推荐课表", { route = .recommend }),
                     ("bus", "实时公交", { route = .bus }),
                     ("ellipsis.circle", "更多功能", { route = .web(.jwxt) })
-                ])
+                ] as [(String, String, () -> Void)])
             }
             .padding(.horizontal, 7)
             .padding(.top, 14)
@@ -351,10 +352,12 @@ struct HomePage: View {
     @ViewBuilder
     private var campusArt: some View {
         if UIImage(named: "CampusArt") != nil {
+            // renderingMode 必须紧跟在 Image 之后、resizable 之前，
+            // 否则 resizable 会返回 `some View`（Image 的具体类型丢失）
             Image("CampusArt")
+                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .renderingMode(.template)
                 .foregroundStyle(T.brand)
                 .opacity(0.9)
                 .frame(maxWidth: .infinity)

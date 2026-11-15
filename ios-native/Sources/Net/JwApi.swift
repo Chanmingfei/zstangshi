@@ -179,8 +179,12 @@ actor JwApi {
             _ = await client.get(EP.gradesPage)
             json = await client.post(EP.gradesData, form: mainForm)
         }
-        if isBadPayload(json) && await relogin() {
-            json = await client.post(EP.gradesData, form: mainForm)
+        if isBadPayload(json) {
+            // `await` 不能出现在 && / || 右侧（autoclosure 不支持并发），先求值再判断
+            let relogged = await relogin()
+            if relogged {
+                json = await client.post(EP.gradesData, form: mainForm)
+            }
         }
         guard let json, !json.trimmingCharacters(in: .whitespaces).isEmpty else {
             d.message = "成绩接口没有响应，请检查网络"

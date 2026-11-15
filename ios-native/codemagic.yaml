@@ -72,9 +72,12 @@ workflows:
           xcodebuild -list -project "${SCHEME}.xcodeproj"
 
       # ── 4. 编译（未签名）──────────────────────────────────────────
+      # 注意：`xcodebuild ... | tee build.log` 的退出码是 tee 的（恒为 0），
+      # 会把编译失败吞掉、后面照样"成功"打出一个空 ipa。
+      # 所以这里用 PIPESTATUS 取 xcodebuild 的真实退出码。
       - name: 编译
         script: |
-          set -e
+          set -o pipefail
           xcodebuild \
             -project "${SCHEME}.xcodeproj" \
             -scheme "${SCHEME}" \
@@ -85,7 +88,19 @@ workflows:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build 2>&1 | tee build.log | tail -100
+            build 2>&1 | tee build.log | tail -120
+          status=${PIPESTATUS[0]}
+          echo "xcodebuild exit = $status"
+          if [ "$status" -ne 0 ]; then
+            echo "===== 编译错误 ====="
+            grep -E "error:" build.log | sort -u | head -60 || true
+            exit "$status"
+          fi
+          # 防御：真有产物才算成功
+          ls -d build/Build/Products/Release-iphoneos/*.app >/dev/null 2>&1 || {
+            echo "编译报告成功但没有 .app 产物"
+            exit 1
+          }
 
       # ── 5. 打包 ───────────────────────────────────────────────────
       - name: 打包未签名 IPA
@@ -93,12 +108,14 @@ workflows:
           set -e
           APP=$(ls -d build/Build/Products/Release-iphoneos/*.app | head -1)
           echo "app: $APP"
+          du -sh "$APP"
 
           if [ -d "$APP/PlugIns/TodayWidget.appex" ]; then
             echo "TodayWidget.appex 已嵌入"
           else
-            echo "警告：没有找到 TodayWidget.appex，小组件可能未构建"
+            echo "错误：没有找到 TodayWidget.appex，小组件未构建"
             ls -R "$APP/PlugIns" 2>/dev/null || true
+            exit 1
           fi
 
           rm -rf Payload zstangshi-ios-unsigned.ipa
@@ -110,6 +127,13 @@ workflows:
           zip -qry zstangshi-ios-unsigned.ipa Payload
           ls -lh zstangshi-ios-unsigned.ipa
           shasum -a 256 zstangshi-ios-unsigned.ipa
+          # 体积合理性校验：真包应该有几十 MB
+          SIZE=$(stat -f%z zstangshi-ios-unsigned.ipa)
+          echo "ipa size = $SIZE bytes"
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "错误：ipa 太小（$SIZE 字节），打包内容有问题"
+            exit 1
+          fi
 
     artifacts:
       - ios-native/zstangshi-ios-unsigned.ipa

@@ -66,10 +66,13 @@ struct CapsuleDock: View {
                     Capsule(style: .continuous)
                         .fill(T.bgSurface)
                         .overlay(
+                            // strokeBorder(_:style:lineWidth:) 没有 alpha 参数重载，
+                            // 用 opacity 表达描边强度
                             Capsule(style: .continuous)
-                                .strokeBorder(T.borderSubtle, colorScheme == .dark
-                                              ? 0.18 : 0.11,
-                                              lineWidth: 0.8)
+                                .strokeBorder(
+                                    T.borderSubtle.opacity(colorScheme == .dark ? 0.18 : 0.11),
+                                    lineWidth: 0.8
+                                )
                         )
                         .shadow(color: .black.opacity(0.10), radius: 14, y: 5)
                 }
@@ -142,7 +145,8 @@ struct CapsuleDock: View {
             .onChanged { value in
                 if !dragging {
                     dragOrigin = deckPosition
-                    pressedSlot = slotAt(value.startLocation.x, pad: pad, cellW: cellW)
+                    // slotAt 返回小数格位置；pressedSlot 存 Int，四舍五入后取
+                    pressedSlot = Int(slotAt(value.startLocation.x, pad: pad, cellW: cellW).rounded())
                     lastHover = Int(dragOrigin.rounded())
                 }
                 let dx = value.translation.width
@@ -179,7 +183,7 @@ struct CapsuleDock: View {
                 // 点按：位移很小才算点，否则当作误触忽略
                 pressedSlot = nil
                 guard abs(dx) < 12, abs(dy) < 12 else { return }
-                let target = slotAt(value.location.x, pad: pad, cellW: cellW)
+                let target = Int(slotAt(value.location.x, pad: pad, cellW: cellW).rounded())
                 commit(target, fromDrag: false)
             }
     }

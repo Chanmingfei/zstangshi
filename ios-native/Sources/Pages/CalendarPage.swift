@@ -241,14 +241,27 @@ struct CalendarPage: View {
         let wdChar = dw >= 1 && dw <= 7 ? String(Array(wd)[dw - 1]) : ""
 
         if week < 1 {
-            return selected + " · 周" + wdChar + "\n开学前，第 1 周从 " + t.semester.startDate + " 开始"
+            let tail: String = "\n开学前，第 1 周从 " + t.semester.startDate + " 开始"
+            let head: String = selected + " · 周" + wdChar
+            return head + tail
         }
         if week > total {
-            return selected + " · 周" + wdChar + "\n本学期（共 \(total) 周）已经结束"
+            let tail = "\n本学期（共 " + String(total) + " 周）已经结束"
+            let head = selected + " · 周" + wdChar
+            return head + tail
         }
-        var s = selected + " · 周" + wdChar + " · 第 " + week + " 周"
+        // 拆成多步拼接：一次性拼 4 段以上会让类型检查器超时
+        var s: String = selected
+        s += " · 周"
+        s += wdChar
+        s += " · 第 "
+        s += String(week)
+        s += " 周"
         let evs = AcademicCalendar.eventsOn(selected)
-        if let first = evs.first { s += "\n" + first.label }
+        if let first = evs.first {
+            s += "\n"
+            s += first.label
+        }
         return s
     }
 

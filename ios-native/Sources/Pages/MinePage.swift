@@ -398,8 +398,9 @@ struct TermSheet: View {
     @State private var termIndex = 0
     @State private var startDate = Date()
     @State private var showPicker = false
+    // 学年候选在 init 里算好，用 @State 存（普通 let 没有 `_years` 投影）
+    @State private var years: [String] = []
 
-    private let years: [String]
     private let termOptions = ["第一学期", "第二学期"]
 
     init() {
@@ -409,11 +410,11 @@ struct TermSheet: View {
         let month = cal.component(.month, from: now)
         let year = cal.component(.year, from: now)
         let base = month >= 8 ? year : year - 1
-        years = (0..<4).map { i in
+        let list: [String] = (0..<4).map { i in
             let a = base - 2 + i
             return "\(a)-\(a + 1)"
         }
-        _years = State(initialValue: years)
+        _years = State(initialValue: list)
     }
 
     var body: some View {

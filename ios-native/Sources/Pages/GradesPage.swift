@@ -131,15 +131,22 @@ struct GradesPage: View {
 
     // MARK: - 学期筛选
 
-    @ViewBuilder
-    private func semesterFilter(_ d: JwApi.Data) -> some View {
-        // 把行里出现的学期去重、排序（"YYYY-YYYY · N" 字典序即时间序）
+    /// 把行里出现的学期去重、排序（"YYYY-YYYY · N" 字典序即时间序）
+    private func uniqSemesters(_ d: JwApi.Data) -> [String] {
         var uniq: [String] = []
-        for r in d.rows where !r.tag.isEmpty && !uniq.contains(r.tag) { uniq.append(r.tag) }
+        for r in d.rows where !r.tag.isEmpty && !uniq.contains(r.tag) {
+            uniq.append(r.tag)
+        }
         uniq.sort()
+        return uniq
+    }
+
+    // ViewBuilder 里不能写 `for` / `var`，所以先算好再进视图
+    private func semesterFilter(_ d: JwApi.Data) -> some View {
+        let uniq = uniqSemesters(d)
         let multi = uniq.count > 1
 
-        HStack(spacing: 0) {
+        return HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("学期筛选")
                     .font(F.callout.weight(.semibold))
@@ -175,7 +182,8 @@ struct GradesPage: View {
             RoundedRectangle(cornerRadius: T.cardRadius, style: .continuous)
                 .strokeBorder(T.borderSubtle, lineWidth: 0.7)
         )
-        .onAppear {
+        // 不在 ViewBuilder 里改 @State：用 onChange 同步选项数组
+        .onChange(of: d.rows.count, initial: true) { _, _ in
             var opts = ["全部学期"]
             opts.append(contentsOf: uniq)
             if opts != semesterOptions { semesterOptions = opts }

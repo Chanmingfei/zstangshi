@@ -1,345 +1,369 @@
-import Foundation
 import SwiftUI
+import CoreLocation
 
-// MARK: - 实时公交 · 页面状态机
-//
-// Android `BusActivity` 那个几千行的状态机（PANEL_STATION / PANEL_BUS_LIST /
-// PANEL_BUS_FOLLOW + 结构键换站不跳动 + 20s 轮询）在 SwiftUI 里收成一个
-// `ObservableObject`：页面只负责渲染，不持有任何业务状态。
-//
-// 数据真实性约定（与 Android v4 修补 4~9 完全一致）：
-//   · 大字 / 小字 /「下辆」必须来自同一次预测，缺哪个字段就空着，绝不编数；
-//   · 换站只重填列表，不重建整页视图树；
-//   · 返回层级：单车跟随 → 全部车辆 → 站点卡，逐层退。
-
+/// 实时公交的状态机。
+///
+/// 职责：定位 → 查附近站点 → 进站点/线路详情 → 轮询到站。
+/// 数据源（车来了 / 掌上公交）与城市可切换，选择持久化。
 @MainActor
 final class BusViewModel: ObservableObject {
 
-    // MARK: 依赖
+    // MARK: - 发布状态
 
-    let prefs: BusPreferences
-    private let gateway: BusGateway
-    let location = BusLocationService()
+    @Published private(set) var source: BusSource
+    @Published private(set) var cityId: String
+    @Published private(set) var cityName: String
 
-    // MARK: 首页
+    @Published private(set) var favorites: [FavoriteLine] = []
+    @Published private(set) var nearby: [BusStation] = []
+    @Published private(set) var nearbyError: String?
+    @Published private(set) var loadingNearby = false
+    @Published private(set) var hasMoreNearby = false
 
-    @Published private(set) var stations: [BusStation] = []
-    @Published private(set) var cities: [BusCity] = []
-    @Published var city: BusCity
-    @Published var source: BusSource
-    @Published private(set) var favorites: [BusLine] = []
-    @Published private(set) var loading = false
-    @Published private(set) var refreshing = false
-    @Published var errorText: String?
-    @Published private(set) var lastRefresh: Date?
+    /// 当前位置（用于各种接口的 lat/lng）
+    @Published private(set) var coordinate: CLLocationCoordinate2D?
+    @Published private(set) var locationDenied = false
+    @Published private(set) var locating = false
 
-    // MARK: 搜索
+    @Published var error: String?
 
-    @Published var searchText = ""
-    @Published private(set) var searchHit = BusSearchHit()
-    @Published private(set) var searching = false
-    @Published var showSearch = false
+    // MARK: - 详情状态
 
-    // MARK: 站点 / 线路
+    @Published private(set) var lineDetail: BusLineDetail?
+    @Published private(set) var stationDetail: BusStation?
+    @Published private(set) var busDetail = BusDetailResult()
+    @Published private(set) var loadingDetail = false
+    @Published private(set) var detailError: String?
 
-    /// 当前站点（站点到站页面）
-    @Published private(set) var station: BusStation?
-    /// 当前线路详情（车辆列表 / 单车跟随共用同一份）
-    @Published private(set) var detail: BusLineDetail?
-    @Published private(set) var timetable: BusTimetable?
-    @Published var panel: BusPanel = .station
-    @Published var followedBusId = ""
-    /// 行程流内嵌窗口的滚动位置：20s 重建时保留，对应 Android flowScrollY
-    @Published var flowScrollY: CGFloat = 0
-    /// 结构键：lineId # direction # stops.count。换站时只重填、不整页重建
-    @Published private(set) var structureKey = ""
-    @Published private(set) var selectedStopId = ""
+    // MARK: - 依赖
 
-    private var currentLineId = ""
-    private var currentDirection = 0
-    private var currentTargetOrder = 0
-    private var refreshTask: Task<Void, Never>?
+    private let store = BusStore()
+    private let location = BusLocation()
+    private var gateway: BusGateway
+    private var ring = 0
+    private var pollTask: Task<Void, Never>?
 
-    // MARK: 乘车码
+    /// 当前打开的是哪条线（轮询用）
+    private var activeLineId: String?
+    private var activeTargetOrder = 0
+    private var activeStationId: String?
 
-    @Published var transitChoice: TransitCodeChoice
-    @Published var showTransitSheet = false
-
-    // MARK: 初始化
-
-    init(gateway: BusGateway? = nil, prefs: BusPreferences? = nil) {
-        let p = prefs ?? BusStore()
-        self.prefs = p
-        self.gateway = gateway ?? BusApi(prefs: p)
-        self.city = p.city()
-        self.source = p.source()
-        self.transitChoice = p.transitChoice()
-        self.favorites = p.favorites()
+    init() {
+        let s = BusStore().source
+        source = s
+        cityId = BusStore().cityId(for: s)
+        cityName = BusStore().cityName(for: s)
+        gateway = BusGatewayFactory.make(s, cityId: BusStore().cityId(for: s))
+        favorites = BusStore().favorites(for: s)
     }
 
-    private var coord: BusCoordinate { location.coord }
+    // MARK: - 启动
 
-    // MARK: - 启动 / 刷新
-
-    func start() {
-        location.request()
-        Task { await loadNearby() }
-        Task { await loadCities() }
+    /// 进入公交页时调用：定位 + 拉附近站点 + 刷新收藏
+    func bootstrap() async {
+        reloadFavorites()
+        await locateAndLoad()
     }
 
-    /// 下拉刷新 / 20s 轮询：只补预测，不整页 reload，避免列表跳动。
-    func refresh() async {
-        guard !refreshing else { return }
-        refreshing = true
-        defer { refreshing = false }
+    /// 重新定位并加载附近站点
+    func locateAndLoad() async {
+        guard !loadingNearby else { return }
+        locating = true
+        defer { locating = false }
+
         do {
-            if let s = station, !s.arrivals.isEmpty {
-                let updated = try await gateway.refreshEta(cityId: city.id,
-                                                           arrivals: s.arrivals,
-                                                           at: coord)
-                var next = s
-                next.arrivals = updated
-                station = next
+            let c = try await location.requestOnce()
+            coordinate = c
+            locationDenied = false
+            nearbyError = nil
+            // 拿到坐标后立刻查附近站点
+            await loadNearby(reset: true)
+        } catch {
+            locationDenied = location.denied
+            nearbyError = (error as? LocalizedError)?.errorDescription
+                ?? "定位失败，请检查定位权限"
+        }
+    }
+
+    /// 只重新拉附近站点（不重新定位）
+    func loadNearby(reset: Bool) async {
+        guard !loadingNearby else { return }
+        guard let c = coordinate else {
+            await locateAndLoad()
+            return
+        }
+        loadingNearby = true
+        nearbyError = nil
+        defer { loadingNearby = false }
+
+        if reset { ring = 0 }
+        ring += 1
+
+        do {
+            // 车来了：ring 用「8 方位 × ring×700 米」的方式扩大范围。
+            // 第一圈直接查当前位置，后面几圈靠偏移点扩大（见 ChelaileClient 注释）。
+            var collected: [BusStation] = []
+            if ring == 1 {
+                collected = try await gateway.nearby(lat: c.latitude, lng: c.longitude, limit: 15)
             } else {
-                stations = try await gateway.nearby(cityId: city.id, at: coord, limit: 12)
+                collected = await probeRing(center: c, ring: ring)
             }
-            if !currentLineId.isEmpty {
-                detail = try await gateway.lineDetail(cityId: city.id,
-                                                     lineId: currentLineId,
-                                                     targetOrder: currentTargetOrder,
-                                                     at: coord)
-                applyStructure()
+
+            if reset {
+                nearby = collected
+            } else {
+                // 去重追加（同一个站可能被多个探针点到）
+                let existing = Set(nearby.map { $0.id })
+                nearby.append(contentsOf: collected.filter { !existing.contains($0.id) })
             }
-            lastRefresh = Date()
-            errorText = nil
+            hasMoreNearby = !collected.isEmpty && ring < 6
+            if nearby.isEmpty {
+                nearbyError = "附近 700 米内没有找到公交站，试试扩大范围"
+            }
         } catch {
-            errorText = (error as? BusError)?.errorDescription ?? "公交数据暂时取不到"
+            nearbyError = (error as? LocalizedError)?.errorDescription
+                ?? "获取附近站点失败"
+            hasMoreNearby = false
         }
     }
 
-    private func loadNearby() async {
-        loading = true
-        defer { loading = false }
-        do {
-            stations = try await gateway.nearby(cityId: city.id, at: coord, limit: 12)
-            lastRefresh = Date()
-            errorText = nil
-        } catch {
-            errorText = (error as? BusError)?.errorDescription ?? "附近站点暂时取不到"
+    /// 以用户位置为中心，按 8 个方位把查询点挪到 ring×700 米处各查一次，合并去重。
+    /// 这是安卓 `fartherStations` 的做法（上游没有翻页参数）。
+    private func probeRing(center: CLLocationCoordinate2D, ring: Int) async -> [BusStation] {
+        let radius = 700.0 * Double(max(1, ring))
+        let dirs = 8
+        var points: [(Double, Double)] = []
+        for i in 0..<dirs {
+            let bearing = Double(i) * 360.0 / Double(dirs)
+            points.append(Self.offset(center.latitude, center.longitude,
+                                      meters: radius, bearing: bearing))
+        }
+
+        return await withTaskGroup(of: [BusStation].self) { group in
+            for p in points {
+                group.addTask { [gateway] in
+                    (try? await gateway.nearby(lat: p.0, lng: p.1, limit: 15)) ?? []
+                }
+            }
+            var all: [BusStation] = []
+            for await list in group {
+                all.append(contentsOf: list)
+            }
+            // 按距离排序去重
+            var seen = Set<String>()
+            return all
+                .sorted { a, b in
+                    let da = a.distanceMeters < 0 ? Int.max : a.distanceMeters
+                    let db = b.distanceMeters < 0 ? Int.max : b.distanceMeters
+                    return da < db
+                }
+                .filter { seen.insert($0.id).inserted }
         }
     }
 
-    private func loadCities() async {
-        do { cities = try await gateway.cities() } catch { cities = [city] }
-    }
-
-    func reloadNearby() async { await loadNearby() }
-
-    // MARK: - 站点
-
-    func openStation(_ s: BusStation) async {
-        panel = .station
-        followedBusId = ""
-        detail = nil
-        timetable = nil
-        currentLineId = ""
-        station = s
-        do {
-            let full = try await gateway.stopDetail(cityId: city.id, station: s, at: coord)
-            station = full
-        } catch {
-            errorText = (error as? BusError)?.errorDescription ?? "站点信息暂时取不到"
-        }
-    }
-
-    // MARK: - 线路
-
-    func openLine(lineId: String, targetOrder: Int = 0) async {
-        currentLineId = lineId
-        currentTargetOrder = targetOrder
-        panel = .busList
-        followedBusId = ""
-        flowScrollY = 0
-        do {
-            detail = try await gateway.lineDetail(cityId: city.id,
-                                                 lineId: lineId,
-                                                 targetOrder: targetOrder,
-                                                 at: coord)
-            applyStructure()
-            await loadTimetable()
-        } catch {
-            errorText = (error as? BusError)?.errorDescription ?? "线路信息暂时取不到"
-        }
-    }
-
-    /// 换候车站：**只换数据，不重建视图树**。结构键不变时页面连滚动位置都不动。
-    func switchWaitingStop(_ stop: BusStop) async {
-        guard let d = detail else { return }
-        guard stop.id != selectedStopId else { return }
-        selectedStopId = stop.id
-        do {
-            let next = try await gateway.lineDetail(cityId: city.id,
-                                                   lineId: d.line.lineId.isEmpty ? currentLineId : d.line.lineId,
-                                                   targetOrder: stop.order,
-                                                   at: coord)
-            currentTargetOrder = stop.order
-            detail = next
-            applyStructure()
-        } catch {
-            errorText = (error as? BusError)?.errorDescription ?? "换站失败"
-        }
-    }
-
-    func switchDirection() async {
-        guard let d = detail, d.reversible else { return }
-        await openLine(lineId: d.reverseId, targetOrder: 0)
-    }
-
-    private func applyStructure() {
-        guard let d = detail else { return }
-        currentDirection = d.line.direction
-        structureKey = "\(d.line.lineId)#\(d.line.direction)#\(d.stops.count)"
-        if selectedStopId.isEmpty { selectedStopId = d.waitingStopId }
-    }
-
-    // MARK: - 三态层级
-
-    func openFollow(busId: String) {
-        guard let d = detail, d.vehicles.contains(where: { $0.id == busId }) else { return }
-        followedBusId = busId
-        panel = .follow
-        flowScrollY = 0
-    }
-
-    /// 返回一层。返回 false 表示已经到顶，交给 NavigationStack 的系统返回。
-    func backOneLevel() -> Bool {
-        switch panel {
-        case .follow:
-            panel = .busList
-            followedBusId = ""
-            return true
-        case .busList:
-            panel = .station
-            followedBusId = ""
-            detail = nil
-            currentLineId = ""
-            return true
-        case .station:
-            return false
-        }
-    }
-
-    // MARK: - 车辆取值（页面只读这里，不许自己另挑一辆）
-
-    func displayVehicle() -> BusVehicle? { detail?.displayVehicle() }
-    func followingVehicle() -> BusVehicle? { detail?.followingVehicle() }
-
-    func followedVehicle() -> BusVehicle? {
-        detail?.vehicles.first { $0.id == followedBusId }
-    }
-
-    // MARK: - 时刻表
-
-    func loadTimetable() async {
-        guard let d = detail else { return }
-        do {
-            timetable = try await gateway.timetable(cityId: city.id,
-                                                    line: d.line,
-                                                    direction: d.line.direction)
-        } catch {
-            timetable = nil
-        }
+    /// 经纬度按方位偏移（球面近似，与安卓 offsetPoint 一致）
+    private static func offset(_ lat: Double, _ lng: Double,
+                               meters: Double, bearing: Double) -> (Double, Double) {
+        let r = 6_371_000.0
+        let dLat = meters * cos(bearing * .pi / 180) / r
+        let dLng = meters * sin(bearing * .pi / 180) / (r * cos(lat * .pi / 180))
+        return (lat + dLat * 180 / .pi, lng + dLng * 180 / .pi)
     }
 
     // MARK: - 搜索
 
-    func search(_ keyword: String) async {
-        let q = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { searchHit = BusSearchHit(); return }
-        searching = true
-        defer { searching = false }
+    func search(_ keyword: String) async -> BusSearchHit {
         do {
-            searchHit = try await gateway.search(cityId: city.id, keyword: q, at: coord)
+            let c = coordinate
+            return try await gateway.search(keyword,
+                                            lat: c?.latitude ?? 0,
+                                            lng: c?.longitude ?? 0)
         } catch {
-            searchHit = BusSearchHit()
-            errorText = (error as? BusError)?.errorDescription ?? "搜索失败"
+            self.error = (error as? LocalizedError)?.errorDescription ?? "搜索失败"
+            return BusSearchHit()
         }
     }
 
-    func searchMore() async {
-        guard searchHit.linesTruncated else { return }
+    // MARK: - 站点详情
+
+    func openStation(_ station: BusStation) async {
+        stationDetail = station
+        detailError = nil
+        loadingDetail = true
+        defer { loadingDetail = false }
         do {
-            let more = try await gateway.searchMore(cityId: city.id,
-                                                    keyword: searchText,
-                                                    at: coord)
-            var hit = searchHit
-            var seen = Set(hit.lines.map(\.lineId))
-            for l in more where !seen.contains(l.lineId) {
-                hit.lines.append(l)
-                seen.insert(l.lineId)
+            let c = coordinate
+            let full = try await gateway.stopDetail(station: station,
+                                                    lat: c?.latitude ?? 0,
+                                                    lng: c?.longitude ?? 0)
+            if let d = stationDetail, d.id == station.id {
+                stationDetail = full
             }
-            searchHit = hit
-        } catch { /* 保持已有结果 */ }
-    }
-
-    // MARK: - 收藏 / 设置
-
-    func toggleFavorite(_ line: BusLine) {
-        if prefs.isFavorite(lineId: line.lineId) {
-            prefs.removeFavorite(lineId: line.lineId)
-        } else {
-            prefs.addFavorite(line)
+        } catch {
+            detailError = (error as? LocalizedError)?.errorDescription
+                ?? "站点详情加载失败"
         }
-        favorites = prefs.favorites()
-        Haptics.selection()
     }
 
-    func isFavorite(_ lineId: String) -> Bool { prefs.isFavorite(lineId: lineId) }
-
-    func setSource(_ s: BusSource) {
-        guard s != source else { return }
-        prefs.setSource(s)
-        source = s
-        // 两套数据源的 cityId 编号体系互不相通，切源必须换回该源默认城市
-        let c = BusCity(id: (prefs as? BusStore)?.defaultCityId(for: s) ?? "056", name: "唐山")
-        prefs.setCity(c)
-        city = c
-        station = nil
-        detail = nil
-        panel = .station
-        Task { await reloadNearby() }
+    func closeStation() {
+        stationDetail = nil
+        detailError = nil
     }
 
-    func setCity(_ c: BusCity) {
-        prefs.setCity(c)
-        city = c
-        station = nil
-        detail = nil
-        panel = .station
-        Task { await reloadNearby() }
+    // MARK: - 线路详情 + 轮询
+
+    func openLine(_ line: BusLine) async {
+        activeLineId = line.lineId
+        activeTargetOrder = store.targetOrder(for: line.lineId)
+        activeStationId = nil
+        lineDetail = nil
+        busDetail = BusDetailResult()
+        detailError = nil
+        store.lastLineName = line.name
+        await refreshLine()
+        startPolling()
     }
 
-    func setTransitChoice(_ c: TransitCodeChoice) {
-        prefs.setTransitChoice(c)
-        transitChoice = c
+    func closeLine() {
+        pollTask?.cancel()
+        pollTask = nil
+        activeLineId = nil
+        lineDetail = nil
+        busDetail = BusDetailResult()
+        detailError = nil
     }
 
-    // MARK: - 轮询
+    /// 切换候车站
+    func setTargetOrder(_ order: Int) async {
+        guard let lineId = activeLineId else { return }
+        activeTargetOrder = order
+        store.setTargetOrder(order, for: lineId)
+        await refreshLine()
+    }
 
-    /// 进入线路页后每 20s 补一次预测；离开时停掉，不做后台空转。
-    func startPolling() {
-        stopPolling()
-        refreshTask = Task { [weak self] in
+    /// 拉线路详情 + 车辆预测
+    func refreshLine() async {
+        guard let lineId = activeLineId else { return }
+        let c = coordinate
+        let lat = c?.latitude ?? 0
+        let lng = c?.longitude ?? 0
+
+        do {
+            // 1. 站表
+            let d = try await gateway.lineDetail(lineId: lineId,
+                                                 targetOrder: activeTargetOrder,
+                                                 stationId: activeStationId,
+                                                 lat: lat, lng: lng)
+
+            // 候车站：优先用户记住的，其次上游给的 targetOrder，最后第一个站
+            var target = activeTargetOrder
+            if target == 0 { target = d.targetOrder }
+            if target == 0 { target = d.stops.first?.order ?? 0 }
+            if target == 0 && !d.stops.isEmpty { target = d.stops[0].order }
+            activeTargetOrder = target
+
+            var merged = d
+            merged.targetOrder = target
+            if activeStationId == nil {
+                activeStationId = merged.targetStop?.sId
+            }
+
+            // 2. 车辆预测（回填「到候车站距离」与到站时间）
+            if target > 0 {
+                if let bd = try? await gateway.busDetail(lineId: lineId,
+                                                         targetOrder: target,
+                                                         stationId: merged.targetStop?.sId,
+                                                         lat: lat, lng: lng) {
+                    busDetail = bd
+                    // 把每辆车的「到候车站距离」回填到车辆上
+                    for i in merged.buses.indices {
+                        if let eta = bd.byBus[merged.buses[i].busId] {
+                            merged.buses[i].distanceToTarget = eta.distance
+                        }
+                    }
+                }
+            }
+
+            lineDetail = merged
+            detailError = nil
+        } catch {
+            if lineDetail == nil {
+                detailError = (error as? LocalizedError)?.errorDescription
+                    ?? "线路详情加载失败"
+            }
+        }
+    }
+
+    /// 20 秒轮询到站（与安卓一致）。离开页面必须调用 closeLine() 取消。
+    private func startPolling() {
+        pollTask?.cancel()
+        pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 20_000_000_000)
-                guard !Task.isCancelled, let self else { return }
-                await self.refresh()
+                guard !Task.isCancelled else { return }
+                await self?.refreshLine()
             }
         }
     }
 
-    func stopPolling() {
-        refreshTask?.cancel()
-        refreshTask = nil
+    /// 首站发车时刻表
+    func loadTimetable() async -> [String] {
+        guard let lineId = activeLineId, let d = lineDetail else { return [] }
+        do {
+            return try await gateway.timetable(lineId: lineId,
+                                               lineNo: d.line.lineNo,
+                                               direction: d.line.direction)
+        } catch {
+            return []
+        }
+    }
+
+    // MARK: - 收藏
+
+    func isFavorite(_ line: BusLine) -> Bool {
+        store.isFavorite(line)
+    }
+
+    @discardableResult
+    func toggleFavorite(_ line: BusLine) -> Bool {
+        let result = store.toggleFavorite(line)
+        reloadFavorites()
+        Haptics.light()
+        return result
+    }
+
+    private func reloadFavorites() {
+        favorites = store.favorites(for: source)
+    }
+
+    // MARK: - 数据源 / 城市
+
+    func changeSource(_ s: BusSource) async {
+        guard s != source else { return }
+        source = s
+        store.source = s
+        cityId = store.cityId(for: s)
+        cityName = store.cityName(for: s)
+        gateway = BusGatewayFactory.make(s, cityId: cityId)
+        reloadFavorites()
+        nearby = []
+        ring = 0
+        hasMoreNearby = false
+        await locateAndLoad()
+    }
+
+    func changeCity(_ city: BusCity) async {
+        cityId = city.id
+        cityName = city.name
+        store.setCityId(city.id, for: source)
+        store.setCityName(city.name, for: source)
+        gateway = BusGatewayFactory.make(source, cityId: city.id)
+        nearby = []
+        ring = 0
+        await locateAndLoad()
+    }
+
+    func availableCities() async -> [BusCity] {
+        (try? await gateway.cities()) ?? []
     }
 }

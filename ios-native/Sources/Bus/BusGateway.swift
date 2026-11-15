@@ -1,91 +1,145 @@
 import Foundation
 
-// MARK: - 实时公交 · 网关协议（网络层与页面层的唯一接缝）
-//
-// 页面层 / ViewModel 只依赖这个协议，不认识车来了、掌上公交任何一个具体类型。
-// 具体实现见 BusApi.swift（双数据源 + 自动回落）。
-// 所有方法都是 `async throws`，失败由 ViewModel 统一转成界面上的状态文案，
-// 绝不返回伪造数据：上游没给就是 -1 / 空数组。
+/// 公交网关：把两个数据源藏在统一接口后面。
+///
+/// 页面层只依赖这个协议 —— 这是上一版 iOS 唯一值得保留的架构设计。
+protocol BusGateway: Sendable {
+    var source: BusSource { get }
 
-protocol BusGateway {
-
-    /// 支持实时公交的城市列表
     func cities() async throws -> [BusCity]
-
-    /// 按坐标由近及远取附近站点
-    func nearby(cityId: String, at coord: BusCoordinate, limit: Int) async throws -> [BusStation]
-
-    /// 站点详情：按物理站台分组，补齐线路与到站预测
-    func stopDetail(cityId: String, station: BusStation,
-                    at coord: BusCoordinate) async throws -> BusStation
-
-    /// 线路详情：站表 + 在途车辆 + 反向线路 + 到候车站的预测
-    /// - targetOrder: 候车站站序（1-based），传 0 表示由上游决定
-    func lineDetail(cityId: String, lineId: String, targetOrder: Int,
-                    at coord: BusCoordinate) async throws -> BusLineDetail
-
-    /// 首站发车时刻表。按「今日预测 → 昨日实际 → 前日实际」优先级取数并写明真实来源
-    func timetable(cityId: String, line: BusLine, direction: Int) async throws -> BusTimetable
-
-    /// 搜索线路 / 站点
-    func search(cityId: String, keyword: String, at coord: BusCoordinate) async throws -> BusSearchHit
-
-    /// 搜索结果翻页（more=true 时）
-    func searchMore(cityId: String, keyword: String,
-                    at coord: BusCoordinate) async throws -> [BusLine]
-
-    /// 批量补到站预测：只回填传进来的这些行，返回更新后的同一批对象
-    func refreshEta(cityId: String, arrivals: [BusArrival],
-                    at coord: BusCoordinate) async throws -> [BusArrival]
-
-    /// 换向：返回对向线路 id，空串表示单程 / 环线
-    func reverseLineId(cityId: String, line: BusLine) async throws -> String
+    func nearby(lat: Double, lng: Double, limit: Int) async throws -> [BusStation]
+    func stopDetail(station: BusStation, lat: Double, lng: Double) async throws -> BusStation
+    func search(_ keyword: String, lat: Double, lng: Double) async throws -> BusSearchHit
+    func lineDetail(lineId: String, targetOrder: Int,
+                    stationId: String?, lat: Double, lng: Double) async throws -> BusLineDetail
+    func busDetail(lineId: String, targetOrder: Int,
+                   stationId: String?, lat: Double, lng: Double) async throws -> BusDetailResult
+    func timetable(lineId: String, lineNo: String?, direction: Int) async throws -> [String]
 }
 
-// MARK: - 网关错误
+// MARK: - 车来了
 
-enum BusError: LocalizedError {
-    case noLocation
-    case noCity
-    case upstream(String)
-    case decode(String)
+struct ChelaileGateway: BusGateway {
+    let source: BusSource = .chelaile
+    private let client: ChelaileClient
 
-    var errorDescription: String? {
-        switch self {
-        case .noLocation: return "还没拿到定位，可在顶部搜索线路"
-        case .noCity: return "当前城市暂不支持实时公交"
-        case .upstream(let s): return s.isEmpty ? "公交数据暂时取不到" : s
-        case .decode(let s): return "公交数据解析失败：\(s)"
-        }
+    init(cityId: String = BusSource.chelaile.defaultCityId) {
+        client = ChelaileClient(cityId: cityId)
+    }
+
+    func cities() async throws -> [BusCity] { try await client.cities() }
+
+    func nearby(lat: Double, lng: Double, limit: Int) async throws -> [BusStation] {
+        try await client.nearby(lat: lat, lng: lng, limit: limit)
+    }
+
+    func stopDetail(station: BusStation, lat: Double, lng: Double) async throws -> BusStation {
+        try await client.stopDetail(physicalId: station.physicalStId,
+                                    namesakeId: station.namesakeStId,
+                                    stationId: station.sId,
+                                    lat: lat, lng: lng)
+    }
+
+    func search(_ keyword: String, lat: Double, lng: Double) async throws -> BusSearchHit {
+        try await client.search(keyword: keyword, lat: lat, lng: lng)
+    }
+
+    func lineDetail(lineId: String, targetOrder: Int,
+                    stationId: String?, lat: Double, lng: Double) async throws -> BusLineDetail {
+        try await client.lineDetail(lineId: lineId, targetOrder: targetOrder,
+                                    stationId: stationId, lat: lat, lng: lng)
+    }
+
+    func busDetail(lineId: String, targetOrder: Int,
+                   stationId: String?, lat: Double, lng: Double) async throws -> BusDetailResult {
+        try await client.busDetail(lineId: lineId, targetOrder: targetOrder,
+                                   stationId: stationId, lat: lat, lng: lng)
+    }
+
+    func timetable(lineId: String, lineNo: String?, direction: Int) async throws -> [String] {
+        try await client.preStartTimetable(lineId: lineId, lineNo: lineNo, direction: direction)
     }
 }
 
-// MARK: - 数据源（与 Android BusClient.SRC_* 一致）
+// MARK: - 掌上公交
 
-enum BusSource: Int, CaseIterable, Identifiable {
-    case chelaile = 0
-    case mygolbs = 1
+struct MygolbsGateway: BusGateway {
+    let source: BusSource = .mygolbs
+    private let client: MygolbsClient
 
-    var id: Int { rawValue }
-    var name: String {
-        switch self {
-        case .chelaile: return "车来了"
-        case .mygolbs: return "掌上公交"
+    init(cityName: String = BusSource.mygolbs.defaultCityId) {
+        client = MygolbsClient(cityName: cityName)
+    }
+
+    func cities() async throws -> [BusCity] {
+        // 掌上公交没有城市列表接口，固定唐山
+        [BusCity(id: BusSource.mygolbs.defaultCityId,
+                 name: BusSource.mygolbs.defaultCityName)]
+    }
+
+    func nearby(lat: Double, lng: Double, limit: Int) async throws -> [BusStation] {
+        try await client.nearbyStations(lat: lat, lng: lng, range: 500)
+    }
+
+    func stopDetail(station: BusStation, lat: Double, lng: Double) async throws -> BusStation {
+        // 掌上公交的站点详情就是「该站经过的线路」，直接用搜索结果里的数据
+        var st = station
+        if st.arrivals.isEmpty {
+            let hit = try await client.search(station.name)
+            let match = hit.stations.first { $0.name == station.name }
+            st.arrivals = match?.arrivals ?? []
         }
+        return st
+    }
+
+    func search(_ keyword: String, lat: Double, lng: Double) async throws -> BusSearchHit {
+        let r = try await client.search(keyword: keyword)
+        var hit = BusSearchHit()
+        hit.stations = r.stations
+        hit.lines = r.lines
+        hit.stationCount = r.stations.count
+        hit.lineCount = r.lines.count
+        return hit
+    }
+
+    func lineDetail(lineId: String, targetOrder: Int,
+                    stationId: String?, lat: Double, lng: Double) async throws -> BusLineDetail {
+        try await client.lineDetail(lineId: lineId, targetOrder: targetOrder)
+    }
+
+    func busDetail(lineId: String, targetOrder: Int,
+                   stationId: String?, lat: Double, lng: Double) async throws -> BusDetailResult {
+        let r = try await client.realtime(lineId: lineId,
+                                          stationId: stationId ?? "",
+                                          stationOrder: targetOrder)
+        var out = BusDetailResult()
+        for a in r.arrivals {
+            out.byBus[a.busId] = BusEta(busId: a.busId, seconds: a.seconds,
+                                        distance: a.distance, tip: "", order: a.order)
+        }
+        if let first = r.arrivals.first {
+            out.prediction = BusPrediction(seconds: first.seconds,
+                                           distance: first.distance,
+                                           busId: first.busId,
+                                           arrived: first.seconds == 0)
+        }
+        return out
+    }
+
+    func timetable(lineId: String, lineNo: String?, direction: Int) async throws -> [String] {
+        []
     }
 }
 
-// MARK: - 收藏 / 设置（页面层通过它读写，不直接碰 UserDefaults）
+// MARK: - 工厂
 
-protocol BusPreferences {
-    func source() -> BusSource
-    func setSource(_ s: BusSource)
-    func city() -> BusCity
-    func setCity(_ c: BusCity)
-    func favorites() -> [BusLine]
-    func addFavorite(_ l: BusLine)
-    func removeFavorite(lineId: String)
-    func isFavorite(lineId: String) -> Bool
-    func transitChoice() -> TransitCodeChoice
-    func setTransitChoice(_ c: TransitCodeChoice)
+enum BusGatewayFactory {
+    static func make(_ source: BusSource, cityId: String? = nil) -> BusGateway {
+        switch source {
+        case .chelaile:
+            return ChelaileGateway(cityId: cityId ?? BusSource.chelaile.defaultCityId)
+        case .mygolbs:
+            return MygolbsGateway()
+        }
+    }
 }

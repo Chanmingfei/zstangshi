@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>zh_CN</string>
+    <string>zh-Hans</string>
     <key>CFBundleDisplayName</key>
     <string>掌上唐师</string>
     <key>CFBundleExecutable</key>
@@ -28,11 +28,7 @@
     <string>用于查找你附近的公交站点并展示实时到站信息</string>
 
     <!-- 乘车码真跳转：调用 canOpenURL / openURL 前必须先把 URL scheme 列进白名单，
-         否则 iOS 一律返回 false。实际 scheme 以 Android bus/TransitCode.kt 为准：
-           支付宝 alipays://platformapi/startapp?appId=200011235
-           云闪付 upwallet://rn/rnhtmlridingcode
-         另保留 alipay / unionpay 两个兼容项。alipayqr / uppaywallet 非实际 scheme，
-         按 team-lead 纠正不再列入。 -->
+         否则 iOS 一律返回 false。scheme 以 Android bus/TransitCode.kt 为准。 -->
     <key>LSApplicationQueriesSchemes</key>
     <array>
         <string>alipays</string>
@@ -45,18 +41,30 @@
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
 
-    <!-- 教务是 http 明文（校外移动数据下 443 不可达），与 Android 侧 usesCleartextTraffic 对齐。
+    <!-- 教务是 http 明文（校外移动数据下 443 不可达），与 Android usesCleartextTraffic 对齐。
+         同时给出精确子域例外，避免一刀切全放开（审核更容易过，行为也更可预期）。
          上架时需在审核备注里说明「校内教务系统仍为 http」。 -->
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
         <true/>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>tstc.edu.cn</key>
+            <dict>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSExceptionRequiresForwardSecrecy</key>
+                <false/>
+                <key>NSExceptionMinimumTLSVersion</key>
+                <string>TLSv1.0</string>
+            </dict>
+        </dict>
     </dict>
 
-    <key>NSFaceIDUsageDescription</key>
-    <string>用面容 ID 解锁已保存的教务密码</string>
-
-    <!-- 冷启动不用 storyboard：品牌深蓝铺满，避免白屏闪一下 -->
+    <!-- 冷启动不用 storyboard：品牌色铺满，避免白屏闪一下 -->
     <key>UILaunchScreen</key>
     <dict>
         <key>UIColorName</key>
@@ -68,15 +76,11 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
 
-    <key>UISupportedInterfaceOrientations~ipad</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationPortraitUpsideDown</string>
-    </array>
-
     <key>UIUserInterfaceStyle</key>
     <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
+    <true/>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
 </dict>
 </plist>

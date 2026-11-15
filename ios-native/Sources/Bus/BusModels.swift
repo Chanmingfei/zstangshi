@@ -1,372 +1,350 @@
 import Foundation
-import SwiftUI
 
-// MARK: - 实时公交 · 共享数据契约
+// MARK: - 公交数据模型
 //
-// 这一份是 iOS 侧所有公交模块（网络层 / ViewModel / 页面）唯一依赖的模型定义，
-// 字段口径逐条对齐 Android v4 的 `bus/BusModels.kt` + `bus/BusText.kt`。
-// 网络层负责「填」，页面层负责「读」，任何一方都不得另造一份平行模型。
+// 严格对齐安卓 `bus/BusModels.kt` 的字段语义。两个数据源（车来了 / 掌上公交）
+// 统一成这套模型，页面层只认这里。
 
-// MARK: 城市 / 站点
+/// 数据源
+enum BusSource: String, CaseIterable, Codable {
+    /// 车来了（默认，覆盖城市多、到站预测准）
+    case chelaile = "chelaile"
+    /// 掌上公交（备选）
+    case mygolbs = "mygolbs"
 
-struct BusCity: Identifiable, Equatable, Codable {
-    var id: String = ""
-    var name: String = ""
+    var label: String {
+        switch self {
+        case .chelaile: return "车来了"
+        case .mygolbs: return "掌上公交"
+        }
+    }
+
+    var defaultCityId: String {
+        switch self {
+        case .chelaile: return "056"        // 唐山
+        case .mygolbs: return "唐山市"
+        }
+    }
+
+    var defaultCityName: String {
+        switch self {
+        case .chelaile: return "唐山"
+        case .mygolbs: return "唐山"
+        }
+    }
 }
 
-/// 一条线路在某个站的到站预测。
-struct BusArrival: Identifiable, Equatable, Codable {
-    var id: String = UUID().uuidString
+/// 城市
+struct BusCity: Identifiable, Equatable {
+    var id: String
+    var name: String
+}
+
+/// 到站信息（一条线路在某站的实时状态）
+struct BusArrival: Identifiable, Equatable {
+    var id: String { lineId.isEmpty ? lineName : lineId }
+
     var lineId: String = ""
     var lineName: String = ""
     var direction: Int = 0
     var startName: String = ""
     var endName: String = ""
-    /// 该站在线路中的站序；虚拟站组共用 999，认站靠 stopId
+    /// 上游的状态文案（如「等待发车」「已收班」）
+    var status: String = ""
+
+    /// 候车站在本线路上的站序（1 基）
     var orderInLine: Int = 0
     var stopId: String = ""
 
-    /// 还有几分钟（向上取整）；-1 = 无预测
+    /// 最快那辆：还有几分钟（-1 = 未知）
     var minutes: Int = -1
-    /// 还有几站；-1 = 未知
+    /// 最快那辆：还有多少秒（-1 = 未知）。上游直给 travelTime，保留原始值便于二次换算。
+    var seconds: Int = -1
+    /// 还有几站（-1 = 未知）
     var stopsAway: Int = -1
-    /// 距离本站还有多少米；-1 = 未知
+    /// 距本站多少米（-1 = 未知）
     var distanceMeters: Int = -1
+    /// 官方口径「已到站」
+    var arrived: Bool = false
+    /// 有没有实时数据
+    var realtime: Bool = false
+    /// 正在等补预测（界面显示「…」）
+    var pending: Bool = false
 
-    /// 第二辆车（首页「下辆」）。与大字必须来自同一份预测；上游只给一辆时全为 -1
+    /// 紧随其后的第二辆
     var nextMinutes: Int = -1
     var nextStopsAway: Int = -1
-    var nextBusId: String = ""
-    /// 大字是这辆车算出来的，小字也只准读它
-    var busId: String = ""
 
-    var arrived: Bool = false
-    /// 上游状态文案（等待发车 / 末班已过…），原样透传
-    var status: String = ""
-    var realtime: Bool = false
-    /// 正在补预测
-    var pending: Bool = false
-    var refreshed: Bool = false
-
-    // MARK: 统一文案口径（与 BusText 一致）
-
-    var label: String {
-        BusText.rowEtaText(minutes: minutes, stopsAway: stopsAway, arrived: arrived,
-                           status: status, realtime: realtime, pending: pending)
+    /// 主文案：「已到站」「3分钟」「…」「等待发车」
+    var primaryText: String {
+        if arrived { return "已到站" }
+        if pending { return "…" }
+        if minutes >= 0 {
+            if minutes == 0 { return "即将到站" }
+            if minutes > 60 { return "\(minutes / 60)小时\(minutes % 60)分" }
+            return "\(minutes)分钟"
+        }
+        if !status.isEmpty { return status }
+        return "暂无车"
     }
-    var etaCompact: String { BusText.rowPrimaryText(minutes: minutes, stopsAway: stopsAway,
-                                                     arrived: arrived, status: status, realtime: realtime) }
-    var detailText: String { BusText.rowDetailText(minutes: minutes, stopsAway: stopsAway,
-                                                    distanceMeters: distanceMeters, arrived: arrived) }
-    var nextLabel: String { BusText.rowNextText(nextMinutes: nextMinutes, nextStopsAway: nextStopsAway) }
-    var destination: String { endName.isEmpty ? startName : endName }
+
+    /// 副文案：「还有 3 站」「下辆 12分钟」
+    var secondaryText: String {
+        var parts: [String] = []
+        if stopsAway > 0 { parts.append("还有 \(stopsAway) 站") }
+        if nextMinutes >= 0 {
+            var s = "下辆 \(nextMinutes)分钟"
+            if nextStopsAway > 0 { s += " \(nextStopsAway)站" }
+            parts.append(s)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    var directionText: String {
+        let dest = endName.isEmpty ? startName : endName
+        return dest.isEmpty ? "" : "开往 " + dest
+    }
 }
 
-struct BusPlatform: Identifiable, Equatable, Codable {
-    var id: String = ""
-    var name: String = ""
-}
+/// 站点（附近站点 / 搜索结果 / 站点详情共用）
+struct BusStation: Identifiable, Equatable {
+    var id: String { sId.isEmpty ? name : sId }
 
-struct BusStation: Identifiable, Equatable, Codable {
-    var id: String = ""
-    var physicalId: String = ""
-    var namesakeId: String = ""
+    var sId: String = ""
     var name: String = ""
-    var distanceMeters: Int = -1
+    var physicalStId: String = ""
+    var namesakeStId: String = ""
     var lat: Double = 0
     var lng: Double = 0
+    /// 距用户多少米（-1 = 未知）
+    var distanceMeters: Int = -1
+    var cityId: String = ""
+    /// 经过的线路
     var arrivals: [BusArrival] = []
+    /// 同名的其他站台（可切换）
     var platforms: [BusPlatform] = []
 
-    var distanceLabel: String { BusText.distanceText(distanceMeters) }
-    var hasRealtime: Bool { arrivals.contains { $0.realtime } }
+    var distanceText: String {
+        guard distanceMeters >= 0 else { return "" }
+        if distanceMeters < 1000 { return "\(distanceMeters)m" }
+        let tenths = (distanceMeters + 50) / 100
+        return "\(tenths / 10).\(tenths % 10)km"
+    }
 }
 
-struct BusLine: Identifiable, Equatable, Codable {
-    var id: String = UUID().uuidString
+/// 物理站台
+struct BusPlatform: Identifiable, Equatable {
+    var id: String
+    var name: String
+}
+
+/// 线路
+struct BusLine: Identifiable, Equatable {
+    var id: String { lineId.isEmpty ? name : lineId }
+
     var lineId: String = ""
     var name: String = ""
-    /// 上游短编号（r93552 之类），时刻表接口要它
     var lineNo: String = ""
+    /// 0 = 正方向，1 = 反方向（上游把正反当两条记录）
     var direction: Int = 0
     var startName: String = ""
     var endName: String = ""
     var firstTime: String = ""
     var lastTime: String = ""
-    var price: String = ""
-    var stationsNum: Int = 0
-    var arrivals: [BusArrival] = []
+    var cityId: String = ""
 
-    var terminusLabel: String {
-        startName.isEmpty && endName.isEmpty ? name : "\(startName) → \(endName)"
+    var serviceTime: String {
+        if firstTime.isEmpty && lastTime.isEmpty { return "" }
+        return "\(firstTime)-\(lastTime)"
     }
+
+    var routeText: String {
+        if startName.isEmpty && endName.isEmpty { return "" }
+        return "\(startName) → \(endName)"
+    }
+
+    /// 收藏主键
+    var favoriteKey: String { "\(cityId.isEmpty ? "056" : cityId)|\(lineId)" }
 }
 
-struct BusSearchHit: Equatable, Codable {
-    var stations: [BusStation] = []
-    var lines: [BusLine] = []
-    var lineCount: Int = 0
-    var stationCount: Int = 0
-
-    var isEmpty: Bool { stations.isEmpty && lines.isEmpty }
-    var stationsTruncated: Bool { stationCount > stations.count }
-    var linesTruncated: Bool { lineCount > lines.count }
-}
-
-// MARK: 线路详情
-
-struct BusStop: Identifiable, Equatable, Codable {
-    var id: String = ""
-    var physicalId: String = ""
+/// 线路上的一个途经站
+struct BusStop: Identifiable, Equatable {
+    var id: String { "\(order)_\(name)" }
     var name: String = ""
     var order: Int = 0
-    var orderLabel: String = ""
+    var sId: String = ""
     var lat: Double = 0
     var lng: Double = 0
-    var busHere: Bool = false
-    /// 车在两站之间时的比例；-1 = 没有车
-    var busRatio: Double = -1
-    var nearest: Bool = false
-    var picked: Bool = false
 }
 
-/// 一辆在途车。字段可缺省 —— 两个数据源能给的字段不一样，界面按缺省降级。
-struct BusVehicle: Identifiable, Equatable, Codable {
-    var id: String = ""
-    /// 车牌或自编号（清洗过、给人看的）
+/// 在途车辆
+struct BusVehicle: Identifiable, Equatable {
+    var id: String { busId }
+    var busId: String = ""
     var plate: String = ""
-    /// 正开往（或已停靠）第几站，1-based
+    /// 车辆当前所在站序
     var order: Int = 0
-    var isArrived: Bool = false
-    /// **到候车站**的剩余秒；-1 = 无。不是到终点站的秒数
-    var etaSeconds: Int = -1
-    /// 到候车站的直线距离（米）；-1 = 无
-    var distanceMeters: Int = -1
-    var speedKmh: Double = 0
-    var nextStopName: String = ""
+    /// 距终点站米数
+    var distanceToTerminal: Int = -1
+    /// ⚠️ 上游 `distanceToWaitStn` 实际是「到终点站的距离」，此字段仅供排查，不要用于展示
+    var distanceToWaitStnRaw: Int = -1
+    /// 距候车站米数（由 busDetail 回填）
+    var distanceToTarget: Int = -1
+    var speed: Int = -1
+    var angle: Double = 0
+    var lat: Double = 0
+    var lng: Double = 0
 }
 
-struct BusLineDetail: Equatable, Codable {
-    var line: BusLine = BusLine()
-    var reverseId: String = ""
-    var reverseStart: String = ""
-    var reverseEnd: String = ""
+/// 线路详情
+struct BusLineDetail: Equatable {
+    var cityId: String = ""
+    var lineId: String = ""
+    var line = BusLine()
     var stops: [BusStop] = []
-    /// 按 order 升序；空 = 上游没给车，不要伪造
-    var vehicles: [BusVehicle] = []
-    var busCount: Int = 0
-    var status: String = ""
-    var nextDeparture: String = ""
-    var waitingStopName: String = ""
-    var waitingOrder: Int = 0
-    var waitingStopId: String = ""
-    var etaMinutes: Int = -1
-    var etaStops: Int = -1
-    var etaDistanceMeters: Int = -1
-    var etaArrived: Bool = false
-    var etaBusId: String = ""
-    var etaNextBusId: String = ""
-    var estArrival: String = ""
+    var buses: [BusVehicle] = []
+    /// 候车站站序
+    var targetOrder: Int = 0
+    var at: Date = Date()
+    /// 原始 JSON（调试 / 后续扩展用）
+    var raw: [String: Any] = [:]
 
-    var reversible: Bool { !reverseId.isEmpty }
-
-    /// 大字和小字必须是同一辆车：聚合预测（谁最快到）指的那辆最准，
-    /// 拿不到才按站序兜底。点名的车不在列表里就返回 nil，绝不拿后车顶替。
-    func displayVehicle() -> BusVehicle? {
-        if !etaBusId.isEmpty {
-            return vehicles.first { $0.id == etaBusId }
-        }
-        guard !vehicles.isEmpty else { return nil }
-        return vehicles
-            .filter { $0.order <= max(1, waitingOrder) }
-            .min { a, b in
-                let sa = a.etaSeconds >= 0 ? a.etaSeconds : Int.max
-                let sb = b.etaSeconds >= 0 ? b.etaSeconds : Int.max
-                return sa < sb
-            } ?? vehicles.first
+    static func == (lhs: BusLineDetail, rhs: BusLineDetail) -> Bool {
+        lhs.lineId == rhs.lineId && lhs.line == rhs.line
+            && lhs.stops.count == rhs.stops.count
+            && lhs.buses == rhs.buses
+            && lhs.targetOrder == rhs.targetOrder
     }
 
-    /// 「下一辆」：同一次预测里秒数次小的那辆，排除大字那辆
-    func followingVehicle() -> BusVehicle? {
-        if !etaNextBusId.isEmpty {
-            return vehicles.first { $0.id == etaNextBusId && $0.id != etaBusId }
-        }
-        let main = displayVehicle()?.id ?? ""
-        return vehicles
-            .filter { $0.id != main }
-            .min { a, b in
-                let sa = a.etaSeconds >= 0 ? a.etaSeconds : Int.max
-                let sb = b.etaSeconds >= 0 ? b.etaSeconds : Int.max
-                return sa < sb
-            }
-    }
-
-    /// 「小于1分钟 · 17站 / 8.8千米」，上游没给距离就只给站数
-    var etaDetail: String {
-        var bits: [String] = []
-        if etaMinutes == 0 && !etaArrived { bits.append("小于1分钟") }
-        if etaStops > 0 { bits.append("\(etaStops)站") }
-        if etaDistanceMeters > 0 {
-            bits.append(BusText.distanceText(etaDistanceMeters))
-        }
-        return bits.joined(separator: bits.count > 1 ? " · " : "")
+    /// 候车站
+    var targetStop: BusStop? {
+        stops.first { $0.order == targetOrder }
     }
 }
 
-// MARK: 首站发车时刻表
+/// 某辆车到候车站的明细
+struct BusEta: Equatable {
+    var busId: String = ""
+    var seconds: Int = -1
+    var distance: Int = -1
+    var tip: String = ""
+    var order: Int = 0
 
-struct BusTtSegment: Identifiable, Equatable, Codable {
-    var id: String = UUID().uuidString
-    var title: String = ""
+    var text: String {
+        if seconds == 0 { return "已到站" }
+        if seconds > 0 {
+            let m = (seconds + 59) / 60
+            return m == 0 ? "即将到站" : "\(m)分钟"
+        }
+        return tip.isEmpty ? "—" : tip
+    }
+}
+
+/// 主预测（最快那辆）
+struct BusPrediction: Equatable {
+    var seconds: Int = -1
+    var distance: Int = -1
+    var busId: String = ""
+    var tip: String = ""
+    var arrived: Bool = false
+    var nextSeconds: Int = -1
+    var nextBusId: String = ""
+
+    var primaryText: String {
+        if arrived { return "已到站" }
+        if seconds < 0 { return "—" }
+        if seconds == 0 { return "已到站" }
+        let m = (seconds + 59) / 60
+        return m == 0 ? "即将到站" : "\(m)分钟"
+    }
+}
+
+/// busDetail 的完整结果
+struct BusDetailResult {
+    var prediction = BusPrediction()
+    var byBus: [String: BusEta] = [:]
+}
+
+/// 搜索结果
+struct BusSearchHit {
+    var stations: [BusStation] = []
+    var lines: [BusLine] = []
+    var stationCount: Int = 0
+    var lineCount: Int = 0
+
+    var isEmpty: Bool { stations.isEmpty && lines.isEmpty }
+    /// 站点还能不能继续加载（上游没有翻页，只能告诉用户有几条）
+    var hasMoreStations: Bool { stationCount > stations.count }
+    var hasMoreLines: Bool { lineCount > lines.count }
+}
+
+/// 首站发车时刻
+struct BusTimetable {
+    var lineId: String = ""
     var times: [String] = []
+    var note: String = ""
 }
 
-struct BusTimetable: Equatable, Codable {
-    var lineName: String = ""
+/// 收藏的线路
+struct FavoriteLine: Codable, Identifiable, Equatable {
+    var id: String { favoriteKey }
+    var favoriteKey: String = ""
+    var lineId: String = ""
+    var name: String = ""
     var startName: String = ""
     var endName: String = ""
-    var depTitle: String = ""
-    var tip: String = ""
-    /// 今日发车预测（只给还没发的班次）
-    var today: [BusTtSegment] = []
-    /// 昨日 / 前日实际班次
-    var history: [BusTtSegment] = []
-    /// 真实口径标题：「今日预测」/「昨日实际」/「前日实际」
-    var historyTitle: String = ""
-    var nextDep: String = ""
-    var nextFrom: String = ""
+    var cityId: String = ""
+    var source: String = BusSource.chelaile.rawValue
+    var addedAt: TimeInterval = 0
 
-    var isEmpty: Bool { today.isEmpty && history.isEmpty }
+    var routeText: String {
+        if startName.isEmpty && endName.isEmpty { return "" }
+        return "\(startName) → \(endName)"
+    }
+
+    var asLine: BusLine {
+        BusLine(lineId: lineId, name: name, startName: startName,
+                endName: endName, cityId: cityId)
+    }
 }
 
-// MARK: - 文案统一口径
+// MARK: - 文案换算（对齐 BusText.kt）
 
 enum BusText {
-    /// 到站徽标：「已到站」「即将到站」「约 N 分钟」「暂无预测」
-    static func etaText(_ secs: Int, arrived: Bool) -> String {
-        if arrived { return "已到站" }
-        if secs <= 0 { return "暂无预测" }
-        if secs <= 60 { return "即将到站" }
-        return "约 \(minutesOfSecs(secs)) 分钟"
-    }
-
-    static func minutesText(_ secs: Int) -> String? {
-        guard secs > 0 else { return nil }
-        return "\(minutesOfSecs(secs)) 分钟"
-    }
-
-    /// 0 秒=车在站上；1..59 秒=0（写「即将到站」，不能算成 1 分钟）；其余向上取整
+    /// 秒 → 分钟。1–59 秒归为 0（即「即将到站」），其余向上取整。
     static func minutesOfSecs(_ secs: Int) -> Int {
         if secs < 0 { return -1 }
-        if secs == 0 || secs < 60 { return 0 }
+        if secs < 60 { return 0 }
         return (secs + 59) / 60
     }
 
-    /// 一行的「大字」：到站了 · N 分钟 · 即将到站 · N 站 · 状态文案 · 暂无实时 · 暂无车
-    static func rowEtaText(minutes: Int, stopsAway: Int, arrived: Bool,
-                           status: String, realtime: Bool, pending: Bool) -> String {
-        if pending { return "…" }
-        if arrived { return "到站了" }
-        if minutes == 0 && realtime { return "即将到站" }
-        if minutes > 0 { return "\(minutes) 分钟" }
-        if stopsAway > 0 { return "\(stopsAway) 站" }
-        if !status.isEmpty { return status }
-        return "暂无实时"
-    }
-
-    /// 首页 / 详情页第一行蓝色大字
-    static func rowPrimaryText(minutes: Int, stopsAway: Int, arrived: Bool,
-                               status: String, realtime: Bool) -> String {
-        if arrived { return "到站了" }
-        if minutes == 0 && realtime { return "即将到站" }
-        if minutes > 0 && stopsAway > 0 { return "\(minutes)分钟 · \(stopsAway)站" }
-        if minutes > 0 { return "\(minutes)分钟" }
-        if stopsAway > 0 { return "\(stopsAway)站" }
-        if !status.isEmpty { return status }
-        return "暂无实时"
-    }
-
-    static func rowDetailText(minutes: Int, stopsAway: Int, distanceMeters: Int,
-                              arrived: Bool) -> String {
-        var bits: [String] = []
-        if minutes == 0 && !arrived { bits.append("小于1分钟") }
-        if stopsAway > 0 { bits.append("\(stopsAway)站") }
-        if distanceMeters > 0 { bits.append(distanceText(distanceMeters)) }
-        return bits.joined(separator: " · ")
-    }
-
-    /// 形如「下辆 37分钟 22站」。两个数都来自同一辆车的预测，缺哪个就不写哪个
-    static func rowNextText(nextMinutes: Int, nextStopsAway: Int) -> String {
-        guard nextMinutes > 0 || nextStopsAway > 0 else { return "" }
-        var bits: [String] = []
-        if nextMinutes > 0 { bits.append("\(nextMinutes)分钟") }
-        if nextStopsAway > 0 { bits.append("\(nextStopsAway)站") }
-        return "下辆 " + bits.joined(separator: " ")
-    }
-
-    static func distanceText(_ meters: Int) -> String {
-        guard meters > 0 else { return "" }
+    /// 米 → 「1.3公里」/「420米」。用整数运算，与安卓逐字一致。
+    static func distance(_ meters: Int) -> String {
+        guard meters >= 0 else { return "" }
         if meters < 1000 { return "\(meters)米" }
-        return String(format: "%.1f千米", Double(meters) / 1000.0)
-    }
-
-    static func clockText(_ epochMillis: Double) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f.string(from: Date(timeIntervalSince1970: epochMillis / 1000))
-    }
-
-    static func clockAfter(_ seconds: Int, now: Date = Date()) -> String {
-        guard seconds > 0 else { return "" }
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f.string(from: now.addingTimeInterval(Double(seconds)))
-    }
-
-    static func sanitizePlate(_ raw: String?) -> String {
-        guard let raw = raw else { return "" }
-        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        return t.isEmpty ? "" : t
+        let tenths = (meters + 50) / 100
+        return "\(tenths / 10).\(tenths % 10)公里"
     }
 }
 
-// MARK: - 乘车码
+// MARK: - 错误
 
-enum TransitCodeChoice: String, CaseIterable, Identifiable {
-    case ask = "ask"
-    case alipay = "alipay"
-    case unionpay = "unionpay"
+enum BusError: Error, LocalizedError {
+    case locationDenied
+    case locationTimeout
+    case network(String)
+    case upstream(String)
 
-    var id: String { rawValue }
-    var label: String {
+    var errorDescription: String? {
         switch self {
-        case .ask: return "每次询问"
-        case .alipay: return "支付宝乘车码"
-        case .unionpay: return "云闪付乘车码"
+        case .locationDenied:
+            return "需要定位权限才能查找附近的公交站。请到「设置 → 掌上唐师 → 位置」里允许访问"
+        case .locationTimeout:
+            return "定位超时。请确认已开启定位服务后重试"
+        case .network(let m):
+            return m.isEmpty ? "网络连接失败，请检查网络后重试" : m
+        case .upstream(let m):
+            return m.isEmpty ? "公交数据源暂时不可用" : m
         }
     }
-    var detail: String {
-        switch self {
-        case .ask: return "每次点击都打开选择面板"
-        case .alipay: return "跳转到支付宝公交乘车码"
-        case .unionpay: return "跳转到云闪付公交乘车码"
-        }
-    }
-    /// 微信小程序不开放明文 scheme / 票据调用，实测跳转被拒，已下线。
-    /// 这里保留说明文案，不摆一个点不动的按钮。
-    static let wechatNotice = "由于微信限制，暂不提供微信乘车码跳转"
-}
-
-// MARK: - 页面状态
-
-enum BusPanel: Int, Equatable {
-    case station = 0    // 站点到站
-    case busList = 1    // 全部车辆
-    case follow = 2     // 单车跟随
-}
-
-struct BusCoordinate: Equatable {
-    var lat: Double = 0
-    var lng: Double = 0
-    var valid: Bool { lat != 0 || lng != 0 }
 }

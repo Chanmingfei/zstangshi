@@ -1,8 +1,8 @@
 import Foundation
 
-/// 正方教务客户端：登录 + 取课表。
+/// 正方（强智）教务客户端：登录 + 取课表。
 ///
-/// 登录协议（与 Android 端真机实测一致）：
+/// 登录协议（与 Android 端真机实测一致，2026-11 于 jwxt.tstc.edu.cn）：
 ///   1. GET  /xtgl/login_slogin.html        → 取隐藏域 csrftoken
 ///   2. GET  /xtgl/login_getPublicKey.html  → {modulus, exponent}（base64 的 BigInteger）
 ///   3. RSA/ECB/PKCS1Padding 加密密码
@@ -11,14 +11,13 @@ import Foundation
 ///
 /// 协议自适应：校外移动数据下 443 常常不通、80 正常，所以先试上次成功的协议，
 /// 连不上换另一个再试一次（与 Android 的 `JwClient.request` 同一策略）。
-@MainActor
-final class JwClient {
+///
+/// 用 actor 包住可变会话状态，天然线程安全；内部 HTTP 是 async，不阻塞主线程。
+actor JwClient {
 
     static let host = "jwxt.tstc.edu.cn"
-    static let baseURL = "http://jwxt.tstc.edu.cn/xtgl/index_initMenu.html"
-    static let affairsURL = "http://sws.tstc.edu.cn/XGTSTC/Phone/#/login"
 
-    private enum Path {
+    enum Path {
         static let login = "/xtgl/login_slogin.html"
         static let publicKey = "/xtgl/login_getPublicKey.html"
         static let menu = "/xtgl/index_cxMenuList.html"
@@ -28,18 +27,25 @@ final class JwClient {
         static let kbData = "/kbcx/xskbcx_cxXsKb.html"
     }
 
-    struct Result {
+    struct LoginResult {
+        var ok = false
+        var message = ""
+        var studentName = ""
+        var scheme = ""
+    }
+
+    struct TimetableResult {
         var ok = false
         var message = ""
         var timetable: Timetable?
         var semesterId = ""
-        var studentName = ""
+        var warnings: [String] = []
     }
 
     private let http = Http()
     private let store: Store
     private var origin: String
-
+    /// 当前会话对应的账号（用于判断能否复用）
     private var sessionUser = ""
     private var sessionName = ""
     private var sessionAt: TimeInterval = 0
@@ -49,7 +55,9 @@ final class JwClient {
 
     init(store: Store) {
         self.store = store
-        origin = store.originScheme() == "http" ? "http://\(JwClient.host)" : "https://\(JwClient.host)"
+        origin = store.originScheme() == "http"
+            ? "http://\(JwClient.host)"
+            : "https://\(JwClient.host)"
     }
 
     var originPrefix: String { origin }
@@ -62,26 +70,29 @@ final class JwClient {
         sessionProbeAt = 0
     }
 
-    func cookiesForWebView() -> [String: String] { http.cookiesForWebView() }
+    func cookiesForWebView() -> [String: String] {
+        http.cookiesForWebView()
+    }
 
     // MARK: - 登录
 
-    func login(user: String, password: String) async -> Result {
-        var r = Result()
+    func login(user: String, password: String) async -> LoginResult {
+        var r = LoginResult()
 
-        // 同一进程、同一账号、十分钟内：轻量探测确认会话还活着就直接复用，
-        // 省掉整套 RSA 登录（老版就是登录一次后各页面复用会话）。
+        // 同一账号、十分钟内：轻量探测确认会话还活着就直接复用，省掉整套 RSA 登录
         if user == sessionUser, Date().timeIntervalSince1970 - sessionAt < sessionTTL {
             let now = Date().timeIntervalSince1970
             if now - sessionProbeAt < probeGap {
                 r.ok = true
                 r.studentName = sessionName
+                r.scheme = origin
                 return r
             }
             if let probe = await get(Path.menu),
                probe.contains("gnmkdm"), !probe.contains("login_slogin") {
                 r.ok = true
                 r.studentName = sessionName
+                r.scheme = origin
                 sessionProbeAt = now
                 return r
             }
@@ -104,18 +115,28 @@ final class JwClient {
         }
         let modulus = Self.jsonField(keyJson, "modulus")
         let exponent = Self.jsonField(keyJson, "exponent")
-        guard let encrypted = RSA.encrypt(password: password, modulusB64: modulus, exponentB64: exponent) else {
-            r.message = "密码加密失败"
+        if modulus.isEmpty || exponent.isEmpty {
+            r.message = "教务公钥为空，可能不是正方教务系统"
             return r
         }
 
-        let form = [
-            "csrftoken": csrf,
-            "yhm": user,
-            "mm": encrypted,
-            "hidMm": encrypted,
-            "language": "zh_CN",
-            "mmsfjm": "1"
+        let encrypted: String
+        do {
+            encrypted = try RSA.encryptThrowing(password: password,
+                                               modulusB64: modulus,
+                                               exponentB64: exponent)
+        } catch {
+            r.message = (error as? LocalizedError)?.errorDescription ?? "密码加密失败"
+            return r
+        }
+
+        let form: [(String, String)] = [
+            ("csrftoken", csrf),
+            ("yhm", user),
+            ("mm", encrypted),
+            ("hidMm", encrypted),
+            ("language", "zh_CN"),
+            ("mmsfjm", "1")
         ]
         guard let post = await post(Path.login, form: form) else {
             r.message = "登录请求没有响应"
@@ -152,6 +173,7 @@ final class JwClient {
         sessionName = r.studentName
         sessionAt = Date().timeIntervalSince1970
         sessionProbeAt = sessionAt
+        r.scheme = origin
         return r
     }
 
@@ -179,10 +201,12 @@ final class JwClient {
 
     // MARK: - 课表
 
-    func fetchTimetable() async -> Result {
-        var r = Result()
-        var xnm = "", xqm = ""
-        var kicked = false, anyResponse = false
+    func fetchTimetable() async -> TimetableResult {
+        var r = TimetableResult()
+        var xnm = ""
+        var xqm = ""
+        var kicked = false
+        var anyResponse = false
 
         // 判定标准不是「有没有响应」，而是「能不能读到 xnm/xqm」——
         // 404 页、登录跳转页都会返回 200 文本，只看响应会把人骗过去。
@@ -212,18 +236,19 @@ final class JwClient {
             return r
         }
 
-        guard let json = await post(Path.kbData, form: ["xnm": xnm, "xqm": xqm]) else {
+        guard let json = await post(Path.kbData, form: [("xnm", xnm), ("xqm", xqm)]) else {
             r.message = "课表接口没有返回"
             return r
         }
         let parsed = KbParser.parse(json)
+        r.warnings = parsed.warnings
         guard parsed.ok else {
             r.message = parsed.warnings.first ?? "课表解析为空"
             return r
         }
         r.ok = true
         r.timetable = parsed.timetable
-        r.semesterId = parsed.timetable.semester.id
+        r.semesterId = parsed.timetable?.semester.id ?? ""
         return r
     }
 
@@ -233,21 +258,25 @@ final class JwClient {
         await request(method: "GET", path: path, form: nil)
     }
 
-    func post(_ path: String, form: [String: String]) async -> String? {
+    func post(_ path: String, form: [(String, String)]) async -> String? {
         await request(method: "POST", path: path, form: form)
     }
 
-    private func request(method: String, path: String, form: [String: String]?) async -> String? {
-        let other = origin.hasPrefix("https") ? "http://\(JwClient.host)" : "https://\(JwClient.host)"
-        if let out = try? await http.request(method: method, url: origin + path, form: form) {
+    /// 供 JwApi（成绩 / 绩点 / 选课 / 推荐课表）复用同一条带 Cookie 的会话。
+    private func request(method: String, path: String, form: [(String, String)]?) async -> String? {
+        let other = origin.hasPrefix("https")
+            ? "http://\(JwClient.host)"
+            : "https://\(JwClient.host)"
+
+        if let outcome = try? await http.request(method: method, url: origin + path, form: form) {
             store.setOriginScheme(origin.hasPrefix("https") ? "https" : "http")
-            return out.body
+            return outcome.body
         }
-        // 换协议只是探测，别让它再等一个完整超时
-        if let out = try? await http.request(method: method, url: other + path, form: form) {
+        // 换协议只是探测，别让它再白等一个完整超时（Http 内部 20s，这里靠系统快速失败）
+        if let outcome = try? await http.request(method: method, url: other + path, form: form) {
             origin = other
             store.setOriginScheme(other.hasPrefix("https") ? "https" : "http")
-            return out.body
+            return outcome.body
         }
         return nil
     }
@@ -256,7 +285,8 @@ final class JwClient {
 
     /// 取隐藏域值（属性顺序可能是 value 在前，两个方向都试）
     static func hiddenValue(_ html: String, id: String) -> String {
-        guard let tag = firstMatch(html, pattern: "<input[^>]*id=[\"']\(NSRegularExpression.escapedPattern(for: id))[\"'][^>]*>") else {
+        let escaped = NSRegularExpression.escapedPattern(for: id)
+        guard let tag = firstMatch(html, pattern: "<input[^>]*id=[\"']\(escaped)[\"'][^>]*>") else {
             return ""
         }
         return firstGroup(tag, pattern: "value=[\"']([^\"']*)[\"']") ?? ""
@@ -277,7 +307,8 @@ final class JwClient {
         guard let inner else { return "" }
         var first = ""
         for tag in allMatches(inner, pattern: "<option[^>]*>") {
-            guard let value = firstGroup(tag, pattern: "value=[\"']([^\"']*)[\"']"), !value.isEmpty else { continue }
+            guard let value = firstGroup(tag, pattern: "value=[\"']([^\"']*)[\"']"),
+                  !value.isEmpty else { continue }
             if first.isEmpty { first = value }
             if tag.lowercased().contains("selected") { return value }
         }

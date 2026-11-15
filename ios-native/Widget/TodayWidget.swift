@@ -1,348 +1,376 @@
-//
-//  TodayWidget.swift
-//  TodayWidgetExtension
-//
-//  桌面小组件（WidgetKit）—— v4.0.0。
-//
-//  **独立 target 自带 @main**，与主 App 完全不共享源码：
-//    · 不 import 主 App 的 Course / DayPlan / Theme 等模型，只读一份极简 JSON；
-//    · 数据源 = App Group `group.com.tstc.zstangshi` 里的 `widget_today_courses`
-//      （JSON 字符串，数组元素字段：name / time / place / colorIndex / done），
-//      由主 App 的 WidgetBridge.publish() 写入；`widget_today_updated` 是时间戳；
-//    · App 与小组件靠 Resources/App.entitlements 里的 App Group 授权互通。
-//
-//  不使用任何 iOS 26 专有 API（widget 本身不画玻璃，用系统语义色保证深浅色可读）。
-//  最低 iOS 17（与主 App 一致）。
-//
-
-import Foundation
-import UIKit
-import SwiftUI
 import WidgetKit
+import SwiftUI
 
-// MARK: - 数据模型（自包含）
+// MARK: - 「今日课程」桌面小组件
 //
-// 字段名 / CodingKeys 必须与主 App `Sources/Bus/BusStore.swift` 的 WidgetCourse 一致，
-// 否则 JSONDecoder 解不出数据（该结构用默认 coding keys，即属性名本身）。
+// 对齐 Android `widget/TodayWidget.kt` + `WidgetData.kt` 的口径：
+//   · 只显示「正在上」「下一节 14:00」这类在区间内恒成立的文案 ——
+//     **没有会过期的倒计时**，所以闹钟晚一两分钟也不会显示错；
+//   · 主 App 通过 App Group 写一份极简 JSON，小组件只读这份，不联网、不读 Keychain；
+//   · 30 分钟兜底刷新。
+//
+// 这个 target 是**独立可执行体**，自带 @main，绝不能混进主 App 的 Compile Sources。
 
-private struct CourseItem: Codable, Identifiable, Equatable {
+// MARK: - 共享模型（与主 App 的 WidgetCourse 字段一致，但各自定义、不共享源码）
+
+struct WidgetCourse: Codable, Identifiable {
+    var id: String { name + time + place }
     var name: String
     var time: String
     var place: String
     var colorIndex: Int
     var done: Bool
-
-    var id: String { "\(name)|\(time)|\(place)|\(colorIndex)|\(done)" }
+    var startMin: Int
+    var endMin: Int
 }
 
-private enum WidgetData {
-    static let groupId = "group.com.tstc.zstangshi"
-    static let coursesKey = "widget_today_courses"
-    static let updatedKey = "widget_today_updated"
+/// 小组件的 5 种状态（对齐 Android `WidgetDay.kt:9-14`）
+enum WidgetState {
+    /// 没有任何本地课表
+    case noTimetable
+    /// 有课表但没设开学日期
+    case noStart
+    /// 开学前
+    case before(Int)          // 距开学天数
+    /// 学期已结束
+    case after
+    /// 正常学期内
+    case ok
+}
 
-    struct Snapshot {
-        let items: [CourseItem]
-        let updated: Date?
+// MARK: - 读取
+
+enum WidgetDataStore {
+    static let appGroup = "group.com.tstc.zstangshi"
+
+    static var defaults: UserDefaults {
+        UserDefaults(suiteName: appGroup) ?? .standard
     }
 
-    static func load() -> Snapshot {
-        let defaults = UserDefaults(suiteName: groupId) ?? .standard
-        var items: [CourseItem] = []
-        if let json = defaults.string(forKey: coursesKey),
-           let data = json.data(using: .utf8),
-           let decoded = try? JSONDecoder().decode([CourseItem].self, from: data) {
-            items = decoded
+    static func courses() -> [WidgetCourse] {
+        guard let json = defaults.string(forKey: "widget_today_courses"),
+              let data = json.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([WidgetCourse].self, from: data)) ?? []
+    }
+
+    /// 主 App 写入的状态信息（开学日期、学期名、总周数）
+    static func startDate() -> String {
+        defaults.string(forKey: "widget_start_date") ?? ""
+    }
+
+    static func semesterName() -> String {
+        defaults.string(forKey: "widget_semester_name") ?? ""
+    }
+
+    static func totalWeeks() -> Int {
+        let n = defaults.integer(forKey: "widget_total_weeks")
+        return n > 0 ? n : 20
+    }
+
+    static func hasTimetable() -> Bool {
+        defaults.bool(forKey: "widget_has_timetable")
+    }
+
+    static var updatedAt: Date? {
+        let t = defaults.double(forKey: "widget_today_updated")
+        return t > 0 ? Date(timeIntervalSince1970: t) : nil
+    }
+}
+
+// MARK: - 时间与文案
+
+enum WidgetText {
+    static func hm(_ minutes: Int) -> String {
+        String(format: "%02d:%02d", minutes / 60, minutes % 60)
+    }
+
+    static func nowMinute() -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
+
+    /// 当前状态：正在上 / 下一节 / 今天的课都上完了 / 今天没课
+    static func status(_ courses: [WidgetCourse]) -> (title: String, item: WidgetCourse?) {
+        let now = nowMinute()
+        if courses.isEmpty { return ("今天没课", nil) }
+        if let cur = courses.first(where: { $0.startMin <= now && now < $0.endMin }) {
+            return ("正在上", cur)
         }
-        let t = defaults.double(forKey: updatedKey)
-        let updated: Date? = t > 0 ? Date(timeIntervalSince1970: t) : nil
-        return Snapshot(items: items, updated: updated)
+        if let next = courses.first(where: { $0.startMin > now }) {
+            return ("下一节", next)
+        }
+        return ("今天的课都上完了", nil)
     }
 
-    /// 小组件库（Add Widget）占位用，避免空白卡片。
-    static let sample: [CourseItem] = [
-        CourseItem(name: "高等数学", time: "08:00-09:40", place: "东校区 3-518", colorIndex: 0, done: false),
-        CourseItem(name: "大学英语", time: "10:00-11:40", place: "西校区 A-203", colorIndex: 2, done: false),
-        CourseItem(name: "程序设计", time: "14:00-15:40", place: "信息楼 502", colorIndex: 4, done: true)
-    ]
-}
+    /// 把日期字符串（yyyy-MM-dd）算成纪元日
+    static func epochDay(_ ymd: String) -> Int {
+        let parts = ymd.split(separator: "-")
+        guard parts.count == 3,
+              let y = Int(parts[0]), let m = Int(parts[1]), let d = Int(parts[2]) else {
+            return Int.min
+        }
+        var c = DateComponents()
+        c.year = y; c.month = m; c.day = d
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        guard let date = cal.date(from: c) else { return Int.min }
+        return Int(floor(date.timeIntervalSince1970 / 86_400.0))
+    }
 
-// MARK: - 颜色（自包含）
-//
-// 镜像主 App T.course 的 8 色板（浅色 / 深色各一套），保证深浅色背景上都可读。
-// 文字用系统语义色，跟随深浅色自动反相。
+    static func todayYmd() -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
+    }
 
-private enum Ink {
-    static let primary = Color(uiColor: .label)
-    static let secondary = Color(uiColor: .secondaryLabel)
-    static let background = Color(uiColor: .systemBackground)
-}
+    /// 判定当前处于 5 种状态的哪一种
+    static func resolveState() -> WidgetState {
+        guard WidgetDataStore.hasTimetable() else { return .noTimetable }
+        let start = WidgetDataStore.startDate()
+        guard epochDay(start) != Int.min else { return .noStart }
 
-private enum Palette {
-    static let light: [UInt32] = [
-        0x3B7BE8, 0xE8734A, 0x3FA37A, 0xB06BDA,
-        0xD9A21B, 0x4FA8C7, 0xC9527A, 0x6E7FA8
-    ]
-    static let dark: [UInt32] = [
-        0x5B96F5, 0xF08C68, 0x55C092, 0xC48CE8,
-        0xE8B743, 0x6FC0DA, 0xDB7196, 0x8C9BC0
-    ]
+        let today = epochDay(todayYmd())
+        let s = epochDay(start)
+        guard today != Int.min, s != Int.min else { return .noStart }
 
-    static func course(_ index: Int) -> Color {
-        let i = abs(index) % light.count
-        return Color(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark
-                ? UIColor(rgb: dark[i])
-                : UIColor(rgb: light[i])
-        })
+        let days = today - s
+        if days < 0 { return .before(-days / 7 + 1) }
+        let week = days / 7 + 1
+        if week > WidgetDataStore.totalWeeks() { return .after }
+        return .ok
+    }
+
+    /// 第几周
+    static func currentWeek() -> Int {
+        let s = epochDay(WidgetDataStore.startDate())
+        let t = epochDay(todayYmd())
+        guard s != Int.min, t != Int.min else { return 1 }
+        let days = t - s
+        if days < 0 { return 1 }
+        return max(1, min(WidgetDataStore.totalWeeks(), days / 7 + 1))
     }
 }
 
-private extension UIColor {
-    convenience init(rgb: UInt32) {
-        self.init(
-            red: CGFloat((rgb >> 16) & 0xFF) / 255,
-            green: CGFloat((rgb >> 8) & 0xFF) / 255,
-            blue: CGFloat(rgb & 0xFF) / 255,
-            alpha: 1
-        )
+// MARK: - 颜色（8 色板，浅/深各一套，与主 App 一致）
+
+enum WidgetPalette {
+    static let colors: [Color] = [
+        Color(red: 0x3B/255, green: 0x7B/255, blue: 0xE8/255),
+        Color(red: 0xE8/255, green: 0x73/255, blue: 0x4A/255),
+        Color(red: 0x3F/255, green: 0xA3/255, blue: 0x7A/255),
+        Color(red: 0xB0/255, green: 0x6B/255, blue: 0xDA/255),
+        Color(red: 0xD9/255, green: 0xA2/255, blue: 0x1B/255),
+        Color(red: 0x4F/255, green: 0xA8/255, blue: 0xC7/255),
+        Color(red: 0xC9/255, green: 0x52/255, blue: 0x7A/255),
+        Color(red: 0x6E/255, green: 0x7F/255, blue: 0xA8/255)
+    ]
+
+    static func of(_ index: Int) -> Color {
+        colors[abs(index) % colors.count]
     }
 }
 
 // MARK: - Timeline
 
-private struct TodayEntry: TimelineEntry {
+struct ZSTEntry: TimelineEntry {
     let date: Date
-    let items: [CourseItem]
-    let updated: Date?
+    let courses: [WidgetCourse]
 }
 
-private struct Provider: TimelineProvider {
-    typealias Entry = TodayEntry
-
-    func placeholder(in context: TimelineProviderContext) -> TodayEntry {
-        TodayEntry(date: Date(), items: WidgetData.sample, updated: nil)
+struct ZSTProvider: TimelineProvider {
+    func placeholder(in context: Context) -> ZSTEntry {
+        ZSTEntry(date: Date(), courses: [
+            WidgetCourse(name: "高等数学", time: "08:00-09:35", place: "东校区 3-518",
+                         colorIndex: 0, done: false, startMin: 480, endMin: 575),
+            WidgetCourse(name: "大学英语", time: "10:45-11:30", place: "西区 2-201",
+                         colorIndex: 2, done: false, startMin: 645, endMin: 690)
+        ])
     }
 
-    func getSnapshot(in context: TimelineProviderContext,
-                     completion: @escaping (TodayEntry) -> Void) {
-        completion(Self.currentEntry())
+    func getSnapshot(in context: Context, completion: @escaping (ZSTEntry) -> Void) {
+        completion(ZSTEntry(date: Date(), courses: WidgetDataStore.courses()))
     }
 
-    func getTimeline(in context: TimelineProviderContext,
-                     completion: @escaping (Timeline<TodayEntry>) -> Void) {
-        let entry = Self.currentEntry()
-        // 30 分钟后再取一次：即使主 App 没有显式 reloadAllTimelines()，
-        // 小组件也能定期同步到最新课表（主 App 写入后主动 reload 会立即刷新）。
-        let refresh = Calendar.current.date(byAdding: .minute, value: 30, to: Date())
-            ?? Date().addingTimeInterval(30 * 60)
-        completion(Timeline(entries: [entry], policy: .after(refresh)))
-    }
-
-    private static func currentEntry() -> TodayEntry {
-        let snap = WidgetData.load()
-        return TodayEntry(date: Date(), items: snap.items, updated: snap.updated)
+    func getTimeline(in context: Context, completion: @escaping (Timeline<ZSTEntry>) -> Void) {
+        let entry = ZSTEntry(date: Date(), courses: WidgetDataStore.courses())
+        // 30 分钟兜底；主 App 切课时会主动 reloadAllTimelines
+        let next = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
+        completion(Timeline(entries: [entry], policy: .after(next)))
     }
 }
 
-// MARK: - 「下一节 / 正在上」判定
-//
-// time 常见格式 "08:00-09:40"（HH:MM-HH:MM）；若是 "第3-4节" 之类无法解析，
-// 统一按「下一节」处理，绝不因解析失败而崩溃。
-
-private enum CourseStatus {
-    static func label(for item: CourseItem, now: Date) -> String {
-        let parts = item.time.split(separator: "-")
-        guard parts.count == 2,
-              let start = minutes(parts[0]),
-              let end = minutes(parts[1]),
-              end > start else { return "下一节" }
-        let c = Calendar.current.dateComponents([.hour, .minute], from: now)
-        let nowMin = (c.hour ?? 0) * 60 + (c.minute ?? 0)
-        return (start <= nowMin && nowMin < end) ? "正在上" : "下一节"
-    }
-
-    private static func minutes(_ token: Substring) -> Int? {
-        let p = token.split(separator: ":")
-        guard p.count == 2,
-              let h = Int(p[0]), let m = Int(p[1]),
-              (0..<24).contains(h), (0..<60).contains(m) else { return nil }
-        return h * 60 + m
-    }
-}
-
-// MARK: - 根视图
-
-private struct TodayWidgetRootView: View {
-    @Environment(\.widgetFamily) private var family
-    let entry: TodayEntry
-
-    var body: some View {
-        Group {
-            if entry.items.isEmpty {
-                EmptyCoursesView()
-            } else {
-                switch family {
-                case .systemMedium:
-                    MediumView(entry: entry)
-                default:
-                    SmallView(entry: entry)
-                }
-            }
-        }
-        .containerBackground(Ink.background, for: .widget)
-    }
-}
-
-/// 无数据占位：还没有课表 / 到 App 里同步一次
-private struct EmptyCoursesView: View {
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "calendar.badge.exclamationmark")
-                .font(.title2)
-                .foregroundStyle(Ink.secondary)
-            Text("还没有课表")
-                .font(.headline)
-                .foregroundStyle(Ink.primary)
-            Text("到 App 里同步一次")
-                .font(.caption)
-                .foregroundStyle(Ink.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .multilineTextAlignment(.center)
-    }
-}
-
-/// systemSmall：下一节 / 正在上的那一门课 + 时间 + 地点
-private struct SmallView: View {
-    let entry: TodayEntry
-
-    /// 主 App 按开始时间升序写入；done=false 的第一节即「当前 / 接下来」那门。
-    private var highlight: CourseItem? { entry.items.first { !$0.done } }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label("今日课程", systemImage: "calendar")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(Ink.secondary)
-
-            Spacer(minLength: 2)
-
-            if let item = highlight {
-                HStack(alignment: .top, spacing: 8) {
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(Palette.course(item.colorIndex))
-                        .frame(width: 4, height: 72)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(CourseStatus.label(for: item, now: entry.date))
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(Palette.course(item.colorIndex))
-                        Text(item.name)
-                            .font(.headline)
-                            .foregroundStyle(Ink.primary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.75)
-                        Text(item.time)
-                            .font(.caption)
-                            .foregroundStyle(Ink.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        if !item.place.isEmpty {
-                            Label(item.place, systemImage: "mappin")
-                                .font(.caption2)
-                                .foregroundStyle(Ink.secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                        }
-                    }
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Ink.secondary)
-                    Text("今日课程已全部结束")
-                        .font(.subheadline)
-                        .foregroundStyle(Ink.secondary)
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-}
-
-/// systemMedium：今日课程列表，最多 3 条
-private struct MediumView: View {
-    let entry: TodayEntry
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label("今日课程", systemImage: "calendar")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Ink.primary)
-                Spacer()
-                if let updated = entry.updated {
-                    (Text("更新于 ") + Text(updated, style: .time))
-                        .font(.caption2)
-                        .foregroundStyle(Ink.secondary)
-                }
-            }
-
-            VStack(spacing: 7) {
-                ForEach(Array(entry.items.prefix(3))) { item in
-                    HStack(spacing: 9) {
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(Palette.course(item.colorIndex))
-                            .frame(width: 3, height: 30)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.name)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(item.done ? Ink.secondary : Ink.primary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            HStack(spacing: 10) {
-                                Label(item.time, systemImage: "clock")
-                                if !item.place.isEmpty {
-                                    Label(item.place, systemImage: "mappin")
-                                }
-                            }
-                            .font(.caption2)
-                            .foregroundStyle(Ink.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                        }
-                        Spacer(minLength: 4)
-                        if item.done {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(Ink.secondary)
-                        }
-                    }
-                    .opacity(item.done ? 0.65 : 1)
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-}
-
-// MARK: - 入口
-//
-// 独立 @main。不要再套一层 WidgetBundle 的 @main —— 两个 @main 会冲突。
+// MARK: - 视图
 
 @main
 struct TodayWidget: Widget {
-    let kind: String = "TodayWidget"
+    let kind = "TodayWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            TodayWidgetRootView(entry: entry)
+        StaticConfiguration(kind: kind, provider: ZSTProvider()) { entry in
+            TodayWidgetView(entry: entry)
+                .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("今日课程")
-        .description("一眼看到下一节课，以及今天要上的课。")
+        .description("在桌面显示今天的课程与下一节课")
         .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+struct TodayWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: ZSTEntry
+
+    private var state: WidgetState { WidgetText.resolveState() }
+    private var status: (title: String, item: WidgetCourse?) {
+        WidgetText.status(entry.courses)
+    }
+
+    var body: some View {
+        switch family {
+        case .systemMedium:
+            medium
+        default:
+            small
+        }
+    }
+
+    // MARK: 状态兜底（非 OK 态时不显示课程）
+    @ViewBuilder
+    private var statePlaceholder: some View {
+        switch state {
+        case .noTimetable:
+            placeholder(title: "还没有课表", sub: "打开掌上唐师同步一次")
+        case .noStart:
+            placeholder(title: "还没设置开学日期", sub: "到「我的 → 学期与教学周」设置")
+        case .before(let weeks):
+            placeholder(title: "还没开学", sub: "还有约 \(weeks) 周开课")
+        case .after:
+            placeholder(title: "本学期已结束", sub: "新学期同步后自动更新")
+        case .ok:
+            EmptyView()
+        }
+    }
+
+    private func placeholder(title: String, sub: String) -> some View {
+        VStack(spacing: 3) {
+            Spacer()
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .multilineTextAlignment(.center)
+            Text(sub)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: 小尺寸：状态 + 一节课
+    private var small: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if case .ok = state {
+                Text(status.title)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(status.item == nil
+                                     ? Color.secondary
+                                     : WidgetPalette.of(status.item!.colorIndex))
+
+                if let item = status.item {
+                    Text(item.name)
+                        .font(.subheadline.weight(.bold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+
+                    Text(item.time)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    if !item.place.isEmpty {
+                        Text(item.place)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                } else if entry.courses.isEmpty {
+                    Text("今天没课")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("共 \(entry.courses.count) 门课")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            } else {
+                statePlaceholder
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // MARK: 中尺寸：今日课程列表（最多 3 条）
+    private var medium: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("今日课程")
+                    .font(.caption.weight(.bold))
+                Spacer()
+                if case .ok = state {
+                    Text("第 \(WidgetText.currentWeek()) 周 · \(entry.courses.count) 门")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if case .ok = state {
+                if entry.courses.isEmpty {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 2) {
+                            Text("今天没课")
+                                .font(.caption.weight(.semibold))
+                            Text("好好休息")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    Spacer()
+                } else {
+                    ForEach(entry.courses.prefix(3)) { c in
+                        HStack(spacing: 6) {
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(WidgetPalette.of(c.colorIndex))
+                                .frame(width: 3, height: 20)
+
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(c.name)
+                                    .font(.caption.weight(.semibold))
+                                    .lineLimit(1)
+                                    .foregroundStyle(c.done ? Color.secondary : Color.primary)
+                                Text(c.time + (c.place.isEmpty ? "" : " · " + c.place))
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    if entry.courses.count > 3 {
+                        Text("还有 \(entry.courses.count - 3) 门")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+            } else {
+                statePlaceholder
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

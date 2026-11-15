@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>zh_CN</string>
+    <string>zh-Hans</string>
     <key>CFBundleDisplayName</key>
     <string>今日课程</string>
     <key>CFBundleExecutable</key>
@@ -14,17 +14,12 @@
     <string>6.0</string>
     <key>CFBundleName</key>
     <string>$(PRODUCT_NAME)</string>
-    <!-- app-extension 的包类型必须是 XPC!（主 App 是 APPL）。 -->
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>CFBundleShortVersionString</key>
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
-
-    <!-- WidgetKit 扩展点。@main 的 Widget 由系统按 NSExtensionPointIdentifier
-         自动发现并注册，**不要**再设 NSExtensionPrincipalClass（那是旧版
-         Today Extension / 自定义 principal class 才需要的）。 -->
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key>

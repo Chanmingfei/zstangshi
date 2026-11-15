@@ -1,0 +1,16 @@
+﻿# iOS tooling
+.swiftcheck/
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+Payload/
+xcodegen-build/
+
+# macOS
+.DS_Store
+
+# Xcode user data
+*.xcuserstate
+xcuserdata/
+*.xccheckout

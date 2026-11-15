@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 夜间：把 @color 的语义色整体压暗。drawable 里引用的是 @color/xxx，
+     所以卡片、按钮、文字会一起跟着换，不用给每个界面再写一套深色样式。 -->
+<resources>
+    <color name="bg_page">#0F1520</color>
+    <color name="bg_surface">#1A2230</color>
+    <color name="bg_sunken">#232B3A</color>
+    <color name="text_primary">#F2F5FA</color>
+    <color name="text_secondary">#B6BECD</color>
+    <color name="text_tertiary">#8B93A5</color>
+    <color name="border_subtle">#2A3446</color>
+
+    <!-- 深色下主色必须比浅色亮才看得清，但比原来的 #2F6BFF 收敛：
+         #2E86E8 在夜底仍有 4.96:1，同时不再刺眼。软底沿用老版 #14294A / #6FA8FF。 -->
+    <color name="brand">#2E86E8</color>
+    <color name="brand_deep">#1E6BBE</color>
+    <color name="brand_soft">#14294A</color>
+    <color name="brand_on_soft">#6FA8FF</color>
+
+    <!-- 深色下色块用同一套课程色，但浅底要压暗，否则整屏发白 -->
+    <color name="course_0_soft">#1B2A44</color>
+    <color name="course_1_soft">#3A241C</color>
+    <color name="course_2_soft">#17332A</color>
+    <color name="course_3_soft">#2E1F3D</color>
+    <color name="course_4_soft">#3A2F14</color>
+    <color name="course_5_soft">#152E38</color>
+    <color name="course_6_soft">#3A1F29</color>
+    <color name="course_7_soft">#232A38</color>
+</resources>

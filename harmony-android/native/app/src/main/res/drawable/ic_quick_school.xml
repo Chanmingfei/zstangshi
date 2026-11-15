@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 学工系统：学士帽 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FF000000"
+        android:pathData="M12,3L2.6,7.6L12,12.2l9.4,-4.6z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M5.4,11.6v4.6c0,1.9 2.9,3.4 6.6,3.4s6.6,-1.5 6.6,-3.4v-4.6l-6.6,3.2z" />
+</vector>

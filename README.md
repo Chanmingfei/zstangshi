@@ -148,12 +148,100 @@ sha256sum zstangshi-v4.0.0.apk                   # macOS / Linux
 
 ---
 
-## 技术逻辑
+## 技术栈
+
+### 一句话概括
+
+**两个 App，同一份业务代码：纯 Android framework API + Kotlin，不用 Gradle、不用 androidx、零第三方运行时依赖。**
+鸿蒙专版是同一份代码的兼容性分支，额外加了一层崩溃兜底。
+
+### 技术选型一览
+
+| 层面 | 选择了什么 | 为什么 |
+| --- | --- | --- |
+| **语言** | Kotlin 1.9.24 | 空安全、扩展函数、`when` 表达式；比 Java 少约 30% 样板代码 |
+| **UI 框架** | 纯 `android.view` + `Canvas` 自绘 | 不引 androidx / Material，完全控制每个像素；APK 小、启动快 |
+| **异步** | `Thread` + `runOnUiThread` | 不引协程（coroutines 只用于 bus 模块内部）；逻辑简单可预测 |
+| **网络** | `HttpURLConnection` | `OkHttp` 是第三方依赖；教务只需要「带 Cookie 的 GET/POST + 跟随 302」 |
+| **存储** | `SharedPreferences` | 键值对够用；不引 Room/SQLite |
+| **加密** | `javax.crypto`（framework 自带） | RSA 加密密码、AES 解密公交响应、MD5 签名 |
+| **构建** | `aapt2` + `kotlinc` + `d8` + `apksigner` 手动串联 | 见下方「7. 不依赖 Gradle 的构建链」 |
+| **鸿蒙适配** | 兼容性分支 + 全局兜底 | 见下方「8. 鸿蒙兼容层适配」 |
+
+**运行时依赖计数：0。** 除 Kotlin 标准库外，没有任何第三方库。
+
+### 代码规模
+
+```
+54 个 Kotlin 文件 · 22,909 行
+
+jw/        3 文件  1,724 行   正方教务接口（登录 / 课表 / 成绩 / 绩点 / 选课）
+bus/       7 文件  4,517 行   实时公交（车来了 + 掌上公交两套协议）
+data/     14 文件  2,845 行   课表模型 / 校历 / 作息 / 周次 / 存储
+pages/     6 文件  3,253 行   四个主页面 + 各类编辑器
+ui/       13 文件  2,754 行   自绘控件（胶囊 Dock / 课表网格 / 页面带 / 弹层…）
+widget/    3 文件    337 行   桌面小组件
+根目录      8 文件  7,479 行   Activity 壳与生命周期
+```
+
+### 为什么不用 androidx / Gradle
+
+这不是为了「秀技术」，是**构建环境的硬约束**：开发机访问不了 `maven.google.com`，
+Gradle 拉不到 AGP 和 androidx 依赖。既然拉不到，就干脆全部用 framework API 重写。
+
+意外的好处：
+
+- **APK 只有 3.48 MiB**（用 androidx 的同类 App 通常 8–15 MiB）
+- **构建 20 秒出包**，没有 Gradle daemon 冷启动
+- **没有依赖冲突**，不用关心「某某库升级后 API 变了」
+
+代价是所有控件都得自己画 —— 这正是 `ui/` 目录 2,754 行的由来。
+
+---
+
+## 技术原理
+
+### 0. 整体架构
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Activity 层：Splash / Login / Main / Web / Feature…  │
+│  （薄壳：只做生命周期与页面组装）                       │
+└────────────────────┬─────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────┐
+│  pages/  四个主页面（HomePage / TimetablePage /        │
+│          GradesPage / MinePage）                      │
+│          纯 View 树，由 MainActivity 的 PageDeck 承载   │
+└────────────────────┬─────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────┐
+│  ui/  自绘控件层（无业务逻辑）                          │
+│      PageDeck / PageSlide / CapsuleDock /            │
+│      TimetableGridView / Sheet / PullRefreshLayout…  │
+└────────────────────┬─────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────┐
+│  业务层：jw/（教务） bus/（公交）                        │
+│  纯函数 + 无状态客户端，可直接单元测试                   │
+└────────────────────┬─────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────┐
+│  data/  数据模型 + 本地存储（SharedPreferences）        │
+│  Timetable / Semester / WeekRange / WeekMath /        │
+│  ScheduleSettings / AcademicCalendar / Store          │
+└──────────────────────────────────────────────────────┘
+```
+
+**关键设计**：业务层（`jw/`、`bus/`）不依赖任何 View，UI 层不包含任何网络请求。
+这样换 UI、或者把业务逻辑移植到其他平台，都不需要动业务代码。
+
+---
 
 ### 1. 从 WebView 套壳换成原生
 
-v2 是「一套 H5 + 两个原生壳」，v3 是彻底的原生重写（`native/` 与 legacy 的 `web/`、`android/`
-零共享）。换的原因不是「原生更好听」，而是三件事在 WebView 里做不到位：
+v2 是「一套 H5 + 两个原生壳」，v3 是彻底的原生重写。换的原因不是「原生更好听」，
+而是三件事在 WebView 里做不到位：
 
 | 需求 | WebView 里的结果 | 原生做法 |
 | --- | --- | --- |
@@ -163,64 +251,401 @@ v2 是「一套 H5 + 两个原生壳」，v3 是彻底的原生重写（`native/
 
 ### 2. 切页：连续平移而不是渐变
 
-四个主页面**同时**排在一条横向带子上，切页时平移整条带子。所以从首页点「我的」，课表、成绩会依次
-从眼前掠过，而不是两页对着擦。时长 `290ms + 45ms × (剩余格数 − 1)`，夹在 `[160, 400]` ——
-跨三格 380ms、跨一格 290ms，极差 90ms，是同一套节奏，也不会让中间两页一糊而过。
+**原理**：四个主页面**同时**排在一条横向带子上，切页时平移整条带子。
+所以从首页点「我的」，课表、成绩会依次从眼前掠过，而不是两页对着擦。
 
-容器只有一屏宽，直接平移它会被自身 bounds 裁掉、触摸也失效，所以每个子页各自 `layout` 在
-`[0, 0, w, h]`，用各自的 `translationX` 表达位置。
+**时长公式**：`290ms + 45ms × max(0, 剩余格数 − 1)`，夹在 `[160, 400]`
+—— 首页→课表 290ms、首页→成绩 335ms、首页→我的 380ms，
+三者差不到 0.1s，观感上就是同一套节奏；又不会因为完全固定时长，
+让跨三格的那次快到看不清中间两页。
+
+```kotlin
+// MainActivity.kt 实际实现
+val remain = Math.abs(i - content.position())
+var dur = (PAGE_SLIDE_MS + Math.round(PAGE_SLIDE_STEP_MS * Math.max(0f, remain - 1f))).toLong()
+dur = Math.min(PAGE_SLIDE_MAX_MS.toLong(), Math.max(PAGE_SLIDE_MIN_MS.toLong(), dur))
+```
+
+> 用**浮点**剩余距离是为了接住「返回手势松手时已经拖了一半」的情况。
+
+**难点与解法**：容器只有一屏宽，直接平移它会被自身 `bounds` 裁掉、触摸也失效。
+所以每个子页各自 `layout` 在 `[0, 0, w, h]`，用各自的 `translationX` 表达位置。
+
+```kotlin
+// ui/PageDeck.kt 核心思路
+child.layout(0, 0, width, height)              // 所有子页都占满全屏
+child.translationX = (i - position) * width    // 位置靠 translationX 表达
+```
 
 ### 3. 二级页：圆角卡片转场
 
-系统只在**返回**方向画圆角卡片（AOSP `CrossActivityBackAnimation` 取设备圆角半径，把正在关闭的窗口
-裁圆角再缩到 90%），**进入**方向走的是窗口动画，而窗口动画只有 alpha / translate / scale，
-没有圆角属性，也没有公开 API 能给应用窗口设圆角。于是同一个页面进来直角、出去圆角。
+**问题**：系统只在**返回**方向画圆角卡片（AOSP `CrossActivityBackAnimation` 取设备圆角半径，
+把正在关闭的窗口裁圆角再缩到 90%），**进入**方向走的是窗口动画，而窗口动画只有
+alpha / translate / scale，没有圆角属性，也没有公开 API 能给应用窗口设圆角。
+于是同一个页面进来直角、出去圆角。
 
-解法是自己画整页：`windowIsTranslucent` + 透明窗口底色，在 `android.R.id.content` 里插一层自建
-`FrameLayout` 当卡片，圆角用 `ViewOutlineProvider` + `setClipToOutline`，投影用 `setElevation`，
-位移与圆角都随「滑出比例 p」变化，落位归 0 —— 静止状态与普通页面逐像素一致。
+**解法**：自己画整页。
 
-> 这一版踩过的坑：圆角最初裁在 `DecorView` 上，`setClipToOutline` 对窗口根节点不生效，
+```
+windowIsTranslucent = true          // 窗口透明
+背景填透明色
+在 android.R.id.content 里插一层自建 FrameLayout 当「卡片」
+圆角：ViewOutlineProvider + setClipToOutline
+投影：setElevation
+位移与圆角都随「滑出比例 p」变化，落位归 0
+```
+
+静止状态与普通页面**逐像素一致**，只在运动过程中出现圆角与投影。
+
+> **踩坑记录**：圆角最初裁在 `DecorView` 上，`setClipToOutline` 对窗口根节点不生效，
 > 结果进出都是「没有边界、没有投影的矩形」。必须换成普通 View 才裁得出来。
 
-### 4. 预测性返回
+### 4. 预测性返回（跟手动画）
 
-manifest 开 `enableOnBackInvokedCallback`。API 34+ 用 `OnBackAnimationCallback` 的
-`onBackProgressed` 做跟手，API 33 用 `OnBackInvokedDispatcher`，API 32 及以下退回
-`onBackPressed` + 自绘滑动。一级页把进度喂给 `PageDeck.jumpTo(position × (1 − p))`，整条带子跟着
-手指回滑，松手从当前位置收尾；二级页喂给 `PageSlide`。
+**原理**：manifest 开 `enableOnBackInvokedCallback`，系统会把返回手势的**实时进度**
+（0.0 → 1.0）回调给应用，应用可以逐帧跟着手指做动画。
 
-> 鸿蒙专版把带进度的回调拆成了独立文件 `ui/AnimatedBackCallback.kt`，
-> 因为 `OnBackAnimationCallback` 在鸿蒙上不存在，同文件会让类验证阶段直接失败。
+| 系统版本 | 用哪个 API | 效果 |
+| --- | --- | --- |
+| API 34+ | `OnBackAnimationCallback.onBackProgressed` | 全跟手：动画随手指移动 |
+| API 33 | `OnBackInvokedDispatcher` | 只有「已触发」一个时机，无进度 |
+| API 32 及以下 | `onBackPressed` + 自绘滑动 | 传统做法 |
 
-### 5. 数据层
+一级页把进度喂给 `PageDeck.jumpTo(position × (1 − p))`，整条带子跟着手指回滑，
+松手从当前位置收尾；二级页喂给 `PageSlide`。
 
-- 密码用教务页面下发的 RSA 公钥加密后再 POST；`JSESSIONID` 复用，超时自动重登。
-- `Store` 存本地快照，按登录时刻判断新鲜度；姓名按学号隔离，换账号不会串。
-- 成绩 / 绩点统一解析成「标题 + 副标题 + 数值 + 备注」的行模型，界面只写一套渲染。
-- 刷新策略：首页刷新只重新登录、不动课表；成绩与绩点进页面才加载，下拉才拉取。
-- 公交侧 `BusText` / `BusModels` 统一文案与选车口径，`ChelaileClient` 与 `MygolbsClient` 各管一个数据源，
-  界面只认同一套 `Arrival` / `LineDetail`，所以首页和详情页不会各说各话。
+```kotlin
+// 核心：把 0→1 的进度映射成页面位置
+fun onProgress(p: Float) {
+    deck.jumpTo(currentIndex * (1 - p))
+}
+```
+
+### 5. 数据层与本地存储
+
+**教务登录协议**（正方教务系统，五步）：
+
+```
+1. GET  /xtgl/login_slogin.html        → 抓隐藏域 csrftoken
+2. GET  /xtgl/login_getPublicKey.html  → {"modulus": "...", "exponent": "..."}  ← base64 的 BigInteger
+3. RSA/ECB/PKCS1Padding 加密密码原文
+4. POST /xtgl/login_slogin.html        → yhm / mm / hidMm / csrftoken / language / mmsfjm
+5. GET  /xtgl/index_cxMenuList.html    → 必须含 gnmkdm，否则视为没登上
+```
+
+> **注意**：`mm` 和 `hidMm` 两个字段都要传；公钥来自**独立接口**而不是登录页 HTML。
+
+**协议自适应**：先试 https，失败换 http 重试（校外 443 端口常被拦）。
+
+**会话复用**：`JSESSIONID` 缓存 10 分钟，30 秒内不重复探测。
+
+**课表解析**（`data/JwglxtFetcher.kt`）：
+
+```
+接口：POST /jwglxt/xsxk/zzxkyzb_cxZzxkYzbDisplay.html  或  /xtgl/index_initMenu.html
+位置：kbList 数组，一条记录 = 一个时段（不是一门课）
+聚合：同一门课的多条记录共享 jxb_id（教学班 ID）→ 用它聚合成 Course
+字段：kcmc(课名) xm(教师) xqj(星期) jcor(节次,如"3-4") zcd(周次,如"5-12周")
+      cdmc(教室) xqmc(校区) kcbj(教学班) xf(学分)
+学期：xsxx 里的大写 XNM(2026) / XQM(3或12) / XNMC / XQMMC
+```
+
+**周次解析**（`data/WeekRange.kt`）支持这些写法：
+
+```
+5-12周              连续区间
+1-5周,7-12周        多区间
+1-16周(单)          单周
+1-16周(双)          双周
+1,3,5,7周           离散
+1-5，7-9周          全角逗号
+1-5、7-9周          顿号
+```
+
+**关键兜底**：解析失败时 `isActive()` 返回 `true`，**宁可多显示也不让课凭空消失**。
+
+**本地存储**（`data/Store.kt`）：`SharedPreferences` 按学期分 key
+（`tt_<semesterId>` / `startDate_<semesterId>`），换学期不串数据。
 
 ### 6. 深色模式
 
-manifest 声明了 `configChanges="uiMode"`（切深浅色不重建 Activity），所以系统下发的配置会覆盖
-`attachBaseContext` 里设的夜间位。修复办法是在 `applyOverrideConfiguration` 这个唯一切口里重新注入，
+manifest 声明了 `configChanges="uiMode"`（切深浅色不重建 Activity），
+所以系统下发的配置会覆盖 `attachBaseContext` 里设的夜间位。
+
+**修复办法**：在 `applyOverrideConfiguration` 这个**唯一切口**里重新注入夜间位，
 否则 `values-night/colors.xml` 永远不会生效。
+
+```kotlin
+override fun applyOverrideConfiguration(config: Configuration?) {
+    if (config != null) {
+        when (Store(this).themeMode()) {
+            THEME_DARK  -> config.uiMode = (config.uiMode and MASK.inv()) or YES
+            THEME_LIGHT -> config.uiMode = (config.uiMode and MASK.inv()) or NO
+            // THEME_SYSTEM：保留系统下发的夜间位
+        }
+    }
+    super.applyOverrideConfiguration(config)
+}
+```
 
 ### 7. 不依赖 Gradle 的构建链
 
-4.0.0 仍是纯 framework，但编译语言换成 Kotlin，构建脚本直接串起 SDK 里的工具：
+**从未见过那样搭建的构建脚本？** 这里就是。因为用不了 Gradle，直接把 SDK 里的工具串起来：
 
 ```
-aapt2 compile → aapt2 link（生成 R.java）→ javac(R.java) → kotlinc → d8 → zipalign → apksigner
+aapt2 compile --dir res -o res.flata
+aapt2 link   -I android.jar --manifest ... --java gen --min-sdk-version 26 ...
+javac        编译 R.java
+kotlinc      -no-stdlib -jvm-target 1.8 -classpath "android.jar;kotlin-stdlib.jar;classes"
+d8           --lib android.jar --min-api 26 --output dex classes.jar kotlin-stdlib.jar
+zipalign     -f -p 4
+apksigner    sign --ks debug.keystore
 ```
 
-- 需要 JDK 17、Android SDK（`build-tools;34.0.0` + `platforms;android-34`）、Kotlin 编译器 1.9.24。
-  **不能用 Kotlin 2.x**：build-tools 34 自带的 R8 8.2.2 读不懂 2.0 的 `kotlin.Metadata`，d8 阶段会直接抛 stacktrace。
-- `bash native/typecheck.sh` 只跑 kotlinc 类型检查，用于快速迭代；`bash native/build.sh` 出完整 APK。
-- d8 不接受非静态内部类，所有自绘控件都用 `private class X(...) : View(c)` 这种静态嵌套写法。
-- 版本号只在 `native/version.properties` 一处维护，脚本会同时写进 manifest 与包信息。
+**环境要求**：JDK 17、Android SDK（`build-tools;34.0.0` + `platforms;android-34`）、
+Kotlin 编译器 1.9.24。
+
+**不能用的版本**：Kotlin 2.x。build-tools 34 自带的 R8 8.2.2 读不懂 2.0 的
+`kotlin.Metadata`，d8 阶段会直接抛 stacktrace。
+
+**其他要点**：
+
+- `bash native/typecheck.sh` 只跑 kotlinc 类型检查，用于快速迭代
+- d8 不接受非静态内部类，所有自绘控件都用 `private class X(...) : View(c)` 这种静态嵌套写法
+- 版本号只在 `native/version.properties` 一处维护
+
+> ⚠️ **路径不能有中文** —— `aapt2` 会报 `failed to open directory`。
+> 把工程放到纯 ASCII 路径下再编译。
+
+### 8. 鸿蒙兼容层适配 ⭐
+
+**这是鸿蒙专版的核心，也是这份仓库里最值得复用的部分。**
+
+#### 问题本质
+
+HarmonyOS 的 Android 兼容层**只实现了 Android framework 的一部分**。
+缺失的 API 调用会抛 `NoClassDefFoundError` / `NoSuchMethodError` ——
+**这些是 `Error` 不是 `Exception`**，`catch (e: Exception)` 抓不住，
+异常穿透到 UI 线程顶层 → 进程被杀 → 用户看到「闪退」。
+
+更隐蔽的是**类验证阶段**的问题：即使代码没执行，只要 ART 在验证方法体时
+解析到了一个不存在的父类，就会在**进入 try 块之前**抛 `NoClassDefFoundError`。
+
+#### 三类问题与对策
+
+| 类型 | 典型场景 | 对策 |
+| --- | --- | --- |
+| **① 系统服务缺失** | `AppWidgetManager`（鸿蒙无 appwidget 服务） | 整条链路 `try/catch (Throwable)`，失败静默 |
+| **② 类验证失败** | 内部类继承 API 34 的 `OnBackAnimationCallback` | **把危险类拆到独立文件**，只在运行时才加载 |
+| **③ API 版本差异** | `URLEncoder.encode(String, Charset)` 是 Java 10 新增 | 降到 Java 8 就有的重载 |
+
+#### 关键技术手法
+
+**手法一：用 `Class.forName` 真探测，不要只信 `SDK_INT`**
+
+鸿蒙可能上报 `SDK_INT = 34`，但类其实不存在。
+
+```kotlin
+private fun animatedAvailable(): Boolean {
+    if (Build.VERSION.SDK_INT < 34) return false
+    return try {
+        Class.forName("android.window.OnBackAnimationCallback")
+        true
+    } catch (t: Throwable) { false }   // 真加载失败就当不支持
+}
+```
+
+**手法二：把「危险类」拆成独立文件**
+
+```kotlin
+// ❌ 错误：内部类和宿主同文件
+object BackGestures {
+    private class Animated : OnBackAnimationCallback { ... }   // 验证 BackGestures 时就会解析它
+}
+
+// ✅ 正确：独立文件，只有 new 的那一刻才加载
+// ui/AnimatedBackCallback.kt
+internal class AnimatedBackCallback(h: Handler) : OnBackAnimationCallback { ... }
+```
+
+**手法三：全面降级，任何一步失败都往下走**
+
+```kotlin
+private fun applyInsets(root: View, dockBox: View) {
+    if (applyModernInsets(root, dockBox)) return   // ① API 30+ 的 WindowInsets
+    try { root.setPadding(0, statusBarHeight(), 0, 0) }  // ② 资源查询兜底
+    catch (t: Throwable) { root.setPadding(0, 0, 0, 0) } // ③ 0 内边距
+    setStatusBarTransparent()                      // 失败也不影响功能
+}
+```
+
+**手法四：穷举不完的，就上全局兜底**
+
+前三种手法只能修「已知问题」。兼容层还缺什么没法穷举，所以加一层
+`Thread.setDefaultUncaughtExceptionHandler`：
+
+```kotlin
+// harmony/CrashGuard.kt
+Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+    try {
+        writeLog(app, throwable)   // 写 filesDir/crash/harmony-*.log，保留最近 10 个
+        // 吞掉异常，不让进程死
+    } catch (t: Throwable) {
+        previous?.uncaughtException(thread, throwable)   // 连日志都写不出来才交回系统
+    }
+}
+```
+
+> 「吞异常」不是最优雅的做法，可能留下不一致的界面状态。
+> 但对这个场景是对的：用户要的是「别闪退」，而不是「优雅地闪退」。
+
+#### 给其他移植项目的检查清单
+
+| 检查项 | 怎么查 |
+| --- | --- |
+| 系统服务 | `getSystemService(...)` 是否都判空 + try/catch |
+| 新 API 类 | 是否用内部类继承了高版本 API 的类 → 拆到独立文件 |
+| Java 版本 | 是否用了 Java 9+ 的方法重载（见下方工具） |
+| 窗口/Insets | `WindowInsets.Type` / `statusBarColor` 是否包了 |
+| 全局兜底 | 是否装了 `UncaughtExceptionHandler` |
+
+**自动化工具**：`harmony-android/scripts/check-java-api.js` 直接解析 dex 的方法引用表，
+扫出所有 Java 9+ 的 API 调用：
+
+```bash
+node scripts/check-java-api.js native/build/dex/classes.dex
+```
+
+输出示例：
+
+```
+dex 方法引用总数：13174
+✓ 没有发现 Java 9+ 的 API 引用
+
+URLEncoder / URLDecoder 引用：
+  Ljava/net/URLEncoder;->encode(BB)Ljava/lang/String;
+```
+
+这类问题**编译期完全看不出来**（JDK 17 编译合法），只在真机上炸 —— 构建后跑一次能提前拦住。
+
+---
+
+## 网络协议速查
+
+如果你要自己做类似的校园 App，这些协议事实可以直接复用。
+
+### 正方教务系统
+
+| 项 | 值 |
+| --- | --- |
+| 主机 | `jwxt.tstc.edu.cn`（**不是** `jwglxt`） |
+| 登录入口 | `/xtgl/login_slogin.html` |
+| 公钥接口 | `/xtgl/login_getPublicKey.html` → `{"modulus","exponent"}`（base64 的 BigInteger） |
+| 密码加密 | `RSA/ECB/PKCS1Padding`，加密**密码原文**（不加时间戳） |
+| 登录表单 | `yhm`（学号）/ `mm`（密文）/ `hidMm`（原文占位）/ `csrftoken` / `language` / `mmsfjm` |
+| 成功判定 | 再拉 `/xtgl/index_cxMenuList.html`，**必须含 `gnmkdm`** |
+| 课表接口 | `kbList` 数组，按 `jxb_id` 聚合 |
+| 会话 | `JSESSIONID` Cookie，10 分钟有效 |
+
+### 车来了（实时公交）
+
+| 项 | 值 |
+| --- | --- |
+| 接口 | `https://web.chelaile.net.cn/api` |
+| 签名 | 参数按**插入顺序**拼 `"k"="v"&...`，加盐 `qwihrnbtmj`，求 MD5 小写 → `cryptoSign` |
+| 响应壳 | `**YGKJ{"jsonr":{"data":{"encryptResult":"..."}}}` |
+| 解密 | Base64 → `AES-256/ECB/PKCS5Padding`，密钥是 **32 个 ASCII 字符** |
+| 唐山 cityId | `056` |
+| Referer | 需带 `servicewechat.com/...` 伪装小程序来源 |
+
+### 掌上公交（备用数据源）
+
+| 项 | 值 |
+| --- | --- |
+| 接口 | `POST https://h5.mygolbs.com/ApiData.do` |
+| 必需头 | `Origin` / `Referer` |
+| CMD 编码 | `101` 城市列表 / `103` 站表+首末班 / `104` 实时车辆 / `105` 站点线路 / `106` 附近站点 |
+
+> 协议随时可能变。失效时把这些常量更新一下即可 —— 都集中在
+> `jw/JwClient.kt`、`bus/ChelaileClient.kt`、`bus/MygolbsClient.kt` 的顶部常量区。
+
+---
+
+## 想复用到自己学校？
+
+这份代码里**大部分逻辑是通用的**，换个学校主要改这几处。
+
+### 必须改的（约 10 分钟）
+
+| # | 文件 | 改什么 |
+| --- | --- | --- |
+| 1 | `jw/JwClient.kt` 顶部 | `HOST` 改成你学校教务的主机名 |
+| 2 | `res/values/strings.xml` | `app_name`、学校名 |
+| 3 | `native/version.properties` | `versionCode` / `versionName` |
+| 4 | `res/mipmap-xxxhdpi/ic_launcher.png` | 图标 |
+| 5 | `res/drawable-nodpi/login_badge.png` | 登录页校徽 |
+| 6 | `data/AcademicCalendar.kt` | 学期开始日、考试周、节假日 |
+
+### 可能要改的（看学校用的什么教务系统）
+
+**如果也是正方教务（jwxt 系）** —— 大概率开箱即用：
+
+- 登录五步流程一般是通用的
+- 课表字段名（`kcmc` / `xqj` / `jcor` / `zcd`）是正方的标准字段
+- 只需改 `HOST`
+
+**如果是其他教务系统**（青果、强智、URP、金智等）：
+
+- 重写 `jw/JwClient.kt` 的登录部分
+- 重写 `data/JwglxtFetcher.kt` 的解析部分
+- **不用动** `data/` 下的其他文件（课表模型、周次计算、作息、存储都是通用的）
+
+### 通用的部分（不用改）
+
+| 模块 | 为什么通用 |
+| --- | --- |
+| `data/Timetable.kt` | 课表数据结构（课程 / 时段 / 学期）与教务系统无关 |
+| `data/WeekRange.kt` | 周次表达式解析（`5-12周`、`(单)`、`(双)`…） |
+| `data/WeekMath.kt` | 教学周计算 |
+| `data/ScheduleSettings.kt` | 作息节次（改一下 `DEFAULT_BREAKS` 就行） |
+| `data/Store.kt` | 本地存储 |
+| `ui/` 全部 | 自绘控件与业务无关 |
+| `bus/` 全部 | 公交协议是全国通用的（车来了 / 掌上公交） |
+
+### 公交部分
+
+车来了和掌上公交是**全国性服务**，只要改 `DEFAULT_CITY_ID`：
+
+```kotlin
+// bus/ChelaileClient.kt
+const val DEFAULT_CITY_ID: String = "056"   // 唐山；换成你所在城市的编号
+```
+
+城市编号可以从 `https://web.chelaile.net.cn/wwd/ncitylist` 查到（`ChelaileClient.cities()` 已经封装好）。
+
+### 改完怎么验证
+
+```bash
+# 1. 类型检查（快，不打包）
+bash native/typecheck.sh
+
+# 2. 出 APK
+bash native/build.sh
+
+# 3. 鸿蒙专版额外自检
+cd harmony-android
+node scripts/check-java-api.js native/build/dex/classes.dex
+```
+
+### 建议的改动顺序
+
+1. **先只改校名和图标**，编译能装上、界面正常显示
+2. **再改 `HOST`**，试登录能不能成功（这一步最容易卡住）
+3. 登录通了再看课表能不能解析出来
+4. 最后改校历、作息
+
+> 每改一步就编译一次，别一次改完再排查 —— 教务协议出问题时，
+> 一次只改一件事，才能快速定位是哪儿的锅。
 
 ---
 

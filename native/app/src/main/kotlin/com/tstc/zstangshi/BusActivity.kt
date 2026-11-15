@@ -1903,7 +1903,7 @@ class BusActivity : BaseActivity() {
     //   · 站点卡：候车站胶囊 + 大字到站 +「还有 1 站 · 31512070 · 距本站 1.2公里 · 22:46 到 · 3 km/h」
     //             + 分隔线 +「下一辆 28 分钟 · 12 站」+「全线 2 辆车在途 · 查看」
     //   · 车辆列表：「到「丰润区车场」的全部车辆」+「共 2 辆」，每辆一行，右侧是到站徽标
-    //   · 单车跟随：「单车跟随 · 31512055」+「开往 丰润区车场」+ 距终点 / 时速 / 到终点预测
+    //   · 单车跟随：「单车跟随 · 31512055」+「开往 丰润区车场」+ 距终点 / 时速 / 到候车站预测
     //             + 「全线途经站行程流：」+ 逐站时间轴（已过 / 正在接近 / 下一站）
     // 卡片钉在滚动区上方：切面板只换卡片里的内容（淡入 + 高度动画），页面本身一动不动。
 
@@ -2555,7 +2555,9 @@ class BusActivity : BaseActivity() {
         )
         summary.addView(
             summaryColumn(
-                "到终点预测",
+                // v.etaSeconds 是「这辆车到候车站」的剩余秒（busDetail 逐车 travelTime），
+                // 不是到终点站的时间；距终点那一列才是终点口径。按真实口径写标签。
+                "到候车站预测",
                 null,
                 if (v.etaSeconds > 0) BusText.etaText(v.etaSeconds, false) else "无预测"
             )
@@ -2580,13 +2582,16 @@ class BusActivity : BaseActivity() {
         flow.setPadding(0, dp(12f), 0, dp(2f))
         c.addView(flow)
 
-        // 行程流还是原来那个 240dp 的窗口：摊平会把「距终点 / 时速 / 到终点预测」
+        // 行程流还是原来那个 240dp 的窗口：摊平会把「距终点 / 时速 / 到候车站预测」
         // 和下面的线路图一路推下去，点进车辆详情就不像一张卡了。
         // 但套普通 ScrollView 会划不动（见 [FlowScroll]），所以换成自己写的那一版：
         // 手指按下先让这块吃手势，滑到顶/底再把手势还给页面。
         val sc = FlowScroll(this)
         val list = LinearLayout(this)
         list.orientation = LinearLayout.VERTICAL
+        // 车辆绿点的呼吸光晕会放大到 30dp，比 28dp 的竖轨还宽；这几层别裁子 View，
+        // 最外层 FlowScroll 仍按 240dp 窗口裁，光晕不会溢到卡片外面去。
+        list.clipChildren = false
         sc.addView(list, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ))
@@ -2653,8 +2658,10 @@ class BusActivity : BaseActivity() {
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
         row.minimumHeight = dp(36f)
+        row.clipChildren = false
 
         val rail = FrameLayout(this)
+        rail.clipChildren = false
         val lineColor = if (s.order <= v.order) alphaOf(getColor(R.color.text_tertiary), 0.35f)
         else getColor(R.color.brand)
         rail.addView(
@@ -2664,6 +2671,12 @@ class BusActivity : BaseActivity() {
             )
         )
         if (current) {
+            // 绿点（车所在站）外面套一层同色呼吸光晕：整条行程流只有这一点会动，
+            // 刷到窗口里哪一屏都能一眼找到车。复用候车站那套 PulseHalo，只换绿色。
+            rail.addView(
+                PulseHalo(this, alphaOf(toneGo(), 0.22f)),
+                FrameLayout.LayoutParams(dp(24f), dp(24f), Gravity.CENTER)
+            )
             val ring = FrameLayout(this)
             ring.background = roundRect(toneGo(), dp(10f))
             val ic = ImageView(this)
@@ -4089,10 +4102,11 @@ class BusActivity : BaseActivity() {
     }
 
     /**
-     * 候车站圆点的呼吸光晕（追客 SelectedStationPulseHalo 的等价物）：
-     * 24dp 的淡品牌色圆，1.0 → 1.25 → 1.0 往复，一程 800ms。
+     * 圆点的呼吸光晕（追客 SelectedStationPulseHalo 的等价物）：
+     * 24dp 的淡色圆，1.0 → 1.25 → 1.0 往复，一程 800ms。
+     * 横排站线的候车站用淡品牌蓝，单车跟随行程流里车所在的绿点用淡品牌绿。
      *
-     * 只给「当前候车站」这一个点挂 —— 30 个站每个都在跑的动画就是 30 个独立
+     * 只给「当前那一个点」挂 —— 30 个站每个都在跑的动画就是 30 个独立
      * 时钟，掉帧从这里开始。挂载才起播、被移除就 cancel，刷新时整列重建不会
      * 留下一堆空转的动画。
      */

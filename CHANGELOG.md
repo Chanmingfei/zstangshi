@@ -249,6 +249,21 @@
   设 `minimumWidth`，另加 `ellipsize=END` 兜底。
 - 仍是 4.0.0（versionCode 58）测试版，**未推 GitHub、未发 Release**。
 
+### 4.0.0 修补 10 · 单车跟随的「到终点预测」正名 + 车辆绿点呼吸光晕
+
+- **标签与数值对不上**：单车跟随概览第三列原写「到终点预测」，值却是
+  `Vehicle.etaSeconds`。这个字段在模型里定义为「到候车站的剩余秒」，两个数据源
+  （车来了 `encryptedBusDetail` 逐车 `travelTime` / 掌上公交 CMD=104）填的也都是
+  到候车站的预测；同卡第一列「距终点 N 站」才是终点口径。核对后按用户要求把标签
+  改成 **「到候车站预测」**，数值与 `BusText.etaText()` 换算一律不动。
+  `classes.dex` 校验：`到候车站预测` 1 处、`到终点预测` / `到终点站预测` 均 0 处。
+- **车辆绿点呼吸光晕**：行程流里车所在那一站的绿色圆底（白色公交图标）复用
+  候车站那套 `PulseHalo`，换成淡绿 `alphaOf(toneGo(), 0.22f)`，24dp 圆
+  1.0 → 1.25 → 1.0、800ms 往复。整条行程流只有这一点会动，不额外开时钟。
+- 放大后光晕有 30dp，比 28dp 竖轨还宽，所以 `row` / `rail` / `list` 三层都关掉
+  `clipChildren`；最外层 `FlowScroll` 仍按 240dp 窗口裁，光晕不会溢到卡片外。
+- 仍是 4.0.0（versionCode 58）测试版，**未推 GitHub、未发 Release**。
+
 ---
 
 ## v3.1.1 · 收班线路里外文案统一（versionCode 56）

@@ -1,6 +1,6 @@
 # 掌上唐师 · Android 原生版（`native/`）
 
-v3 系列起家的全部代码，**4.0.0 起为纯 Kotlin**（50 个 `.kt`，无一行 Java）。
+v3 系列起家的全部代码，**4.0.0 起为纯 Kotlin**（54 个 `.kt`，无一行 Java）。
 仍然是**纯 Android framework 实现，不引 androidx，不引任何第三方库**，
 一个 `bash build.sh` 直出可安装 APK。
 
@@ -9,12 +9,12 @@ v3 系列起家的全部代码，**4.0.0 起为纯 Kotlin**（50 个 `.kt`，无
 也做不出「手指拖到哪、画面跟到哪」的原生手感。v2 的代码完整保留在 `../android/` + `../web/`
 和 `legacy-webview-v2.0.1` 分支，与这里零共享。
 
-- 版本：**4.0.0（versionCode 58）** · 测试版，未发布
+- 版本：**4.0.0（versionCode 58）** · 2026-11-15 正式发布（tag `v4.0.0`）
 - 包名：`com.tstc.zstangshi`
 - minSdk 26（Android 8.0）· targetSdk 34（Android 14）
 - 权限：`INTERNET`、`ACCESS_NETWORK_STATE`，加一对定位权限 —— 只有实时公交首页用来取一次附近站点，
   拒绝授权也能用（手动搜索线路）
-- 规模：50 个 Kotlin 文件、约 19,200 行、35 个资源文件、APK 约 3.4 MB
+- 规模：54 个 Kotlin 文件、约 22,900 行、35 个资源文件、APK 3,652,204 字节（约 3.48 MiB）
   （比 v3.1.1 的 1.1 MB 大，主要是 kotlin-stdlib 与 Kotlin 编译产物；未做 R8 裁剪）
 
 ---

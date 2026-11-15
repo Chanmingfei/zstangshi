@@ -1,12 +1,16 @@
 # 掌上唐师 更新日志
 
 > **对比基线**：v2.0.1（versionCode 15）· 2.x 最后一个版本
-> **当前版本**：v4.0.0（versionCode 58）· Kotlin 重写版（测试中，未发布）
-> **上一个正式版**：v3.1.1（versionCode 56）
+> **当前版本**：v4.0.0（versionCode 58）· Kotlin 重写版 · **2026-11-15 正式发布**（tag `v4.0.0` + GitHub Release）
+> **上一个版本**：v3.1.1（versionCode 56）
+>
+> **发布状态说明**：v4.0.0 的各轮修补先在真机上逐条实测，全部通过后才发布。
+> 下方各条修补日志里出现的「测试版 / 未发布 / 未推 GitHub」，是当时那一轮的真实状态，
+> 保留原样作为时间线记录，不代表最终发布状态。
 
 ---
 
-## v4.0.0 · 全量 Kotlin 重写（versionCode 58）· 测试版，未发布
+## v4.0.0 · 全量 Kotlin 重写 + 实时公交打磨（versionCode 58）· 2026-11-15 发布
 
 - **只换语言，不换行为**：50 个源码文件、约 2 万行 Java 全部改写为 Kotlin，
   包结构、类名、方法名、资源名、布局尺寸、文案、动画时长一律保持原样。
@@ -20,7 +24,8 @@
   - 受检异常 → `@Throws(JSONException::class)`，与方法签名里的 throws 语义一致。
 - **编译器版本**：kotlin-compiler-embeddable 1.9.24（不是 2.x）——build-tools 34 自带的 R8 8.2.2
   读不懂 2.0 的 kotlin.Metadata，d8 阶段会刷 stacktrace。
-- 版本号 4.0.0（versionCode 58），**测试版不发布**：不推 Release、不发 GitHub、不上架。
+- 版本号 4.0.0（versionCode 58）。打磨期间仅本地构建与真机自测，2026-11-15 通过实测后
+  打 `v4.0.0` tag 并发布 GitHub Release（附签名 APK）；**不上架应用商店**。
 
 ### 实时公交 · 向追客（Trackr）看齐
 
@@ -262,7 +267,8 @@
   1.0 → 1.25 → 1.0、800ms 往复。整条行程流只有这一点会动，不额外开时钟。
 - 放大后光晕有 30dp，比 28dp 竖轨还宽，所以 `row` / `rail` / `list` 三层都关掉
   `clipChildren`；最外层 `FlowScroll` 仍按 240dp 窗口裁，光晕不会溢到卡片外。
-- 仍是 4.0.0（versionCode 58）测试版，**未推 GitHub、未发 Release**。
+- 本轮是发布前最后一次打磨：`typecheck.sh` 0 error、`build.sh` 出包、`adb install` 成功、
+  `dumpsys` 确认 4.0.0(58)。**随后经真机实测通过，2026-11-15 正式发布 v4.0.0**。
 
 ---
 

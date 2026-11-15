@@ -3,6 +3,8 @@ ios/build/
 android/build/
 native/build/
 DerivedData/
+# 本地交付/暂存目录（APK 走 Releases 上传，不入库）
+deliver/
 *.ipa
 *.xcarchive
 *.dSYM.zip

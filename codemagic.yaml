@@ -31,27 +31,30 @@ workflows:
           cd ios-native
           xcodegen generate
 
-      - name: 编译（未签名）
+      - name: 编译并归档（未签名）
         script: |
           set -e
           cd ios-native
-          # 清空默认 DerivedData，保证产物唯一、可被打包步骤找到
-          rm -rf "$HOME/Library/Developer/Xcode/DerivedData"
-          xcodebuild -project ZhangShangTangShi.xcodeproj \
+          ARCH="$PWD/build/ZSTS.xcarchive"
+          rm -rf "$ARCH"
+          xcodebuild archive \
+            -project ZhangShangTangShi.xcodeproj \
             -scheme ZhangShangTangShi \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
+            -archivePath "$ARCH" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY=""
+          echo "ARCHIVE = $ARCH"
 
       - name: 打包未签名 IPA（供 Sideloadly 以 Apple ID 重签）
         script: |
           set -e
           ROOT=$(pwd)
-          APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -name "ZhangShangTangShi.app" -type d 2>/dev/null | head -1)
+          APP="$ROOT/ios-native/build/ZSTS.xcarchive/Products/Applications/ZhangShangTangShi.app"
           echo "APP = $APP"
-          [ -d "$APP" ] || { echo "找不到 .app（DerivedData 中无产物）"; exit 1; }
+          [ -d "$APP" ] || { echo "找不到 .app（archive 内无产物）"; exit 1; }
           PKG=/tmp/zst_payload
           rm -rf "$PKG" && mkdir -p "$PKG/Payload"
           cp -R "$APP" "$PKG/Payload/"

@@ -326,7 +326,7 @@ struct LineDetailView: View {
                 EmptyCard(title: "全线暂无在途车辆", subtitle: "上游暂时没有返回车辆位置")
             } else {
                 ForEach(Array(d.vehicles.enumerated()), id: \.offset) { _, v in
-                    Button { vm.openFollow(v.id) } label: {
+                    Button { vm.openFollow(busId: v.id) } label: {
                         vehicleRow(v)
                     }
                     .buttonStyle(.plain)

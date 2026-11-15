@@ -84,6 +84,7 @@ struct LoginView: View {
 
     private var form: some View {
         VStack(spacing: 0) {
+        VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: "person")
                     .font(.system(size: 14))
@@ -166,6 +167,7 @@ struct LoginView: View {
             .tint(T.brand)
             .padding(.top, 6)
             .padding(.horizontal, 4)
+        }
     }
 
     // MARK: - 按钮区

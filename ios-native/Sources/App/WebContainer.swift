@@ -115,8 +115,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     // MARK: - 定位授权
 
     func webView(_ webView: WKWebView,
-                 requestGeolocationPermissionFor origin: WKWebFrame,
-                 initiatedByFrame frame: WKWebFrame,
+                 requestGeolocationPermissionFor origin: WKSecurityOrigin,
+                 initiatedByFrame frame: WKFrameInfo,
                  decisionHandler: @escaping (WKPermissionDecision) -> Void) {
         locationManager.requestLocation { ok in
             decisionHandler(ok ? .grant : .deny)

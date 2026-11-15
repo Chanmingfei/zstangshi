@@ -200,7 +200,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
             let (data, response): (Data, URLResponse)
             do {
-                (data, response) = try await self.data(for: req)
+                (data, response) = try self.dataBlocking(for: req)
             } catch {
                 throw BridgeError.transport((error as NSError).domain + ":\(error.localizedDescription)")
             }
@@ -233,14 +233,25 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         throw BridgeError.tooManyRedirects
     }
 
-    private func data(for req: URLRequest) async throws -> (Data, URLResponse) {
-        try await withCheckedThrowingContinuation { cont in
-            session.dataTask(with: req) { data, resp, err in
-                if let err = err { cont.resume(throwing: err) }
-                else if let data = data, let resp = resp { cont.resume(returning: (data, resp)) }
-                else { cont.resume(throwing: BridgeError.noResponse) }
-            }.resume()
-        }
+    /// 同步阻塞版请求（在后台线程调用；URLSession 回调通过信号量桥回）。
+    private func dataBlocking(for req: URLRequest) throws -> (Data, URLResponse) {
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: (Data, URLResponse)?
+        var resultError: Error?
+        session.dataTask(with: req) { data, resp, err in
+            if let err = err {
+                resultError = err
+            } else if let data = data, let resp = resp {
+                result = (data, resp)
+            } else {
+                resultError = BridgeError.noResponse
+            }
+            semaphore.signal()
+        }.resume()
+        semaphore.wait()
+        if let err = resultError { throw err }
+        guard let r = result else { throw BridgeError.noResponse }
+        return r
     }
 
     private func parseHeaders(_ json: String) -> [String: String] {

@@ -52,7 +52,7 @@ workflows:
         script: |
           set -e
           ROOT=$(pwd)
-          APP="$ROOT/ios-native/build/ZSTS.xcarchive/Products/Applications/ZhangShangTangShi.app"
+          APP=$(find "$ROOT/ios-native/build/ZSTS.xcarchive/Products/Applications" -name "*.app" -maxdepth 1 -type d 2>/dev/null | head -1)
           echo "APP = $APP"
           [ -d "$APP" ] || { echo "找不到 .app（archive 内无产物）"; exit 1; }
           PKG=/tmp/zst_payload

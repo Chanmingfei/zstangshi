@@ -13,9 +13,9 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var app: AppState
 
+    /// 需要 WebView 的入口仍走 sheet（`WebScreen` 自带 NavigationStack，
+    /// 套进外层 NavigationStack 会形成嵌套导航栈，这是 iOS 平台的正确切分）。
     @State private var web: WebTarget?
-    @State private var feature: JwApi.Kind?
-    @State private var showCalendar = false
 
     var body: some View {
         ScrollView {
@@ -32,14 +32,6 @@ struct HomeView: View {
         .refreshable { await app.refreshHome() }
         .sheet(item: $web) { target in
             WebScreen(url: target.url, title: target.title)
-                .environmentObject(app)
-        }
-        .sheet(item: $feature) { kind in
-            GradesView(kind: kind)
-                .environmentObject(app)
-        }
-        .sheet(isPresented: $showCalendar) {
-            CalendarSheet()
                 .environmentObject(app)
         }
     }
@@ -202,16 +194,24 @@ struct HomeView: View {
             Card(padding: 0) {
                 VStack(spacing: 6) {
                     HStack(spacing: 0) {
-                        cell("calendar", "我的课表") { app.switchTab(1) }
-                        cell("chart.bar.fill", "成绩") { feature = .grades }
-                        cell("chart.line.uptrend.xyaxis", "学分绩点") { feature = .gpa }
-                        cell("calendar.badge.clock", "校历") { showCalendar = true }
+                        actionCell("calendar", "我的课表") { app.switchTab(1) }
+                        actionCell("bus.fill", "实时公交") { app.switchTab(2) }
+                        linkCell("chart.bar.fill", "成绩") {
+                            GradesContent(kind: .grades)
+                                .navigationTitle("成绩")
+                                .navigationBarTitleDisplayMode(.inline)
+                        }
+                        linkCell("chart.line.uptrend.xyaxis", "学分绩点") {
+                            GradesContent(kind: .gpa)
+                                .navigationTitle("学分绩点")
+                                .navigationBarTitleDisplayMode(.inline)
+                        }
                     }
                     HStack(spacing: 0) {
-                        cell("checkmark.circle", "选课") { openWeb(JwClient.baseURL, "自主选课") }
-                        cell("sparkles", "推荐课表") { openWeb(JwClient.baseURL, "推荐课表") }
-                        cell("ellipsis.circle", "更多功能") { openWeb(JwClient.baseURL, "教务系统") }
-                        cell("building.columns", "学工系统") { openWeb(JwClient.affairsURL, "学工系统") }
+                        linkCell("calendar.badge.clock", "校历") { CalendarPageView() }
+                        linkCell("list.bullet.rectangle", "教务服务") { JwServicesView() }
+                        actionCell("ellipsis.circle", "更多功能") { openWeb(JwClient.baseURL, "教务系统") }
+                        actionCell("building.columns", "学工系统") { openWeb(JwClient.affairsURL, "学工系统") }
                     }
                 }
                 .padding(.horizontal, 7)
@@ -233,24 +233,35 @@ struct HomeView: View {
         }
     }
 
-    private func cell(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 19))
-                    .foregroundStyle(T.brand)
-                    .frame(width: 44, height: 44)
-                    .background(T.brandSoft)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                Text(label)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(T.textSecondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
+    /// 宫格统一外观。三种入口（push 二级页 / 切标签 / 弹 Web 页）共用，
+    /// 保证图标尺寸、点击目标、Dynamic Type 行为完全一致。
+    private func cellBody(_ icon: String, _ label: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 19))
+                .foregroundStyle(T.brand)
+                .frame(width: T.minTap, height: T.minTap)
+                .background(T.brandSoft)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            Text(label)
+                .font(F.caption2)
+                .foregroundStyle(T.textSecondary)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+    }
+
+    private func actionCell(_ icon: String, _ label: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) { cellBody(icon, label) }
+            .buttonStyle(.plain)
+    }
+
+    private func linkCell<D: View>(_ icon: String, _ label: String,
+                                   @ViewBuilder destination: () -> D) -> some View {
+        NavigationLink(destination: destination) { cellBody(icon, label) }
+            .buttonStyle(.plain)
     }
 
     private var affairsCard: some View {

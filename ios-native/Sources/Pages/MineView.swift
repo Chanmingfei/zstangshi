@@ -187,7 +187,7 @@ struct MineView: View {
         VStack(spacing: 0) {
             InfoRow(title: "版本", value: appVersion)
             RowDivider()
-            InfoRow(title: "数据来源", value: "正方教务系统 · 教务处校历")
+            InfoRow(title: "数据来源", value: "正方教务 · 教务处校历 · 车来了 / 掌上公交")
             RowDivider()
 
             // 开发者：姓名 + 两个带平台 logo 的链接（字母与文字等大）
@@ -232,8 +232,8 @@ struct MineView: View {
     }
 
     private var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "3.0.22"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "38"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "4.0.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "58"
         return "\(version) (\(build))"
     }
 

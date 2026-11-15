@@ -12,7 +12,7 @@ final class AppState: ObservableObject {
     private(set) lazy var client = JwClient(store: store)
     private(set) lazy var api = JwApi(client: client, store: store)
 
-    /// 底栏当前页（0 首页 / 1 课表 / 2 成绩 / 3 我的）
+    /// 标签栏当前页（0 首页 / 1 课表 / 2 实时公交 / 3 成绩 / 4 我的）
     @Published var tab = 0
     /// 课表当前周次
     @Published var week = 1
@@ -44,6 +44,21 @@ final class AppState: ObservableObject {
         loggedIn = !store.user().isEmpty
         studentName = store.studentName(owner: store.user())
         week = currentWeek()
+        publishWidget()
+    }
+
+    /// 把今日课程写进 App Group，桌面小组件直接读这份极简 JSON。
+    /// 课表一有变化 / App 回到前台就刷一次；小组件自己不联网、不读教务。
+    func publishWidget() {
+        let now = DayPlan.nowMinute()
+        let items = todayItems().map { item -> WidgetCourse in
+            WidgetCourse(name: item.name,
+                         time: item.timeLabel,
+                         place: item.placeLabel,
+                         colorIndex: item.colorIndex,
+                         done: item.endMin <= now)
+        }
+        WidgetBridge.publish(items)
     }
 
     func currentWeek() -> Int {
@@ -58,20 +73,15 @@ final class AppState: ObservableObject {
         store.setThemeMode(mode)
     }
 
-    /// 切底栏页：整条页面带平移，时长按「离目标还有几格」算（与 Android v3.0.22 同一公式）
+    /// 切换标签页。iOS 侧不自己补间：系统 `TabView` 负责转场与手势，
+    /// 自绘平移会盖掉系统转场，也不符合平台习惯。
     func switchTab(_ index: Int, animated: Bool = true) {
-        let target = max(0, min(3, index))
+        let target = max(0, min(4, index))
         guard target != tab else { return }
-        let distance = CGFloat(abs(target - tab))
-        let animation = PageDeck<EmptyView>.curve(PageDeck<EmptyView>.duration(for: distance))
-        if animated {
-            withAnimation(animation) { tab = target }
-        } else {
-            tab = target
-        }
+        tab = target
     }
 
-    /// PageDeck / 页面用：是否要强制深色（跟随系统时返回 nil，交给系统）
+    /// 页面用：是否要强制深色（跟随系统时返回 nil，交给系统）
     var preferredScheme: ColorScheme? {
         switch themeMode {
         case .light: return .light
@@ -139,6 +149,7 @@ final class AppState: ObservableObject {
         store.setActiveSemester(t.semester.id)
         timetable = t
         week = currentWeek()
+        publishWidget()
         return nil
     }
 
@@ -154,6 +165,7 @@ final class AppState: ObservableObject {
             studentName = store.studentName(owner: user)
         }
         timetable = store.loadTimetable()
+        publishWidget()
         let elapsed = Date().timeIntervalSince(started)
         if elapsed < 2.0 {
             try? await Task.sleep(nanoseconds: UInt64((2.0 - elapsed) * 1_000_000_000))
@@ -167,6 +179,7 @@ final class AppState: ObservableObject {
         copy.normalizeColors()
         store.saveTimetable(copy)
         timetable = copy
+        publishWidget()
     }
 
     func setStartDate(_ startDate: String) {
@@ -178,6 +191,7 @@ final class AppState: ObservableObject {
         store.saveTimetable(t)
         timetable = t
         week = currentWeek()
+        publishWidget()
     }
 
     /// 学期与教学周设置（学号 / 学年 / 学期 / 第一周周一）
@@ -199,6 +213,7 @@ final class AppState: ObservableObject {
             store.setStartDate(id, WeekMath.monday(of: startDate))
         }
         week = currentWeek()
+        publishWidget()
         toast = "已按第 1 周 \(WeekMath.monday(of: startDate)) 生效"
     }
 

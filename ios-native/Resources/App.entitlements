@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 主 App 与 TodayWidgetExtension 共用同一份 App Group 授权：
+         主 App 通过 WidgetBridge.publish() 把「今日课程」JSON 写进这个 suite，
+         小组件读同一个 suite 渲染。两个 target 的 CODE_SIGN_ENTITLEMENTS
+         都指向本文件（见 project.yml）。 -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.tstc.zstangshi</string>
+    </array>
+</dict>
+</plist>

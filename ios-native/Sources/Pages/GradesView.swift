@@ -17,16 +17,8 @@ struct GradesHubView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("成绩")
-                    .font(F.pageTitle)
-                    .foregroundStyle(T.textPrimary)
-                Spacer()
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
-
+            // 标题交给 RootView 的系统导航栏（iOS 26 上自动玻璃化），
+            // 这里不再手画一条标题栏，避免双标题。
             Segmented(options: [JwApi.Kind.grades.title, JwApi.Kind.gpa.title],
                       index: Binding(
                         get: { kind == .grades ? 0 : 1 },

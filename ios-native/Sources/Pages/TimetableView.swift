@@ -41,7 +41,7 @@ struct TimetableView: View {
         .background(T.bgPage)
         .sheet(isPresented: $showWeekPicker) {
             WeekPickerSheet(current: app.week, total: totalWeeks) { w in
-                withAnimation(PageDeck<EmptyView>.curve(0.2)) { app.week = w }
+                withAnimation(Motion.standard) { app.week = w }
             }
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
@@ -106,7 +106,7 @@ struct TimetableView: View {
     private func changeWeek(_ delta: Int) {
         let target = app.week + delta
         guard target >= 1, target <= totalWeeks else { return }
-        withAnimation(PageDeck<EmptyView>.curve(0.22)) { app.week = target }
+        withAnimation(Motion.momentum) { app.week = target }
     }
 
     // MARK: - 回到本周
@@ -115,7 +115,7 @@ struct TimetableView: View {
     private var backToWeekButton: some View {
         if app.week != app.currentWeek() {
             Button {
-                withAnimation(PageDeck<EmptyView>.curve(0.24)) { app.week = app.currentWeek() }
+                withAnimation(Motion.standard) { app.week = app.currentWeek() }
             } label: {
                 Text("回到本周")
                     .font(.system(size: 12.5, weight: .bold))
@@ -155,7 +155,7 @@ struct TimetableView: View {
                 if dx < -threshold, app.week < totalWeeks { target += 1 }
                 if dx > threshold, app.week > 1 { target -= 1 }
 
-                withAnimation(PageDeck<EmptyView>.curve(0.24)) {
+                withAnimation(Motion.standard) {
                     dragX = 0
                     app.week = target
                 }

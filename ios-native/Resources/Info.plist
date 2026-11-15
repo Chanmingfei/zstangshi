@@ -23,6 +23,27 @@
     <key>LSRequiresIPhoneOS</key>
     <true/>
 
+    <!-- 实时公交「附近站点」需要定位；仅在使用期间获取，不后台定位。 -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>用于查找你附近的公交站点并展示实时到站信息</string>
+
+    <!-- 乘车码真跳转：与 Android <queries> 对齐。调用 canOpenURL / openURL 前
+         必须先把这些 scheme 列进白名单，否则 iOS 会直接返回 false。 -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <!-- 与 Android bus/TransitCode.kt 的实际 scheme 对应：
+             支付宝 alipays://... / 云闪付 upwallet://... -->
+        <string>alipays</string>
+        <string>upwallet</string>
+        <!-- 兼容旧客户端 / 部分 ROM 的备用 scheme -->
+        <string>alipay</string>
+        <string>unionpay</string>
+    </array>
+
+    <!-- 未使用非豁免加密，上架时跳过出口合规问卷。 -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+
     <!-- 教务是 http 明文（校外移动数据下 443 不可达），与 Android 侧 usesCleartextTraffic 对齐。
          上架时需在审核备注里说明「校内教务系统仍为 http」。 -->
     <key>NSAppTransportSecurity</key>

@@ -1,43 +1,71 @@
 import SwiftUI
+import UIKit
 
-/// 设计令牌：与 Android `res/values/colors.xml` + `values-night/colors.xml` 一一对应。
-///
-/// 为什么不做两套颜色常量：Android 用 `@color` 语义色 + values-night 覆盖，
-/// iOS 最接近的等价物是 `UIColor { traits in … }` 动态色 —— 系统切换深色时
-/// 自动重解析，SwiftUI 的 `Color` 直接跟着变，不需要任何 `if dark` 分支。
+// MARK: - 设计令牌
+//
+// 与 Android `res/values/colors.xml` + `values-night/colors.xml` 一一对应，但按 HIG
+// 做两处原生化：
+//   1. 颜色走动态色 `UIColor { traits in … }`，切深浅色自动重解析，不需要 `if dark`；
+//   2. 字号走 **Dynamic Type 语义字号**，跟随系统无障碍字号，不再写死 sp。
+//
+// 每个自定义色都给浅色 + 深色变体（HIG 要求四上下文，至少两套）。
+
 enum T {
 
-    // MARK: - 语义色
+    // MARK: 语义背景（内容层用实色，不叠玻璃）
 
-    static let bgPage = dyn(0xF3F5F9, 0x0F1520)
-    static let bgSurface = dyn(0xFFFFFF, 0x1A2230)
+    static let bgPage = Color(uiColor: .systemGroupedBackground)
+    static let bgSurface = dyn(0xFFFFFF, 0x1C2330)
     static let bgSunken = dyn(0xEDEFF4, 0x232B3A)
+    static let bgElevated = dyn(0xFFFFFF, 0x242C3A)
 
-    static let textPrimary = dyn(0x141821, 0xF2F5FA)
-    static let textSecondary = dyn(0x5A6273, 0xB6BECD)
-    static let textTertiary = dyn(0x8B93A5, 0x8B93A5)
+    // MARK: 文字四档
+
+    static let textPrimary = Color(uiColor: .label)
+    static let textSecondary = Color(uiColor: .secondaryLabel)
+    static let textTertiary = Color(uiColor: .tertiaryLabel)
+    static let textPlaceholder = Color(uiColor: .placeholderText)
+
+    // MARK: 描边 / 分隔
 
     static let border = dyn(0xE3E7EF, 0x2A3446)
+    static let separator = Color(uiColor: .separator)
 
-    static let brand = dyn(0x0062CC, 0x2E86E8)
-    static let brandDeep = dyn(0x004C9E, 0x1E6BBE)
+    // MARK: 品牌色（浅 / 深）
+
+    static let brand = dyn(0x0062CC, 0x0A84FF)
+    static let brandDeep = dyn(0x004C9E, 0x409CFF)
     static let brandSoft = dyn(0xE8F1FC, 0x14294A)
     static let brandOnSoft = dyn(0x0062CC, 0x6FA8FF)
 
-    // MARK: - 课表色板（8 色，顺序与 CourseColorAssigner 一致）
+    /// iOS 系统蓝，玻璃 tint / 强调色用
+    static let accent = Color(uiColor: .tintColor)
+    static let systemBlue = Color(uiColor: .systemBlue)
+
+    // MARK: 状态语义色（同一颜色只表达一种含义）
+
+    /// 到站 / 有车 —— 绿
+    static let go = dyn(0x2E9E73, 0x30D158)
+    static let goSoft = dyn(0xE7F5EF, 0x17332A)
+    /// 已到站 / 提醒 —— 橙
+    static let warn = dyn(0xE8734A, 0xFF9F0A)
+    static let warnSoft = dyn(0xFCEDE7, 0x3A241C)
+    static let danger = Color(uiColor: .systemRed)
+    static let success = Color(uiColor: .systemGreen)
+
+    // MARK: 课表色板（8 色，顺序与 Android CourseColorAssigner 一致）
 
     static let course: [Color] = [
-        dyn(0x3B7BE8, 0x3B7BE8),
-        dyn(0xE8734A, 0xE8734A),
-        dyn(0x3FA37A, 0x3FA37A),
-        dyn(0xB06BDA, 0xB06BDA),
-        dyn(0xD9A21B, 0xD9A21B),
-        dyn(0x4FA8C7, 0x4FA8C7),
-        dyn(0xC9527A, 0xC9527A),
-        dyn(0x6E7FA8, 0x6E7FA8)
+        dyn(0x3B7BE8, 0x5B96F5),
+        dyn(0xE8734A, 0xF08C68),
+        dyn(0x3FA37A, 0x55C092),
+        dyn(0xB06BDA, 0xC48CE8),
+        dyn(0xD9A21B, 0xE8B743),
+        dyn(0x4FA8C7, 0x6FC0DA),
+        dyn(0xC9527A, 0xDB7196),
+        dyn(0x6E7FA8, 0x8C9BC0)
     ]
 
-    /// 课块浅底：深色下压暗，否则整屏发白（对应 values-night 的 course_N_soft）
     static let courseSoft: [Color] = [
         dyn(0xE7EFFC, 0x1B2A44),
         dyn(0xFCEDE7, 0x3A241C),
@@ -57,29 +85,37 @@ enum T {
         courseSoft[abs(index) % courseSoft.count]
     }
 
-    // MARK: - 尺寸
+    // MARK: 尺寸（HIG：点击目标 44pt，页面左右 20pt）
 
-    /// 卡片圆角：Android `card_bg` 是 16dp
     static let cardRadius: CGFloat = 16
-    /// 页面左右留白（Android 各页 dp(16)）
-    static let pagePadding: CGFloat = 16
-    /// 底栏胶囊高度
+    static let pagePadding: CGFloat = 20
+    /// 旧胶囊底栏高度 —— 保留常量是为了兼容仍在引用它的旧代码，
+    /// v4 已改用系统 TabView，新页面不要再读它。
     static let dockHeight: CGFloat = 64
+    static let minTap: CGFloat = 44
+    static let rowGap: CGFloat = 12
 
-    // MARK: - 工具
+    // MARK: 工具
 
-    private static func dyn(_ light: UInt32, _ dark: UInt32) -> Color {
+    static func dyn(_ light: UInt32, _ dark: UInt32) -> Color {
         Color(UIColor { traits in
             traits.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light)
+        })
+    }
+
+    /// 动态色也要照顾「增强对比度」：系统提高对比时把次级文字推到主色。
+    static func dynamicText(secondary: Bool) -> Color {
+        Color(UIColor { traits in
+            if traits.accessibilityContrast == .high {
+                return .label
+            }
+            return secondary ? .secondaryLabel : .label
         })
     }
 }
 
 extension Color {
-    /// 十六进制取色（写死几个品牌色时用；语义色仍然走 T.*）
-    init(hex: UInt32) {
-        self.init(UIColor(hex: hex))
-    }
+    init(hex: UInt32) { self.init(UIColor(hex: hex)) }
 }
 
 extension UIColor {
@@ -93,8 +129,11 @@ extension UIColor {
     }
 }
 
+// MARK: - 卡片（内容层：实色，不用玻璃）
+
 extension View {
-    /// 统一的卡片外观（对应 drawable/card_bg：白底 + 1px 描边 + 16 圆角）
+    /// 统一的卡片外观：实底 + 连续圆角 + 细描边。
+    /// HIG 明确规定玻璃只给悬浮控件层，内容层叠玻璃会造成层级混乱。
     func zstCard(padding: CGFloat = 0) -> some View {
         self
             .padding(padding)
@@ -105,18 +144,35 @@ extension View {
                     .stroke(T.border, lineWidth: 0.8)
             )
     }
+
+    /// 分组列表里的行容器：系统 grouped 背景 + 内部分隔线由调用方画
+    func zstGroupedCard(padding: CGFloat = 0) -> some View {
+        self
+            .padding(padding)
+            .background(T.bgSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
 }
 
-/// 字体：Android 侧标题用 DEFAULT_BOLD、正文 12～15sp。
-/// iOS 侧统一走 Dynamic Type 的语义字号，无障碍字号放大会自动适配
-/// （Android 那边是把字体缩放关掉的，这里刻意跟随系统，属于平台习惯差异）。
+// MARK: - Dynamic Type 语义字号
+//
+// Android 侧把字体缩放关掉、写死 sp；iOS 侧刻意跟随系统字号，属于平台习惯差异。
+// 常量名沿用旧代码，值换成语义字号 —— 现有页面无需改动就自动获得无障碍适配。
+
 enum F {
-    static let title = Font.system(size: 24, weight: .bold)
-    static let pageTitle = Font.system(size: 17, weight: .bold)
-    static let cardTitle = Font.system(size: 19, weight: .bold)
-    static let body = Font.system(size: 14)
-    static let bodyBold = Font.system(size: 14, weight: .bold)
-    static let sub = Font.system(size: 12.5)
-    static let caption = Font.system(size: 11.5)
-    static let sectionTitle = Font.system(size: 13, weight: .bold)
+    static let largeTitle = Font.largeTitle.weight(.bold)
+    static let title = Font.title.weight(.bold)
+    static let title2 = Font.title2.weight(.bold)
+    static let title3 = Font.title3.weight(.semibold)
+    static let pageTitle = Font.headline
+    static let cardTitle = Font.title3.weight(.semibold)
+    static let headline = Font.headline
+    static let body = Font.body
+    static let bodyBold = Font.body.weight(.semibold)
+    static let callout = Font.callout
+    static let sub = Font.subheadline
+    static let caption = Font.footnote
+    static let caption2 = Font.caption2
+    static let sectionTitle = Font.subheadline.weight(.semibold)
+    /// 数字大字（到站分钟等）：等宽数字避免刷新时左右跳
+    static let numeric = Font.system(.title2, design: .rounded).weight(.bold).monospacedDigit()
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit   // UIApplication.shared.open（学工系统侧门）
 
 /// 登录页（对应 Android `LoginActivity`）。
 ///
@@ -190,15 +191,42 @@ struct LoginView: View {
             .disabled(busy)
             .padding(.top, 22)
 
+            // 与 Android v4 的「仅使用实时公交」「先看看课表」两个侧门对齐：
+            // 教务连不上 / 不想登录的人，不该被挡在实时公交和本地课表外面。
             Button {
                 dismiss()
-                openAffairs()
+                app.switchTab(2)
             } label: {
-                Text("先不登录，直接去学工系统 ›")
+                Label("仅使用实时公交", systemImage: "bus.fill")
                     .font(F.sub)
                     .foregroundStyle(T.brand)
+                    .frame(minHeight: T.minTap)
             }
             .buttonStyle(.plain)
+
+            HStack(spacing: 18) {
+                Button {
+                    dismiss()
+                    app.switchTab(1)
+                } label: {
+                    Text("先看看课表")
+                        .font(F.sub)
+                        .foregroundStyle(T.brand)
+                        .frame(minHeight: T.minTap)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    dismiss()
+                    openAffairs()
+                } label: {
+                    Text("仅登录学工系统 ›")
+                        .font(F.sub)
+                        .foregroundStyle(T.brand)
+                        .frame(minHeight: T.minTap)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 

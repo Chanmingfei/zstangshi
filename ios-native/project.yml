@@ -3,12 +3,21 @@
 # 这份工程与 ios/（旧的 WKWebView + H5 套壳版）**完全独立**，
 # 也与 native/（Android 原生版）代码零共享：只对齐「功能与视觉」。
 #
+# 编译环境：Xcode 26 / iOS 26 SDK（v4.0.0）。
+#   · 系统 TabView / NavigationStack / sheet 在 iOS 26 上自动获得真 Liquid Glass；
+#     Sources/Design/Glass.swift 里 glassEffect / Glass / GlassEffectContainer 等
+#     iOS 26 专有 API 都以 `if #available(iOS 26.0, *)` 守卫 —— **必须用 iOS 26 SDK
+#     才编得过**（Xcode 16 / iOS 18 SDK 会报找不到这些类型）。
+#   · 运行期低版本（iOS 17–25）自动走 .ultraThinMaterial 材质回退，
+#     同一份代码两种外观；最低部署版本 iOS 17.0。
+#   · 因此 CI runner 必须是 macos-26（见 .github/workflows/ios-native-ipa.yml）。
+#
 # 用法（macOS）：
 #   brew install xcodegen
 #   cd ios-native && xcodegen generate
 #   open ZhangShangTangShi.xcodeproj
 #
-# CI（Codemagic / GitHub Actions）里同样先 xcodegen generate 再 xcodebuild，
+# CI 里同样先 xcodegen generate 再 xcodebuild，
 # 所以仓库里不需要提交 .xcodeproj —— 工程结构永远由这一个文件决定，不会漂移。
 
 name: ZhangShangTangShi
@@ -16,33 +25,55 @@ name: ZhangShangTangShi
 options:
   bundleIdPrefix: com.tstc
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "17.0"
   createIntermediateGroups: true
   groupSortPosition: top
 
 settings:
   base:
-    SWIFT_VERSION: "5.9"
-    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    # Xcode 26 的 SWIFT_VERSION 只认语言模式 major；写 5.9 有可能不被识别，
+    # 用 5.0 明确走 Swift 5 兼容模式，配合下面的 minimal 并发检查。
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    # 保持 Swift 5 并发模型，避免 Swift 6 严格并发把现有 Actor / 闭包代码全报红
     SWIFT_STRICT_CONCURRENCY: minimal
     ENABLE_USER_SCRIPT_SANDBOXING: "NO"
 
 targets:
+
+  # ── 主 App ───────────────────────────────────────────────────────────────
   ZhangShangTangShi:
     type: application
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "17.0"
+    # XcodeGen 的 sources 是「白名单」：只把下面列出的路径收进 target。
+    # Widget/ 是同级目录、没有列在这里，因此**不会**被 app target 编译 ——
+    # 这点很关键：Widget/TodayWidget.swift 自带 @main，若混进 app target
+    # 会和 Sources/App/ZSTApp.swift 的 @main 撞成两个入口（编译报错）。
+    # Widget/ 由下面的 TodayWidgetExtension 单独编译，两个 target 不共享源码。
     sources:
       - path: Sources
       - path: Resources/Assets.xcassets
+    # 把桌面小组件 .appex 嵌进 App（XcodeGen 生成 "Embed App Extensions" 阶段）。
+    # app-extension 是独立可执行体，只嵌入 / 签名、不做链接；
+    # codeSign: true 让 Xcode 在拷贝时对 .appex 做 Code Sign On Copy。
+    dependencies:
+      - target: TodayWidgetExtension
+        embed: true
+        codeSign: true
     settings:
       base:
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: Resources/Info.plist
+        # 直接用构建设置指定 entitlements（等价于 XcodeGen 的
+        # `entitlements: { path: Resources/App.entitlements }`，二选一即可）。
+        # 路径相对 SRCROOT（即 ios-native/）。App 与 Widget 共用同一份 App Group 授权。
+        CODE_SIGN_ENTITLEMENTS: Resources/App.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.tstc.zstangshi
         PRODUCT_NAME: "掌上唐师"
-        MARKETING_VERSION: "3.0.25"
-        CURRENT_PROJECT_VERSION: "41"
+        # v4.0.0 / build 58，与 Android v4.0.0(58) 对齐
+        MARKETING_VERSION: "4.0.0"
+        CURRENT_PROJECT_VERSION: "58"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
@@ -54,3 +85,32 @@ targets:
     scheme:
       testTargets: []
       gatherCoverageData: false
+
+  # ── 桌面小组件（WidgetKit app-extension）────────────────────────────────
+  TodayWidgetExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    # 独立源码目录，只编译 Widget/ 下的 Swift 文件；与主 App 完全不共享模型代码。
+    sources:
+      - path: Widget
+        # Info.plist 由 INFOPLIST_FILE 构建设置引用，排除掉以免被当成资源再拷进 bundle
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: Widget/Info.plist
+        # 与主 App 共用同一份 App Group 授权，才能读到 group.com.tstc.zstangshi
+        CODE_SIGN_ENTITLEMENTS: Resources/App.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.tstc.zstangshi.TodayWidget
+        PRODUCT_NAME: "TodayWidget"
+        # Widget/Info.plist 里的 $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION)
+        # 需要这两个值才能展开
+        MARKETING_VERSION: "4.0.0"
+        CURRENT_PROJECT_VERSION: "58"
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: "YES"
+        ENABLE_PREVIEWS: "NO"
+        SWIFT_EMIT_LOC_STRINGS: "NO"

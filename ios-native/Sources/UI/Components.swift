@@ -101,39 +101,23 @@ struct RowDivider: View {
 
 // MARK: - 分段控件
 
-/// 浅色 / 深色 / 跟随系统。对应 Android `SegmentedControl`：底槽 + 白色滑块。
+/// 浅色 / 深色 / 跟随系统、成绩 / 学分绩点。
+///
+/// v4 起换成系统 `Picker(.segmented)`：Android 那边是「底槽 + 白色滑块」的自绘控件，
+/// 但 iOS 有原生分段控件，用系统版本才能自动获得 iOS 26 的材质、动态类型缩放、
+/// 选中态动画与 VoiceOver 语义。旧调用方 `(options:index:)` 接口保持不变。
 struct Segmented: View {
     let options: [String]
     @Binding var index: Int
-    @Namespace private var ns
 
     var body: some View {
-        HStack(spacing: 0) {
+        Picker("", selection: $index) {
             ForEach(options.indices, id: \.self) { i in
-                let on = i == index
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) { index = i }
-                } label: {
-                    Text(options[i])
-                        .font(.system(size: 13, weight: on ? .semibold : .regular))
-                        .foregroundStyle(on ? T.textPrimary : T.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 30)
-                        .background {
-                            if on {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(T.bgSurface)
-                                    .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
-                                    .matchedGeometryEffect(id: "seg", in: ns)
-                            }
-                        }
-                }
-                .buttonStyle(.plain)
+                Text(options[i]).tag(i)
             }
         }
-        .padding(3)
-        .background(T.bgSunken)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 }
 
@@ -168,30 +152,41 @@ struct LinkChip: View {
 
 // MARK: - Toast
 
-/// 轻提示（Android 的 Toast）。iOS 没有系统 Toast，这里按平台习惯做成
-/// 底部浮出的胶囊，2 秒后自动收起。
+/// 轻提示（Android 的 Toast 在 iOS 上的等价物）。
+///
+/// iOS 没有系统 Toast；按平台习惯做成**顶部下拉横幅**：系统材质底 + 语义色文字，
+/// 不压住底部标签栏，也不自绘纯黑胶囊。两秒后自动收起，深浅色都可读。
 struct ToastHost: ViewModifier {
     @Binding var text: String?
 
     func body(content: Content) -> some View {
-        content.overlay(alignment: .bottom) {
+        content.overlay(alignment: .top) {
             if let message = text, !message.isEmpty {
-                Text(message)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.78))
-                    .clipShape(Capsule())
-                    .padding(.bottom, T.dockHeight + 34)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    .task(id: message) {
-                        try? await Task.sleep(nanoseconds: 2_000_000_000)
-                        withAnimation(.easeOut(duration: 0.2)) { text = nil }
-                    }
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle.fill")
+                        .font(F.sub)
+                    Text(message)
+                        .font(F.sub)
+                        .multilineTextAlignment(.leading)
+                }
+                .foregroundStyle(T.textPrimary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 11)
+                .frame(minHeight: T.minTap)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(T.border, lineWidth: 0.8)
+                )
+                .padding(.horizontal, T.pagePadding)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .task(id: message) {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    withAnimation(.easeOut(duration: 0.2)) { text = nil }
+                }
             }
         }
-        .animation(.easeOut(duration: 0.2), value: text)
+        .animation(Motion.fade, value: text)
     }
 }
 

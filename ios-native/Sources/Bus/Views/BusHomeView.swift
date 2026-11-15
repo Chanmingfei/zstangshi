@@ -87,7 +87,7 @@ struct BusHomeView: View {
         if remember { vm.setTransitChoice(c) }
         guard c != .ask else { return }
         if !TransitCodeLauncher.attemptOpen(c) {
-            transitAlert = "未安装\(c.label)，无法打开乘车码"
+            transitAlert = "未安装\(c.label)，请安装后重试，或在 App 首页找乘车码"
         }
     }
 

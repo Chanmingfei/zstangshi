@@ -1,40 +1,47 @@
-# codemagic.yaml —— 备用出包链路。
+# codemagic.yaml —— 备用真编译链路（GitHub macOS runner 在本账号下无法启动）。
 #
-# 为什么存在：GitHub Actions 的免费额度虽然够用，但账号一旦处于
-# 「billing lock」（例如未绑定付款方式 / 有欠费），连 ubuntu-latest 都会被拒绝启动，
-# 报 `The job was not started because your account is locked due to a billing issue`。
-# 此时不必先解决付款问题——Codemagic 的免费档（500 分钟/月 macOS）不需要绑定信用卡，
-# 用 GitHub 账号登录即可，跑完在构建页直接下载 ipa 产物。
+# GitHub Actions 的 macos-26 runner 一旦触发，job 在 ~2 秒内失败、连 checkout 都不跑
+# （疑似账号级 macOS runner 配额 / 分配问题，非代码问题）。改走 Codemagic 免费 M2 档
+# 做真编译验证：它支持 Xcode 26 / iOS 26 SDK，而 Sources/Design/Glass.swift 里的
+# glassEffect / Glass / GlassEffectContainer 等是 iOS 26 专有 API，必须用此版本才编得过。
 #
-# 它跑的是与 GitHub Actions 完全相同的脚本，产物也同为「未签名 ipa」，
-# 后续同样用 Sideloadly 以你的 Apple ID 重签安装。
+# 产物为「未签名」的 .app，仅用于验证能否编过；如需真机安装，用 Sideloadly 以
+# 自己的 Apple ID 重签即可（与本仓库 CI 的未签名 ipa 后续流程一致）。
 #
-# 用法：codemagic.io → 用 GitHub 登录 → Add application → 选本仓库 →
-#       Codemagic 会自动识别本文件 → Start new build → 选 ios-unsigned → 下载 Artifacts 里的 ipa。
+# 触发：codemagic.io → 用 GitHub 登录 → Add application → 选本仓库 →
+#       自动识别本文件 → Start new build → 选 ios-native-build。
 
 workflows:
-  ios-unsigned:
-    name: iOS 未签名 ipa
+  ios-native-build:
+    name: iOS 原生编译验证
     instance_type: mac_mini_m2
-    max_build_duration: 45
+    max_build_duration: 50
 
     environment:
-      xcode: latest
-      node: lts
+      xcode: latest   # Codemagic 免费 M2 档的 latest 即 Xcode 26（iOS 26 SDK）
 
     scripts:
-      - name: 同步 H5 资源（web/ 是唯一真源）
-        script: bash ios/scripts/sync-web.sh
+      - name: 安装 / 确认 XcodeGen
+        script: |
+          which xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen version
 
-      - name: 校验工程结构与桥协议
+      - name: 生成 Xcode 工程
+        script: |
+          cd ios-native
+          xcodegen generate
+
+      - name: 编译（未签名，仅验证可编译过）
         script: |
           set -e
-          node ios/scripts/verify-project.mjs
-          node ios/scripts/test-bridge.mjs
-
-      - name: 编译并打包 ipa
-        script: bash ios/scripts/build-ipa.sh --output out
+          cd ios-native
+          xcodebuild -project ZhangShangTangShi.xcodeproj \
+            -scheme ZhangShangTangShi \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY=""
 
     artifacts:
-      # 相对 clone 目录，与上面 --output out 对应
-      - out/*.ipa
+      - ios-native/build/**/*.app

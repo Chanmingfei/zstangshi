@@ -11,7 +11,7 @@
 #   · 最低部署 iOS 17.0；iOS 26 专有 API（glassEffect 等）全部用 #available 守卫，
 #     但**编译**需要 Xcode 26 / iOS 26 SDK 才能解析这些符号。
 
-name: ZSTangShi
+name: ZhangShangTangShi
 
 options:
   bundleIdPrefix: com.tstc

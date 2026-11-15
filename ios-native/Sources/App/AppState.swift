@@ -340,11 +340,13 @@ enum MainTab: Int, CaseIterable {
         }
     }
 
-    /// 图标资源名（安卓用 ic_nav_*，iOS 用 SF Symbols 对应语义）
+    /// 底栏图标不再用 SF Symbols —— 形状与安卓差异明显（尤其「课表」）。
+    /// 现在由 `DockIcon.PathView` 用安卓 `ic_nav_*.xml` 的原始 pathData 绘制。
+    /// 这两个属性保留给「首页宫格」等其他地方用 SF Symbols 的场景。
     var icon: String {
         switch self {
         case .home: return "house"
-        case .timetable: return "calendar"
+        case .timetable: return "square.grid.3x1.below.line.grid.1x2"
         case .grades: return "chart.bar"
         case .mine: return "person"
         }
@@ -353,7 +355,7 @@ enum MainTab: Int, CaseIterable {
     var iconFilled: String {
         switch self {
         case .home: return "house.fill"
-        case .timetable: return "calendar"
+        case .timetable: return "square.grid.3x1.below.line.grid.1x2"
         case .grades: return "chart.bar.fill"
         case .mine: return "person.fill"
         }

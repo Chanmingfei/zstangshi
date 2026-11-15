@@ -465,8 +465,20 @@ actor ChelaileClient {
     /// 关键：密钥是 **32 个十六进制字符按字面**当 ASCII 字节用（AES-256），
     /// **不是** hex-decode 成 16 字节。搞错会得到乱码。
     static func decrypt(_ b64: String) -> String? {
+        // 去掉空白（Android 同样先 Regex("\\s").replace(...)）。
+        // Swift 里 "\\s+" 的字符串内容就是 `\s+`，正则引擎认作空白符 —— 是对的。
         let compact = b64.replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
-        guard let cipher = Data(base64Encoded: compact, options: .ignoreUnknownCharacters),
+
+        // Android 用 Base64.DEFAULT，接受 URL-safe 与标准两套字母表；
+        // iOS 的 Data(base64Encoded:) 只认标准，所以先做一次字符映射并补 padding。
+        var normalized = compact
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let rem = normalized.count % 4
+        if rem == 2 { normalized += "==" }
+        else if rem == 3 { normalized += "=" }
+
+        guard let cipher = Data(base64Encoded: normalized, options: .ignoreUnknownCharacters),
               !cipher.isEmpty else { return nil }
 
         for key in [keyWx, keyH5] {

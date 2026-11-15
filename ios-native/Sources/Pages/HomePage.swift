@@ -241,19 +241,21 @@ struct HomePage: View {
 
             // 宫格：8 格铺满两行（顺序照抄安卓 HomePage.kt）
             VStack(spacing: 6) {
-                // 显式标注类型，避免编译器在混合闭包字面量时推断失败
+                // 顺序与图标严格对齐安卓 HomePage.kt:237-255
+                //   行1：我的课表(ic_nav_timetable) 成绩(ic_nav_grades) 学分绩点(ic_quick_gpa) 校历(ic_nav_calendar)
+                //   行2：选课(ic_quick_select) 推荐课表(ic_quick_recommend) 实时公交(ic_quick_bus) 更多功能(ic_quick_more)
                 gridRow([
-                    ("calendar", "我的课表", { app.setTab(1, animated: true) }),
-                    ("chart.bar", "成绩", { route = .grades }),
-                    ("chart.line.uptrend.xyaxis", "学分绩点", { route = .gpa }),
-                    ("calendar.badge.clock", "校历", { route = .calendar })
-                ] as [(String, String, () -> Void)])
+                    (.timetable, "我的课表", { app.setTab(1, animated: true) }),
+                    (.grades, "成绩", { route = .grades }),
+                    (.gpa, "学分绩点", { route = .gpa }),
+                    (.calendar, "校历", { route = .calendar })
+                ])
                 gridRow([
-                    ("checklist", "选课", { route = .selection }),
-                    ("square.grid.2x2", "推荐课表", { route = .recommend }),
-                    ("bus", "实时公交", { route = .bus }),
-                    ("ellipsis.circle", "更多功能", { route = .web(.jwxt) })
-                ] as [(String, String, () -> Void)])
+                    (.select, "选课", { route = .selection }),
+                    (.recommend, "推荐课表", { route = .recommend }),
+                    (.bus, "实时公交", { route = .bus }),
+                    (.more, "更多功能", { route = .web(.jwxt) })
+                ])
             }
             .padding(.horizontal, 7)
             .padding(.top, 14)
@@ -274,20 +276,33 @@ struct HomePage: View {
         }
     }
 
-    private func gridRow(_ cells: [(String, String, () -> Void)]) -> some View {
+    private func gridRow(_ cells: [(QuickIcon.PathView.Key, String, () -> Void)]) -> some View {
         HStack(spacing: 0) {
             ForEach(cells.indices, id: \.self) { i in
-                let (icon, label, action) = cells[i]
+                let (key, label, action) = cells[i]
                 Button(action: { Haptics.light(); action() }) {
                     VStack(spacing: 8) {
-                        Image(systemName: icon)
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundStyle(T.brand)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(T.brandSoft)
-                            )
+                        // 用安卓原始矢量路径，而不是 SF Symbols：
+                        // 形状/粗细/留白都一致，摆一排才不会显得「和安卓不一样」
+                        ZStack {
+                            if QuickIcon.PathView.isStroked(key) {
+                                QuickIcon.PathView(key: key)
+                                    .stroke(T.brand,
+                                            style: StrokeStyle(lineWidth: 2 * (20.0 / 24.0),
+                                                               lineCap: .round,
+                                                               lineJoin: .round))
+                                    .frame(width: 20, height: 20)
+                            } else {
+                                QuickIcon.PathView(key: key)
+                                    .fill(T.brand)
+                                    .frame(width: 20, height: 20)
+                            }
+                        }
+                        .frame(width: 44, height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(T.brandSoft)
+                        )
                         Text(label)
                             .font(.system(size: F.scaled(11.5)))
                             .foregroundStyle(T.textSecondary)

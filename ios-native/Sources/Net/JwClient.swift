@@ -45,6 +45,10 @@ actor JwClient {
     private let http = Http()
     private let store: Store
     private var origin: String
+    /// 本会话里协议是否已被验证过（成功拿到过响应）。
+    /// 没验证过时，首次请求会并发探 https/http 两条通道，
+    /// 避免校外环境先吃一次 https 超时。
+    private var originConfirmed = false
     /// 当前会话对应的账号（用于判断能否复用）
     private var sessionUser = ""
     private var sessionName = ""
@@ -263,22 +267,71 @@ actor JwClient {
     }
 
     /// 供 JwApi（成绩 / 绩点 / 选课 / 推荐课表）复用同一条带 Cookie 的会话。
+    ///
+    /// 协议策略（对齐安卓 `JwClient.kt:292-309`，并做了两点改进）：
+    ///   · 校外移动数据下 443 常不通、80 正常 → 先按记忆的协议试，失败再换协议；
+    ///   · 换协议那一次只用 **4 秒**探测超时（安卓同款），
+    ///     否则校外场景要白等 10+10=20 秒，用户以为卡死；
+    ///   · 改进：首次进入且没有任何记忆时，两个协议**并发探一次**，
+    ///     谁先通就用谁。这样校外用户第一次就能秒连 http，不必先吃一次 https 超时。
     private func request(method: String, path: String, form: [(String, String)]?) async -> String? {
-        let other = origin.hasPrefix("https")
-            ? "http://\(JwClient.host)"
-            : "https://\(JwClient.host)"
+        let isHTTPS = origin.hasPrefix("https")
+        let other = isHTTPS ? "http://\(JwClient.host)" : "https://\(JwClient.host)"
 
+        // 首次探测：并发跑两个协议（各自 4 秒），谁先成功用谁
+        if !originConfirmed {
+            if let (chosen, body) = await Self.firstReachable(
+                method: method, path: path, form: form,
+                primary: origin, secondary: other
+            ) {
+                origin = chosen
+                originConfirmed = true
+                store.setOriginScheme(chosen.hasPrefix("https") ? "https" : "http")
+                return body
+            }
+            return nil
+        }
+
+        // 已确认过：按记忆直连
         if let outcome = try? await http.request(method: method, url: origin + path, form: form) {
             store.setOriginScheme(origin.hasPrefix("https") ? "https" : "http")
             return outcome.body
         }
-        // 换协议只是探测，别让它再白等一个完整超时（Http 内部 20s，这里靠系统快速失败）
-        if let outcome = try? await http.request(method: method, url: other + path, form: form) {
+        // 记忆失效（换了网络环境）：用 4 秒探测换协议
+        if let outcome = try? await http.request(method: method, url: other + path,
+                                                 form: form, timeout: Http.probeTimeout) {
             origin = other
             store.setOriginScheme(other.hasPrefix("https") ? "https" : "http")
             return outcome.body
         }
         return nil
+    }
+
+    /// 两个协议并发探，返回先成功的那个。
+    private static func firstReachable(method: String, path: String,
+                                       form: [(String, String)]?,
+                                       primary: String, secondary: String)
+        async -> (String, String)? {
+        await withTaskGroup(of: (String, String)?.self) { group in
+            for base in [primary, secondary] {
+                group.addTask {
+                    let probe = Http()
+                    guard let o = try? await probe.request(method: method, url: base + path,
+                                                           form: form,
+                                                           timeout: Http.probeTimeout) else {
+                        return nil
+                    }
+                    return (base, o.body)
+                }
+            }
+            for await r in group {
+                if let r {
+                    group.cancelAll()
+                    return r
+                }
+            }
+            return nil
+        }
     }
 
     // MARK: - HTML 小工具

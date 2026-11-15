@@ -154,14 +154,21 @@ struct PageDeck<Content: View>: View {
     @GestureState private var pressing = false
 
     var body: some View {
-        content()
-            .offset(x: -position * width + dragOffset)
-            .animation(dragging ? nil : M.respecting(
-                Animation.timingCurve(0.0, 1.0, 0.32, 1.0,
-                                      duration: M.slideDuration(remain: 1)),
-                enabled: reduceMotion
-            ), value: position)
-            .gesture(swipe)
+        // ⚠️ 关键：4 个页面必须**横向**排开，整条带才平移得对。
+        // 上一版直接把 content() 塞进 offset，页面在默认布局里是**叠在一起**的，
+        // 于是「底栏点课表却显示成绩」——这就是用户说的「底栏对应错误」。
+        // 用 HStack(spacing: 0)，每个页面自己带 .frame(width: width)。
+        HStack(spacing: 0) {
+            content()
+        }
+        .frame(width: width * CGFloat(MainTab.count), alignment: .leading)
+        .offset(x: -position * width + dragOffset)
+        .animation(dragging ? nil : M.respecting(
+            Animation.timingCurve(0.0, 1.0, 0.32, 1.0,
+                                  duration: M.slideDuration(remain: 1)),
+            enabled: reduceMotion
+        ), value: position)
+        .gesture(swipe)
     }
 
     private var swipe: some Gesture {

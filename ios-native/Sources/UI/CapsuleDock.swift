@@ -125,10 +125,15 @@ struct CapsuleDock: View {
 
         VStack(spacing: iconGap) {
             Spacer(minLength: 0)
-            Image(systemName: near > 0.5 ? tab.iconFilled : tab.icon)
-                .font(.system(size: iconSize, weight: near > 0.5 ? .semibold : .regular))
-                .foregroundStyle(tint)
-                .frame(height: iconSize)
+            // 用安卓原始矢量路径绘制，而不是近似 SF Symbol：
+            //   │ 首页 = 房子（三角屋顶 + 门洞）
+            //   │ 课表 = 表格（上横条 + 下两块），**不是日历**
+            //   │ 成绩 = 三根高低柱状图
+            //   │ 我的 = 人头 + 肩线
+            // 上一版课表用了 "calendar"（带日期数字），和安卓差异明显。
+            DockIcon.PathView(path: tab, filled: near > 0.5)
+                .fill(tint)
+                .frame(width: iconSize, height: iconSize)
             Text(tab.title)
                 .font(.system(size: F.scaled(10.5), weight: near > 0.5 ? .bold : .regular))
                 .foregroundStyle(tint)

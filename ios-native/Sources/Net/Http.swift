@@ -37,7 +37,12 @@ final class Http {
         let header: [String: String]
     }
 
-    static let timeout: TimeInterval = 20
+    /// 超时常量对齐安卓 `JwClient.kt:370`：
+///   主请求 10s，换协议探测只有 4s。
+/// 旧版 iOS 两处都用 20s → 校外 HTTPS 不通时 20+20=40 秒才报错，
+/// 用户等不到结果就以为「登录一直失败」。
+    static let timeout: TimeInterval = 10
+    static let probeTimeout: TimeInterval = 4
     private static let maxHops = 5
 
     /// Cookie：记 name → value。不按 domain/path 规则存，
@@ -45,18 +50,25 @@ final class Http {
     private var cookies: [String: String] = [:]
     private let lock = NSLock()
 
-    private static let session: URLSession = {
+    private static func makeSession(_ t: TimeInterval) -> URLSession {
         let cfg = URLSessionConfiguration.ephemeral
         cfg.httpCookieStorage = nil          // 关键：Cookie 只由本类管理
         cfg.httpShouldSetCookies = false
-        cfg.timeoutIntervalForRequest = timeout
-        cfg.timeoutIntervalForResource = timeout
+        cfg.timeoutIntervalForRequest = t
+        cfg.timeoutIntervalForResource = t
         cfg.requestCachePolicy = .reloadIgnoringLocalCacheData
         cfg.urlCache = nil
         // 教务在校外是 http 明文：不能让 ATS 之外的配置再拦一次
         cfg.httpAdditionalHeaders = [:]
+        // 关键：iOS 默认会复用连接。https 探测失败后立刻试 http 时，
+        // 连接池里可能还留着那条坏连接，导致「换协议也失败」。
+        cfg.httpShouldUsePipelining = false
+        cfg.waitsForConnectivity = false
         return URLSession(configuration: cfg)
-    }()
+    }
+
+    private static let session = makeSession(timeout)
+    private static let probeSession = makeSession(probeTimeout)
 
     /// 伪装成移动 Safari。教务对非浏览器 UA 会直接返回桌面布局，解析会全错。
     private static let userAgent =
@@ -97,17 +109,20 @@ final class Http {
 
     // MARK: - 核心
 
-    func request(method: String, url: String, form: [(String, String)]?) async throws -> Outcome {
+    func request(method: String, url: String, form: [(String, String)]?,
+                 timeout: TimeInterval? = nil) async throws -> Outcome {
         var current = url
         var verb = method
         var payload = form.map(Self.encodeForm) ?? ""
+        let limit = timeout ?? Self.timeout
+        let session = (timeout == nil) ? Self.session : Self.probeSession
 
         var hop = 0
         while hop <= Self.maxHops {
             guard let target = URL(string: current) else { throw Failure.badURL(current) }
             var req = URLRequest(url: target)
             req.httpMethod = verb
-            req.timeoutInterval = Self.timeout
+            req.timeoutInterval = limit
             req.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
             req.setValue("zh-CN,zh;q=0.9", forHTTPHeaderField: "Accept-Language")
             req.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -125,7 +140,7 @@ final class Http {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await Self.session.data(for: req)
+                (data, response) = try await session.data(for: req)
             } catch let e as URLError {
                 throw Failure.transport(Self.describe(e))
             } catch {

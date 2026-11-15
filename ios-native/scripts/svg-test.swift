@@ -1,4 +1,4 @@
-﻿// svg-test.swift -- verify the DockIcon SVG path parser produces correct geometry.
+// svg-test.swift -- verify the DockIcon SVG path parser produces correct geometry.
 // Build: swiftc -o svgtest svg-test.swift <DockIcon sources that don't need SwiftUI>
 // Here we inline a Foundation-only copy of the parser so it runs on Windows.
 
@@ -311,6 +311,21 @@ do {
     check(p.commands.contains("C"), "bezier segments produced")
     let end = p.points.last!
     check(approx(end.x, 8, 0.01) && approx(end.y, 0, 0.01), "arc endpoint (8,0)")
+}
+
+print("── 公交：车身上宽下窄轮廓 ──")
+do {
+    let p = TestPath()
+    // 安卓 ic_quick_bus.xml：外轮廓 x∈[3.2,20.8]，y 从 3.4 到 16.8（顶部圆角 2 + 高 9.4 + 底部圆角 2）
+    SVGPathTest.append("M5.2,3.4h13.6a2,2 0 0 1 2,2v9.4a2,2 0 0 1 -2,2H5.2a2,2 0 0 1 -2,-2V5.4a2,2 0 0 1 2,-2z", to: p)
+    check(p.commands.contains("C"), "bus uses arc (rounded corners) -> bezier")
+    check(p.commands.contains("Z"), "bus outline is closed")
+    let xLo = p.allX.min()!, xHi = p.allX.max()!
+    let yLo = p.allY.min()!, yHi = p.allY.max()!
+    check(xLo >= 3.19 && xLo <= 3.21, "bus left edge x=3.2 (got \(xLo))")
+    check(xHi >= 20.79 && xHi <= 20.81, "bus right edge x=20.8 (got \(xHi))")
+    check(yLo >= 3.39 && yLo <= 3.41, "bus top y=3.4 (got \(yLo))")
+    check(yHi >= 16.79 && yHi <= 16.81, "bus bottom y=16.8 (got \(yHi))")
 }
 
 print("\n============================================================")

@@ -19,7 +19,11 @@ struct HomePage: View {
     @EnvironmentObject private var app: AppState
     let width: CGFloat
 
-    @State private var route: HomeRoute?
+    /// ⚠️ 必须用 NavigationStack(path:) 绑定路径。
+    /// 上一版只写了 `.navigationDestination` 却没有 path，
+    /// 点宫格只改了 `route` 状态、**根本不会 push 任何页面** ——
+    /// 这就是「实时公交打都打不开」的直接原因。
+    @State private var route: [HomeRoute] = []
     @State private var refreshing = false
 
     /// 首页宫格/横条能打开的二级页
@@ -46,7 +50,7 @@ struct HomePage: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $route) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     header
@@ -77,7 +81,7 @@ struct HomePage: View {
         }
         .onAppear { app.reloadFromDisk() }
         .onReceive(NotificationCenter.default.publisher(for: .zstOpenBus)) { _ in
-            route = .bus
+            go(.bus)
         }
     }
 
@@ -246,15 +250,15 @@ struct HomePage: View {
                 //   行2：选课(ic_quick_select) 推荐课表(ic_quick_recommend) 实时公交(ic_quick_bus) 更多功能(ic_quick_more)
                 gridRow([
                     (.timetable, "我的课表", { app.setTab(1, animated: true) }),
-                    (.grades, "成绩", { route = .grades }),
-                    (.gpa, "学分绩点", { route = .gpa }),
-                    (.calendar, "校历", { route = .calendar })
+                    (.grades, "成绩", { go(.grades) }),
+                    (.gpa, "学分绩点", { go(.gpa) }),
+                    (.calendar, "校历", { go(.calendar) })
                 ])
                 gridRow([
-                    (.select, "选课", { route = .selection }),
-                    (.recommend, "推荐课表", { route = .recommend }),
-                    (.bus, "实时公交", { route = .bus }),
-                    (.more, "更多功能", { route = .web(.jwxt) })
+                    (.select, "选课", { go(.selection) }),
+                    (.recommend, "推荐课表", { go(.recommend) }),
+                    (.bus, "实时公交", { app.setTab(3, animated: true) }),
+                    (.more, "更多功能", { go(.web(.jwxt)) })
                 ])
             }
             .padding(.horizontal, 7)
@@ -322,7 +326,7 @@ struct HomePage: View {
     private var affairsCard: some View {
         Button {
             Haptics.light()
-            route = .web(.xuegong)
+            go(.web(.xuegong))
         } label: {
             HStack(spacing: 0) {
                 Text("↗")
@@ -381,6 +385,11 @@ struct HomePage: View {
     }
 
     // MARK: - 二级页路由
+
+    /// 打开二级页。必须走 path 追加，单纯改状态不会触发导航。
+    private func go(_ r: HomeRoute) {
+        route.append(r)
+    }
 
     @ViewBuilder
     private func destination(_ r: HomeRoute) -> some View {

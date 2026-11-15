@@ -65,11 +65,8 @@ struct RootView: View {
         .onChange(of: showSplash) { _, showing in
             guard !showing, openBusAfterSplash else { return }
             openBusAfterSplash = false
-            // 启动页选「直接进入实时公交」：进主界面后立刻打开公交页
-            app.switchTab(MainTab.home.rawValue)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                NotificationCenter.default.post(name: .zstOpenBus, object: nil)
-            }
+            // 启动页选「直接进入实时公交」：直接切到底栏的公交 tab
+            app.setTab(MainTab.bus.rawValue, animated: true)
         }
         .onChange(of: scenePhase) { _, phase in
             // 从后台回前台：重读本地数据 + 刷小组件
@@ -96,11 +93,14 @@ struct RootView: View {
                         .frame(width: width)
                     GradesPage(width: width)
                         .frame(width: width)
+                    // 实时公交一键直达：作为第 4 个页面（tab 3）
+                    BusRootPage()
+                        .frame(width: width)
                     MinePage(width: width)
                         .frame(width: width)
                 }
+                // 高度撑满、宽度跟随几何；PageDeck 内部自己负责横向裁剪
                 .frame(width: width, height: geo.size.height)
-                .clipped()
 
                 CapsuleDock(
                     selected: Binding(
@@ -154,15 +154,22 @@ struct PageDeck<Content: View>: View {
     @GestureState private var pressing = false
 
     var body: some View {
-        // ⚠️ 关键：4 个页面必须**横向**排开，整条带才平移得对。
-        // 上一版直接把 content() 塞进 offset，页面在默认布局里是**叠在一起**的，
-        // 于是「底栏点课表却显示成绩」——这就是用户说的「底栏对应错误」。
-        // 用 HStack(spacing: 0)，每个页面自己带 .frame(width: width)。
+        // 4 个页面横向排开成一条宽 4W 的带子，再整体平移。
+        //
+        // 关键点（都是踩过的坑）：
+        //   1. 必须用 HStack —— SwiftUI 默认容器会把多个子视图**叠**在一起，
+        //      叠起来后平移量再对也对不上页面（上一版就是这样，点课表显示别的页）。
+        //   2. 这里**不能**再套 .frame(width: width * 4)。
+        //      HStack 的宽度本来就由 4 个子页面的 .frame(width: width) 累加得到；
+        //      外面再强加一个 frame 会让 SwiftUI 重新居中内容，偏移量被吃掉一半，
+        //      页面反而更歪（第二版就是这样，用户反馈「更加错位」）。
+        //   3. .clipped() 要加在 offset **之后**，把带子裁到屏幕范围内。
         HStack(spacing: 0) {
             content()
         }
-        .frame(width: width * CGFloat(MainTab.count), alignment: .leading)
         .offset(x: -position * width + dragOffset)
+        .frame(width: width, alignment: .leading)
+        .clipped()
         .animation(dragging ? nil : M.respecting(
             Animation.timingCurve(0.0, 1.0, 0.32, 1.0,
                                   duration: M.slideDuration(remain: 1)),

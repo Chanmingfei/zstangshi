@@ -324,18 +324,25 @@ final class AppState: ObservableObject {
 
 // MARK: - 主页面定义
 
-/// 四个主页面。顺序 = 安卓 CapsuleDock.LABELS 的顺序，**不可随意调整**。
+/// 五个主页面。顺序 = 安卓 CapsuleDock.LABELS + 产品新增的「实时公交」。
+///
+/// ⚠️ 新增项（2026-11）：用户明确要求把「实时公交」放到底栏，一键直达。
+///   所以这里从 4 项扩成 5 项，公交放在「成绩」与「我的」之间，
+///   既保留安卓原有的四处 tab 顺序不变，又让公交触手可及。
+///   → 首页(0) 课表(1) 成绩(2) 公交(3) 我的(4)
 enum MainTab: Int, CaseIterable {
     case home = 0
     case timetable = 1
     case grades = 2
-    case mine = 3
+    case bus = 3
+    case mine = 4
 
     var title: String {
         switch self {
         case .home: return "首页"
         case .timetable: return "课表"
         case .grades: return "成绩"
+        case .bus: return "公交"
         case .mine: return "我的"
         }
     }
@@ -348,6 +355,7 @@ enum MainTab: Int, CaseIterable {
         case .home: return "house"
         case .timetable: return "square.grid.3x1.below.line.grid.1x2"
         case .grades: return "chart.bar"
+        case .bus: return "bus"
         case .mine: return "person"
         }
     }
@@ -357,6 +365,7 @@ enum MainTab: Int, CaseIterable {
         case .home: return "house.fill"
         case .timetable: return "square.grid.3x1.below.line.grid.1x2"
         case .grades: return "chart.bar.fill"
+        case .bus: return "bus.fill"
         case .mine: return "person.fill"
         }
     }

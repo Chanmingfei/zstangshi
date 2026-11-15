@@ -49,6 +49,9 @@ enum DockIcon {
                 return "M3,5h18v6H3zM3,13h8v6H3zM13,13h8v6h-8z"
             case .grades:
                 return "M4.5,10.5h3.4V19H4.5zM10.3,4.5h3.4V19h-3.4zM16.1,13.2h3.4V19h-3.4z"
+            case .bus:
+                // 安卓 ic_quick_bus.xml：车头上宽下窄的车身轮廓
+                return "M5.2,3.4h13.6a2,2 0 0 1 2,2v9.4a2,2 0 0 1 -2,2H5.2a2,2 0 0 1 -2,-2V5.4a2,2 0 0 1 2,-2z"
             case .mine:
                 return "M12,4a4,4 0 0,1 0,8a4,4 0 0,1 0,-8z"
                     + "M12,14c4.42,0 8,1.79 8,4v2H4v-2c0,-2.21 3.58,-4 8,-4z"

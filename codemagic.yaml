@@ -31,7 +31,7 @@ workflows:
           cd ios-native
           xcodegen generate
 
-      - name: 编译（未签名，仅验证可编译过）
+      - name: 编译（未签名）
         script: |
           set -e
           cd ios-native
@@ -40,8 +40,24 @@ workflows:
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY=""
 
+      - name: 打包未签名 IPA（供 Sideloadly 以 Apple ID 重签）
+        script: |
+          set -e
+          ROOT=$(pwd)
+          cd ios-native
+          APP=$(find build -name "ZhangShangTangShi.app" -type d | head -1)
+          echo "APP = $APP"
+          [ -d "$APP" ] || { echo "找不到 .app"; exit 1; }
+          PKG=/tmp/zst_payload
+          rm -rf "$PKG" && mkdir -p "$PKG/Payload"
+          cp -R "$APP" "$PKG/Payload/"
+          ( cd "$PKG" && zip -r -y "$ROOT/ios-native/zstangshi-unsigned.ipa" Payload )
+          ls -lh "$ROOT/ios-native/zstangshi-unsigned.ipa"
+
     artifacts:
-      - ios-native/build/**/*.app
+      - ios-native/*.ipa
+

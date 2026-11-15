@@ -27,16 +27,20 @@
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>用于查找你附近的公交站点并展示实时到站信息</string>
 
-    <!-- 乘车码真跳转：与 Android <queries> 对齐。调用 canOpenURL / openURL 前
-         必须先把这些 scheme 列进白名单，否则 iOS 会直接返回 false。 -->
+    <!-- 乘车码真跳转：调用 canOpenURL / openURL 前必须先把 URL scheme 列进白名单，
+         否则 iOS 会直接返回 false。这里是「实际跳转 scheme」+「兼容 / 对齐 Android」的并集，
+         白名单多列几个无副作用（上限 50）。 -->
     <key>LSApplicationQueriesSchemes</key>
     <array>
-        <!-- 与 Android bus/TransitCode.kt 的实际 scheme 对应：
-             支付宝 alipays://... / 云闪付 upwallet://... -->
+        <!-- 代码里真正 open 的两个 scheme（对齐 Android TransitCode.kt / iOS BusComponents.swift）：
+             支付宝 alipays://platformapi/... / 云闪付 upwallet://rn/...
+             这两个是功能必需项，缺了 canOpenURL 会返回 false、乘车码点不动。 -->
         <string>alipays</string>
         <string>upwallet</string>
-        <!-- 兼容旧客户端 / 部分 ROM 的备用 scheme -->
+        <!-- 对齐 Android <queries> 声明 / 兼容旧客户端与部分 ROM 的备用 scheme -->
         <string>alipay</string>
+        <string>alipayqr</string>
+        <string>uppaywallet</string>
         <string>unionpay</string>
     </array>
 

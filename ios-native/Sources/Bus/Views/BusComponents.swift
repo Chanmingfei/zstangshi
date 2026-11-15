@@ -35,7 +35,7 @@ struct ScrollOffsetMarker<K: PreferenceKey>: View where K.Value == CGFloat {
     var body: some View {
         GeometryReader { geo in
             Color.clear
-                .preference(key: key, value: geo.frame(in: .named(space)).minY)
+                .preference(key: key, value: geo.frame(in: .named(AnyHashable(space))).minY)
         }
         .frame(height: 0)
     }
@@ -250,25 +250,46 @@ private struct BusFlowRailRow: View {
 
 // MARK: - 乘车码唤起
 
-/// 只做唤起：scheme 对齐 Android，打不开由调用方提示。
-/// 注意：canOpenURL 需要在 Info.plist 的 LSApplicationQueriesSchemes 里声明对应 scheme。
+/// 只做唤起：主 scheme 与 Android `bus/TransitCode.kt` 完全一致，
+/// 后面几条是 iOS 侧常见 / 旧版备用 scheme（白名单里都已声明）。
+/// 按「主 → 备」逐级降级，全打不开才由调用方提示。
+///
+/// 注意：canOpenURL 要求 scheme 先写进 Info.plist 的 LSApplicationQueriesSchemes，
+/// 否则 iOS 一律返回 false —— 与 Android 11+ 的 `<queries>` 是同一类限制。
 enum TransitCodeLauncher {
+    /// 主 scheme（对齐 Android），供展示 / 诊断用
     static func schemeURL(for choice: TransitCodeChoice) -> URL? {
+        candidateURLs(for: choice).first
+    }
+
+    static func candidateURLs(for choice: TransitCodeChoice) -> [URL] {
+        let raw: [String]
         switch choice {
-        case .ask:      return nil
-        // 与 Android bus/TransitCode.kt 完全一致：
-        // 支付宝乘车码官方入口 appId=200011235；云闪付全国通用乘车码路由。
-        case .alipay:   return URL(string: "alipays://platformapi/startapp?appId=200011235")
-        case .unionpay: return URL(string: "upwallet://rn/rnhtmlridingcode")
+        case .ask:
+            raw = []
+        case .alipay:
+            raw = [
+                "alipays://platformapi/startapp?appId=200011235",   // Android 实测可用
+                "alipayqr://platformapi/startapp?saId=200011235",   // iOS 常见写法
+                "alipay://"                                          // 退到 App 首页
+            ]
+        case .unionpay:
+            raw = [
+                "upwallet://rn/rnhtmlridingcode",                    // Android 实测可用
+                "uppaywallet://"                                     // 退到 App 首页
+            ]
         }
+        return raw.compactMap { URL(string: $0) }
     }
 
     /// 返回 true 表示已尝试拉起；false 表示打不开（调用方给提示）。
     static func attemptOpen(_ choice: TransitCodeChoice) -> Bool {
-        guard let url = schemeURL(for: choice) else { return false }
-        guard UIApplication.shared.canOpenURL(url) else { return false }
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
-        return true
+        for url in candidateURLs(for: choice) {
+            guard UIApplication.shared.canOpenURL(url) else { continue }
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            return true
+        }
+        return false
     }
 }
 

@@ -26,7 +26,7 @@ SwiftUI 纯原生实现，与 `native/`（Android v4.0.0 / build 58）**代码�
 | 课表 | 网格 + 横滑翻周 | `TimetableView` / `TimetableGrid` + `PagingDrag` |
 | 成绩 / 绩点 | GPA 页 | `GradesView` / `GradesHubView` |
 | 实时公交 | 站点查询 / 收藏 / 到站 | `BusGateway` / `BusViewModel` / `BusLocation` + 附近站点定位 |
-| 乘车码跳转 | `<queries>` 声明支付宝 / 银联 | `LSApplicationQueriesSchemes`（`alipay` / `alipayqr` / `uppaywallet` / `unionpay`） |
+| 乘车码跳转 | `<queries>` 声明支付宝 / 银联包 | `LSApplicationQueriesSchemes`（`alipays` / `upwallet` 为实际 scheme + `alipay` / `alipayqr` / `uppaywallet` / `unionpay` 兼容） |
 | 登录 / 教务 | 正方 RSA 登录 + 课表 HTML 解析 | `JwClient` + `RSA`（`SecKeyCreateEncryptedData`）+ `KbParser` |
 | 密码保存 | SharedPreferences（加密） | Keychain + Face ID |
 | 桌面小组件 | 「今日课程 4×2」 | **WidgetKit** `TodayWidgetExtension`（`.systemSmall` / `.systemMedium`） |

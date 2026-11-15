@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit   // 课表变化后主动刷新桌面小组件
 
 /// 全局状态：一份课表、一个登录态、一个当前周次、一个主题模式。
 ///
@@ -59,6 +60,10 @@ final class AppState: ObservableObject {
                          done: item.endMin <= now)
         }
         WidgetBridge.publish(items)
+        // 小组件自己有 30 分钟兜底刷新，但课表一变就让它立刻重绘，
+        // 别让用户盯着过期的「下一节课」。刷新入口放 App 层：
+        // BusStore 是纯数据层，不该依赖 WidgetKit。
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     func currentWeek() -> Int {

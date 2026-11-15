@@ -52,8 +52,22 @@ final class AssetSchemeHandler: NSObject, WKURLSchemeHandler {
             rel = String(path.dropFirst())
         }
 
-        guard let fileURL = Bundle.main.url(forResource: rel, withExtension: nil, subdirectory: "www") ?? Bundle.main.url(forResource: rel, withExtension: nil),
-              let data = try? Data(contentsOf: fileURL) else {
+        // 直接从 bundle 根拼 www/<rel> 读文件（不依赖 forResource 的 subdirectory 语义，
+        // 避免 XcodeGen 组织 bundle 时目录层级变化导致读不到）。
+        let data: Data
+        if let rootURL = Bundle.main.resourceURL {
+            let fileURL = rootURL.appendingPathComponent("www").appendingPathComponent(rel)
+            if let d = try? Data(contentsOf: fileURL) {
+                data = d
+            } else if let d = try? Data(contentsOf: rootURL.appendingPathComponent(rel)) {
+                data = d
+            } else {
+                respond(urlSchemeTask, data: Data(), mime: "text/plain; charset=utf-8", status: 404)
+                return
+            }
+        } else if let d = try? Data(contentsOf: Bundle.main.url(forResource: rel, withExtension: nil, subdirectory: "www")!) {
+            data = d
+        } else {
             respond(urlSchemeTask, data: Data(), mime: "text/plain; charset=utf-8", status: 404)
             return
         }

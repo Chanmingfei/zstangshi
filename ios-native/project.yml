@@ -49,9 +49,10 @@ targets:
     sources:
       - path: Sources/App
       - path: Resources/Assets.xcassets
-      # www/ 作为 folder reference 整个打进 bundle，保持目录结构（ESM import 依赖相对路径）
+      # www/ 整个目录拷进 bundle，保留目录结构（ESM import 依赖相对路径）。
+      # 用默认 group（非 folder reference）：XcodeGen 会递归把 .html/.js/.css/.png/.json
+      # 加进 Copy Bundle Resources，且保留子目录相对路径。
       - path: Resources/www
-        type: folder
     dependencies:
       - target: TodayWidgetExtension
         embed: true

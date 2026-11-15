@@ -82,9 +82,14 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
     /// 加载主文档：loadHTMLString 灌入 index.html，base 指向 app://app.local/。
     /// （与安卓 loadDataWithBaseURL 同理：主文档直接灌，子资源走 scheme handler）
     private func loadApp() {
-        guard let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "www"),
-              let html = try? String(contentsOf: url, encoding: .utf8) else {
-            // 兜底：直接导航到 scheme 根（handler 会回 index.html）
+        let html: String?
+        if let rootURL = Bundle.main.resourceURL {
+            let url = rootURL.appendingPathComponent("www").appendingPathComponent("index.html")
+            html = try? String(contentsOf: url, encoding: .utf8)
+        } else {
+            html = try? String(contentsOf: Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "www")!, encoding: .utf8)
+        }
+        guard let html else {
             webView.load(URLRequest(url: URL(string: "\(AssetSchemeHandler.scheme)://\(AssetSchemeHandler.host)/index.html")!))
             return
         }

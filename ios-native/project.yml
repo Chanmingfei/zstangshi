@@ -49,10 +49,9 @@ targets:
     sources:
       - path: Sources/App
       - path: Resources/Assets.xcassets
-      # www/ 整个目录拷进 bundle，保留目录结构（ESM import 依赖相对路径）。
-      # 用默认 group（非 folder reference）：XcodeGen 会递归把 .html/.js/.css/.png/.json
-      # 加进 Copy Bundle Resources，且保留子目录相对路径。
-      - path: Resources/www
+      # 注意：www/ **不**由 XcodeGen 管理 —— 它会递归打平子目录导致重名冲突
+      # （data/calendar.js 与 pages/calendar.js 都叫 calendar.js）。
+      # 改由 codemagic.yaml 打包时用 cp -R 把整个 www 目录塞进 app bundle。
     dependencies:
       - target: TodayWidgetExtension
         embed: true

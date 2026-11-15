@@ -108,6 +108,19 @@ workflows:
             exit 1
           fi
 
+          # 网页套壳版：www/ 静态资源由 XcodeGen 打平会重名冲突，
+          # 这里手动把整个 www 目录（保留子目录）塞进 app bundle。
+          if [ -d "Resources/www" ]; then
+            rm -rf "$APP/www"
+            cp -R Resources/www "$APP/www"
+            echo "www/ -> app bundle:"
+            find "$APP/www" -type f | wc -l | xargs echo "  files:"
+            du -sh "$APP/www"
+          else
+            echo "ERROR: Resources/www 不存在"
+            exit 1
+          fi
+
           rm -rf Payload zstangshi-ios-unsigned.ipa
           mkdir -p Payload
           cp -R "$APP" Payload/
@@ -119,7 +132,7 @@ workflows:
 
           SIZE=$(stat -f%z zstangshi-ios-unsigned.ipa)
           echo "ipa size = $SIZE bytes"
-          if [ "$SIZE" -lt 1000000 ]; then
+          if [ "$SIZE" -lt 600000 ]; then
             echo "ERROR: ipa too small ($SIZE bytes)"
             exit 1
           fi

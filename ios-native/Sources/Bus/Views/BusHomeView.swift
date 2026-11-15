@@ -118,7 +118,7 @@ struct BusHomeView: View {
 
     private var cityMenu: some View {
         Menu {
-            ForEach(vm.cities, id: \.id) { c in
+            ForEach(Array(vm.cities.enumerated()), id: \.offset) { _, c in
                 Button { vm.setCity(c) } label: {
                     HStack {
                         Text(c.name.isEmpty ? "未知城市" : c.name)
@@ -206,7 +206,7 @@ struct BusHomeView: View {
     private var nearbySection: some View {
         if !vm.stations.isEmpty {
             SectionTitle(text: "附近站点")
-            ForEach(vm.stations, id: \.id) { station in
+            ForEach(Array(vm.stations.enumerated()), id: \.offset) { _, station in
                 NavigationLink {
                     StationDetailView(station: station, vm: vm)
                 } label: {
@@ -251,7 +251,7 @@ struct BusHomeView: View {
                     .padding(.vertical, 12)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(s.arrivals.prefix(3))) { a in
+                    ForEach(Array(s.arrivals.prefix(3).enumerated()), id: \.offset) { _, a in
                         Divider().padding(.leading, 14)
                         ArrivalRow(arrival: a, bigStyle: true)
                             .padding(.horizontal, 14)

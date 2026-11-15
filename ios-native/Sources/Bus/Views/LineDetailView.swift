@@ -479,8 +479,8 @@ struct LineDetailView: View {
                 if !t.historyTitle.isEmpty {
                     Text(t.historyTitle).font(F.sectionTitle).foregroundStyle(T.textTertiary)
                 }
-                ForEach(t.today) { seg in timetableSegment(seg) }
-                ForEach(t.history) { seg in timetableSegment(seg) }
+                ForEach(Array(t.today.enumerated()), id: \.offset) { _, seg in timetableSegment(seg) }
+                ForEach(Array(t.history.enumerated()), id: \.offset) { _, seg in timetableSegment(seg) }
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)

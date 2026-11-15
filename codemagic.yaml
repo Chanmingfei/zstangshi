@@ -35,12 +35,13 @@ workflows:
         script: |
           set -e
           cd ios-native
+          # 清空默认 DerivedData，保证产物唯一、可被打包步骤找到
+          rm -rf "$HOME/Library/Developer/Xcode/DerivedData"
           xcodebuild -project ZhangShangTangShi.xcodeproj \
             -scheme ZhangShangTangShi \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
-            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY=""
 
@@ -48,10 +49,9 @@ workflows:
         script: |
           set -e
           ROOT=$(pwd)
-          cd ios-native
-          APP=$(find build -name "ZhangShangTangShi.app" -type d | head -1)
+          APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -name "ZhangShangTangShi.app" -type d 2>/dev/null | head -1)
           echo "APP = $APP"
-          [ -d "$APP" ] || { echo "找不到 .app"; exit 1; }
+          [ -d "$APP" ] || { echo "找不到 .app（DerivedData 中无产物）"; exit 1; }
           PKG=/tmp/zst_payload
           rm -rf "$PKG" && mkdir -p "$PKG/Payload"
           cp -R "$APP" "$PKG/Payload/"

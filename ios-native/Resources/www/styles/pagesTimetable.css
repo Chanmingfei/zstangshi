@@ -1,0 +1,365 @@
+/* ============================================================================
+ * pagesTimetable.css —— 我的课表（p-tt）
+ *
+ * 为什么单独一个文件：p-timetable 这一节本身就有 150 来行，塞回 pages.css 会顶破
+ * 单文件 ≤400 行的硬约束（check-rules 守卫③）。选择器全部以 .p-tt 开头，与 pages.css 不冲突。
+ *
+ * 尺寸都走本节的局部变量：--tt-gutter（时间轴列宽）/ --tt-row（一节的网格行高）/
+ * --tt-head（表头行高）。这样 320/390/430 三档只靠 1fr 自适应，不需要媒体查询。
+ * 颜色只用 var(--…)，本文件不出现任何色值字面量（守卫①）。
+ * ========================================================================== */
+
+.p-tt {
+  --tt-gutter: 30px;
+  --tt-row: 46px;
+  --tt-head: 42px;
+  /* 纵向滚动/下拉交给浏览器，横向留给「滑动切周」自己判 —— 见 timetable.js 文件头第 4 条 */
+  touch-action: pan-y;
+  padding-bottom: var(--space-24);
+}
+
+/* ── 周次切换器（吸顶） ────────────────────────────────────────────────── */
+
+.p-tt__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--space-8) var(--page-gutter);
+  background-color: var(--bg-page);
+}
+
+.p-tt__switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+}
+
+.p-tt__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  border-radius: var(--r-full);
+  color: var(--text-primary);
+}
+
+.p-tt__nav:disabled {
+  color: var(--text-tertiary);
+  opacity: 0.5;
+}
+
+.p-tt__week-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 108px;
+  min-height: var(--hit-min);
+  padding: 0 var(--space-16);
+  border-radius: var(--r-full);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.p-tt__week-caret {
+  display: flex;
+  color: var(--text-secondary);
+}
+
+/* 「回到本周」点完给一次轻微放大，让用户知道是这次点击把周次拉回来的 */
+.p-tt__week-pick.is-flash {
+  animation: p-tt-flash 480ms var(--ease-standard) 1;
+}
+
+@keyframes p-tt-flash {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+}
+
+/* ── 网格 ──────────────────────────────────────────────────────────────── */
+
+.p-tt__body {
+  min-height: 40vh;
+}
+
+.p-tt__grid {
+  display: grid;
+  grid-template-columns: var(--tt-gutter) repeat(7, minmax(0, 1fr));
+  /* 表头 42px + 12 节各 46px；全部显式行，不依赖 auto-rows */
+  grid-template-rows: var(--tt-head) repeat(12, var(--tt-row));
+  padding: 0 var(--page-gutter) var(--space-16);
+}
+
+.p-tt__corner {
+  height: var(--tt-head);
+  grid-row: 1;
+}
+
+.p-tt__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  height: var(--tt-head);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+.p-tt__day.is-today {
+  color: var(--brand-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.p-tt__day-date {
+  font-size: var(--fs-micro);
+  line-height: 1;
+  color: var(--text-tertiary);
+}
+
+/* 320 这类窄屏：日期会挤成「12/10 12/11」连成一片，宁可不显示（周次数字已经在上方） */
+@media (max-width: 359px) {
+  .p-tt__day-date {
+    display: none;
+  }
+}
+
+.p-tt__slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* 编号列必须钉在同一条水平线上：奇数节是「编号+时间」整块居中，偶数节只有编号，
+     若两处都用 center，偶数节的编号会比奇数节低 5px，整列数字上下抖（用户报的对齐 bug）。
+     改成顶部对齐 + 固定 padding：22px = 顶边框 1 + 编号 11 + 间隙 1 + 时间 9，
+     奇数节整块高度。这样奇数节位置与旧版逐像素一致，偶数节编号上移 5px 与之对齐。 */
+  justify-content: flex-start;
+  padding-top: calc((var(--tt-row) - 22px) / 2);
+  gap: 1px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+.p-tt__slot-no {
+  font-size: var(--fs-micro);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-tt__slot-time {
+  font-size: 9px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-tt__cell {
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* 偶数节次行的极淡斑马纹：第 1 周只有 16 门课、84 个格子空一大片，纯白底完全分不清行列。
+   只加在**背景格**上（.p-tt__cell），课程卡是网格里另一个元素、盖在格子上面，
+   所以卡片自身的 12% 填充不受影响 —— 不要图省事改成给 .p-tt__grid 加背景，
+   那样卡片下面会透出整行色带，反而像「这节课占了一整行」。 */
+.p-tt__cell.is-even {
+  background-color: var(--bg-sunken);
+}
+
+/* 三段（上午 / 下午 / 晚间）的分界：线更粗、颜色更实 */
+.p-tt__cell.is-seg,
+.p-tt__slot.is-seg {
+  border-top: 2px solid var(--border-strong);
+}
+
+/* 今日列必须在斑马纹之后声明：两处都命中时今天要赢 */
+.p-tt__cell.is-today {
+  background-color: var(--brand-primary-soft);
+}
+
+/* 「正在进行」的那一节：时间轴栏左侧 3px 强调条。
+   用 inset box-shadow 而不是 border-left —— 加 border 会让 30px 的栏位内容整体右移 3px，
+   每次跨节次都抖一下。 */
+.p-tt__slot.is-now {
+  box-shadow: inset 3px 0 0 var(--brand-primary);
+  color: var(--brand-primary);
+  font-weight: var(--fw-semibold);
+}
+
+/* ── 课程卡（复用 c-course 的四类配色，只把它压到格子大小） ─────────────── */
+
+.p-tt__gridcard {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  /* 上下各 1px：46px 行高 − 2px = 44px，正好踩住「可点元素 ≥44」的下限。
+     宽度在 320px 屏上只有 ~36px（7 列硬约束，做不到 44），这是网格课表本身的取舍：
+     宁可一屏看全一周，也不横向滚动。 */
+  margin: 1px 1px 1px 0;
+}
+
+/* 冲突格：右下角三角形（CSS border 画的，不引 SVG 文件）。
+   border-left 透明 + border-bottom 实色 = 一个贴右下角的直角三角形，
+   视觉上像书页折角，不占文字空间，也不影响点击热区。 */
+.p-tt__gridcard.is-conflict::after {
+  content: '';
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-bottom: 9px solid var(--warning);
+  pointer-events: none;
+}
+
+.p-tt__card {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  gap: 1px;
+  padding: 3px;
+  overflow: hidden;
+  border-left-width: 3px;
+  border-radius: var(--r-xs);
+}
+
+/* 网格卡只有两级：课程名（最多折 2 行，超出省略）+ 地点。
+   教师与节次时间都不在卡上，理由见 components/courseCard.js 的「信息层级」一节。 */
+.p-tt__card .c-course__name {
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  line-height: 1.22;
+  word-break: break-word;
+}
+
+.p-tt__card .c-course__meta {
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+/* 「进行中」角标：常驻 DOM，靠父元素的 .is-now 显隐（定时器只切一个 class）。
+   做成卡片顶部整条色带而不是右上角小贴纸 —— 36px 宽的列里，右上角贴纸会盖掉第一行多半个字，
+   整条色带则只是把内容整体下移一行，读起来仍然是完整的课名。 */
+.p-tt__live {
+  display: none;
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  right: 4px;
+  padding: 1px 0;
+  border-radius: 3px;
+  background-color: var(--brand-primary);
+  color: var(--text-inverse);
+  font-size: 9px;
+  line-height: 10px;
+  font-weight: var(--fw-semibold);
+  text-align: center;
+  pointer-events: none;
+}
+
+.p-tt__gridcard.is-now .p-tt__live {
+  display: block;
+}
+
+.p-tt__gridcard.is-now .p-tt__card {
+  /* 给顶部色带让位：17px = 色带高 12 + 上下留白 */
+  padding-top: 17px;
+}
+
+/* ── 窄屏（320px）字号降一档 ─────────────────────────────────────────────
+   320 屏一列只有 ~36px：11px 的课名折 2 行后每行 3 个字，遇到「语文课程与教学论」
+   这种长名会顶到省略号边缘；降到 10px 能多放半个字，且不至于小到看不见。
+   验收线：scrollWidth === clientWidth（无横向溢出）。 */
+@media (max-width: 359px) {
+  .p-tt__card .c-course__name {
+    font-size: 10px;
+  }
+
+  .p-tt__card .c-course__meta {
+    font-size: 8.5px;
+  }
+
+  .p-tt__live {
+    font-size: 8.5px;
+    line-height: 10px;
+  }
+}
+
+/* ── 回到本周 ──────────────────────────────────────────────────────────── */
+
+.p-tt__fab-wrap {
+  position: sticky;
+  bottom: var(--space-12);
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--page-gutter);
+  pointer-events: none;
+}
+
+.p-tt__fab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--hit-min);
+  padding: 0 var(--space-16);
+  border-radius: var(--r-full);
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+  box-shadow: var(--e2);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-semibold);
+  pointer-events: auto;
+}
+
+/* display:flex 会盖掉 UA 的 [hidden]{display:none}，必须自己写一条，
+   否则「本周」时按钮 still 显示（这个坑踩过一次） */
+.p-tt__fab[hidden] {
+  display: none;
+}
+
+.p-tt__fab-icon {
+  display: flex;
+}
+
+/* ── 周次选择器（弹层内） ──────────────────────────────────────────────── */
+
+.p-tt__weeks {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-8);
+}
+
+.p-tt__week-cell {
+  /* button 无内置居中（base.css 只给 min 尺寸），不写 flex 数字会贴在 44px 格子的左上角 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--hit-min);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 考试周：能点，但用次级文字色暗示「这周没课」 */
+.p-tt__week-cell.is-exam {
+  color: var(--text-secondary);
+}
+
+.p-tt__week-cell.is-current {
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+}
+

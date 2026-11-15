@@ -1,0 +1,223 @@
+/* ============================================================================
+ * components.css —— 组件样式（本批 4 节）
+ *   1. c-btn       按钮（含 loading 转圈）
+ *   2. c-toast     顶部提示 + 二次确认弹窗（同属「轻量反馈」一层）
+ *   3. c-skeleton  骨架屏（core/animate.js 的 skeletonPulse 需要基线样式）
+ *
+ * 顶栏 / 底栏（c-appbar / c-tabbar，含毛玻璃材质）已拆到 componentsChrome.css：
+ * HIG 重设计后控件层统一管理「Liquid Glass 只给导航层」这条规矩，components.css
+ * 原本 391 行也已逼近守卫③ 的 400 行上限。
+ *
+ * 规矩：颜色只用 var(--…)，由 tokens.css 提供；本文件不出现任何色值字面量。
+ *
+ * 色彩硬规则（WCAG AA ≥4.5，见 docs/a11y-contrast.md；check-rules 守卫⑤ 会拦）：
+ *   1. 暖金做【文字】一律用 --brand-accent-text（白底 5.03）；--brand-accent 白底仅 2.41，
+ *      只许用于图形填充、进度条、深色底上的文字
+ *   2. --text-tertiary 只许用于装饰性/禁用态；承载信息的正文、标签、数值一律 --text-secondary
+ *   3. 课程卡片的 12% 透明填充只做背景，其上文字一律 --text-primary，不得用课程色本身
+ *   4. 新增任何「前景 × 背景」组合，先在亮/暗两套各算一次对比度，≥4.5 才可上
+ * ========================================================================== */
+
+/* ═══ 1. 按钮 c-btn ═════════════════════════════════════════════════════ */
+
+.c-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: var(--hit-min);
+  padding: 0 var(--space-20);
+  border-radius: var(--r-sm);
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  transition: transform var(--dur-press) var(--ease-press),
+    background-color var(--dur-press) var(--ease-standard),
+    opacity var(--dur-press) var(--ease-linear);
+}
+
+.c-btn:active:not([disabled]) {
+  transform: scale(0.97);
+  background-color: var(--brand-primary-deep);
+}
+
+.c-btn[disabled] {
+  opacity: 0.5;
+  transform: none;
+}
+
+.c-btn--ghost {
+  background-color: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+
+.c-btn--ghost:active:not([disabled]) {
+  background-color: var(--brand-primary-soft);
+}
+
+.c-btn--text {
+  background-color: transparent;
+  color: var(--brand-primary);
+  padding: 0 var(--space-8);
+}
+
+.c-btn--text:active:not([disabled]) {
+  background-color: transparent;
+  color: var(--brand-primary-deep);
+}
+
+.c-btn--danger {
+  background-color: var(--danger);
+  color: var(--text-inverse);
+}
+
+.c-btn--danger:active:not([disabled]) {
+  background-color: var(--danger);
+}
+
+.c-btn--sm {
+  min-height: 32px;
+  padding: 0 var(--space-12);
+  font-size: var(--fs-caption);
+}
+
+/* loading：隐藏文案、居中转圈；文案仍在 DOM 里，恢复时不用回填 */
+.c-btn--busy {
+  position: relative;
+  color: transparent;
+}
+
+.c-btn--busy::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-full);
+  border: 2px solid var(--brand-on-primary);
+  border-top-color: transparent;
+  animation: c-btn-spin 900ms var(--ease-linear) infinite;
+}
+
+.c-btn--ghost.c-btn--busy::after,
+.c-btn--text.c-btn--busy::after {
+  border-color: var(--brand-primary);
+  border-top-color: transparent;
+}
+
+@keyframes c-btn-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ═══ 2. 轻量反馈 c-toast ═══════════════════════════════════════════════ */
+
+#toast-root {
+  position: fixed;
+  /* 让开顶栏：贴着 safe-t 会被 appbar 盖住，Toast 看起来像「压在标题上」 */
+  top: calc(var(--safe-t) + var(--appbar-h) + var(--space-8));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--page-gutter);
+  pointer-events: none;
+  z-index: var(--z-toast);
+}
+
+.c-toast {
+  max-width: 100%;
+  padding: 10px var(--space-16);
+  border-radius: var(--r-full);
+  background-color: var(--text-primary);
+  color: var(--bg-surface);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-medium);
+  box-shadow: var(--e2);
+  pointer-events: auto;
+}
+
+.c-toast--success { background-color: var(--success); color: var(--text-inverse); }
+
+.c-toast--warning { background-color: var(--warning); color: var(--text-inverse); }
+
+.c-toast--danger { background-color: var(--danger); color: var(--text-inverse); }
+
+/* —— 二次确认弹窗（toast.js 的 confirm）—— */
+.c-confirm-mask {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-24);
+  background-color: var(--bg-mask);
+  z-index: var(--z-sheet);
+}
+
+.c-confirm {
+  width: 100%;
+  max-width: 320px;
+  padding: var(--space-20) var(--space-16) var(--space-16);
+  border-radius: var(--r-lg);
+  background-color: var(--bg-elevated);
+  box-shadow: var(--e2);
+}
+
+.c-confirm__title {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.c-confirm__message {
+  margin-top: var(--space-8);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.c-confirm__actions {
+  display: flex;
+  gap: var(--space-12);
+  margin-top: var(--space-20);
+}
+
+.c-confirm__actions .c-btn { flex: 1 1 0; min-width: 0; }
+
+/* ═══ 3. 骨架屏 c-skeleton ══════════════════════════════════════════════ */
+
+.c-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-xs);
+  background-color: var(--bg-sunken);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--bg-surface) 50%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  background-position: -120% 0;
+}
+
+.c-skeleton--text { height: 14px; }
+
+.c-skeleton--title { height: 20px; }
+
+.c-skeleton--card {
+  height: 88px;
+  border-radius: var(--r-md);
+}

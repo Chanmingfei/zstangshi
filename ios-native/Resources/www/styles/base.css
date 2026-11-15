@@ -1,0 +1,327 @@
+/* ============================================================================
+ * base.css —— reset + 应用外壳布局 + 排版阶梯 + 少量工具类
+ * 颜色/间距/字号一律引用 tokens.css 的变量，本文件不出现任何色值字面量。
+ * ========================================================================== */
+
+/* —— reset —— */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* 移动端禁止横向滚动，避免 1px 溢出导致整页抖动 */
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-body);
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+  /* 点击高亮统一由组件自己控制，去掉系统灰块 */
+  -webkit-tap-highlight-color: transparent;
+  /* 触屏上禁止长按选中（成绩文本复制由页面显式开启） */
+  -webkit-touch-callout: none;
+  overflow: hidden;
+  /* 圆体渲染细节：让 13px 的中文在安卓上不至于糊 */
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--info);
+  text-decoration: none;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  /* 任何可点元素最小热区 44×44（视觉尺寸可小，用 padding 补足） */
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+  touch-action: manipulation;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+svg {
+  /* 图标默认继承文字色，图标文件里不写死颜色 */
+  fill: none;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+/* 可聚焦元素：键盘 Tab 时才有描边，触屏点击不出现 */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+/* —— 滚动条：移动端隐藏，桌面预览也不出现粗条 —— */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* —— 应用外壳 —— */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  padding-left: var(--safe-l);
+  padding-right: var(--safe-r);
+  background-color: var(--bg-page);
+}
+
+#app-bar {
+  flex: 0 0 auto;
+  /* 顶栏容器要自带底色：padding-top 的安全区（刘海）不能露出页面底色 */
+  background-color: var(--bg-surface);
+  padding-top: var(--safe-t);
+  z-index: var(--z-appbar);
+}
+
+#app-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* 转场时需要相对定位容器来容纳离场页的绝对定位 */
+  isolation: isolate;
+}
+
+#tabbar {
+  flex: 0 0 auto;
+  /* 底部安全区（手势条）同样不能露出页面底色 */
+  background-color: var(--bg-surface);
+  padding-bottom: var(--safe-b);
+  z-index: var(--z-tabbar);
+}
+
+/* 登录态外壳：登录页没有「已登录才能用」的 Tab，顶栏也让位给品牌区。
+   由 app.js 在 onNavigate 里写 body[data-shell]（auth / app），纯 CSS 切换。 */
+body[data-shell='auth'] #app-bar,
+body[data-shell='auth'] #tabbar {
+  display: none;
+}
+
+#toast-root,
+#sheet-root {
+  position: relative;
+  z-index: var(--z-toast);
+}
+
+/* —— 排版阶梯（直接对应 PRD §8.2）—— */
+.t-display {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: var(--fw-display);
+  font-family: var(--font-number);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-h1 {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  letter-spacing: -0.01em;
+}
+
+.t-h2 {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+}
+
+.t-body {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-body);
+}
+
+.t-body-strong {
+  font-size: var(--fs-body-strong);
+  line-height: var(--lh-body-strong);
+  font-weight: var(--fw-body-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.t-caption {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-caption);
+}
+
+.t-micro {
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--fw-micro);
+}
+
+/* 数字统一等宽，避免 countUp 滚动时宽度跳动 */
+.u-num {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* —— 工具类：只保留这 5 个，其余交给组件 —— */
+.u-row {
+  display: flex;
+  align-items: center;
+}
+
+.u-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.u-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.u-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.u-truncate {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* —— 页面容器：所有页面根节点加 .page，统一左右安全边距 —— */
+.page {
+  padding: var(--space-12) var(--page-gutter) var(--space-24);
+}
+
+.page__title {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-h1);
+  margin-bottom: var(--space-12);
+}
+
+/* —— 无障碍：仅供读屏的隐藏文本 —— */
+.u-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* —— 选中文本（成绩长按复制时用）—— */
+::selection {
+  background-color: var(--brand-primary-soft);
+  color: var(--text-primary);
+}
+
+/* —— 动效降级：系统开启「减弱动态效果」时全部关掉 ——
+   组件层的 WAAPI 动画由 core/animate.js 里的 prefersReducedMotion() 另行判断，
+   这里兜住纯 CSS 动画（骨架屏微光、loading 旋转等）。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

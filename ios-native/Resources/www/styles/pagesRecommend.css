@@ -1,0 +1,72 @@
+/* ============================================================================
+ * pagesRecommend.css —— 推荐课表页（p-tt--recommend）相对课表页的增量样式
+ *
+ * 网格、周次切换器、课程卡、详情层全部复用 pagesTimetable.css / pagesTimetableSheet.css，
+ * 本文件负责「教务来源说明」与顶部级联筛选栏（年级/专业/班级 + 查询，仿教务原页）。
+ * 单独成文件是为了不改课表页已验收的样式。
+ * 颜色只用 var(--…)，本文件不出现任何色值字面量（check-rules 守卫①）。
+ * ========================================================================== */
+
+.p-rec__source {
+  margin: var(--space-12) var(--page-gutter) 0;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--r-sm);
+  background-color: var(--brand-primary-soft);
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+/* [hidden] 必须显式兜住：本类没用 display:flex，但将来有人加布局时会盖掉默认隐藏 */
+.p-rec__source[hidden] { display: none; }
+
+/* 抓取失败降级成缓存/演示副本时，颜色与文案一起变，绝不装成实时数据 */
+.p-rec__source.is-stale {
+  background-color: var(--warning-soft);
+  color: var(--brand-accent-text);
+}
+
+/* ── 级联筛选栏（仿教务原页：年级 → 专业 → 班级 + 查询） ─────────────────── */
+.p-rec__filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin: var(--space-12) var(--page-gutter) 0;
+}
+
+.p-rec__filter[hidden] { display: none; }
+
+.p-rec__select {
+  flex: 1 1 calc(50% - var(--space-8));
+  min-width: 0;
+  min-height: var(--hit-min);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  appearance: none;
+}
+
+.p-rec__select:focus { border-color: var(--brand-primary); outline: none; }
+.p-rec__select:disabled { color: var(--text-tertiary); }
+
+/* 班级项最多、给整行；查询按钮固定窄宽放最后 */
+.p-rec__select--class { flex-basis: 100%; }
+
+.p-rec__query {
+  flex: 0 0 auto;
+  min-height: var(--hit-min);
+  padding: 0 var(--space-20);
+  border: none;
+  border-radius: var(--r-sm);
+  background-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-caption-strong);
+}
+
+.p-rec__query:active { transform: scale(0.97); }
+.p-rec__query:disabled { opacity: 0.55; }

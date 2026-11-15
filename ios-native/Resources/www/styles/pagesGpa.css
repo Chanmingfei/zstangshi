@@ -1,0 +1,90 @@
+/* ============================================================================
+ * pagesGpa.css —— 学生学业情况查看（p-gpa）
+ *
+ * 这一页按用户口径只展示一个 GPA 数字，所以样式刻意极简：
+ * 一张居中大卡 + 一行教务来源 + 一行免责原文，没有树、没有进度条、没有图表。
+ * 颜色只用 var(--…)，本文件不出现任何色值字面量（check-rules 守卫①）。
+ * ========================================================================== */
+
+.p-gpa { padding-bottom: var(--space-24); }
+
+.p-gpa__source {
+  margin: var(--space-12) var(--page-gutter) 0;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--r-sm);
+  background-color: var(--brand-primary-soft);
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+.p-gpa__source[hidden] { display: none; }
+
+.p-gpa__body { padding: var(--space-16) var(--page-gutter) 0; }
+
+.p-gpa__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-32) var(--space-16);
+  border-radius: var(--r-lg);
+  background-color: var(--bg-surface);
+  box-shadow: var(--e1);
+  text-align: center;
+}
+
+.p-gpa__label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+/* 大号数字：等宽数字避免滚动动画时字宽跳动 */
+.p-gpa__value {
+  margin: 0;
+  color: var(--brand-primary);
+  font-size: var(--fs-display);
+  line-height: 1.1;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.p-gpa__badge {
+  margin: 0;
+  padding: 2px var(--space-8);
+  border-radius: var(--r-full);
+  background-color: var(--brand-primary-soft);
+  color: var(--brand-primary-on-soft);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+}
+
+.p-gpa__stats {
+  margin: var(--space-8) 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+
+.p-gpa__disclaimer {
+  margin: var(--space-16) var(--space-4) 0;
+  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  text-align: center;
+}
+
+/* 降级成缓存/演示副本时的提示，颜色与文案一起变 */
+.p-gpa__stale {
+  margin: var(--space-8) var(--space-4) 0;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--r-sm);
+  background-color: var(--warning-soft);
+  color: var(--brand-accent-text);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  text-align: center;
+}

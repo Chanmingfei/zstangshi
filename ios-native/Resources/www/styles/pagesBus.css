@@ -1,0 +1,107 @@
+/**
+ * pagesBus.css —— 实时公交（p-bus）
+ *
+ * iOS 套壳新增页。视觉沿用 HIG + tokens.css 的 CSS 变量（--bg-* / --text-* / --brand 等），
+ * 与其余页面的卡片 / 列表风格一致：毛玻璃不重要，重点是信息层级清晰、可点。
+ */
+
+.p-bus {
+  padding: 0 var(--page-pad, 16px) 28px;
+  min-height: 100%;
+}
+
+.p-bus__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.p-bus__search-icon {
+  display: flex;
+  color: var(--text-tertiary, #8a8a8e);
+  flex: 0 0 auto;
+}
+
+.p-bus__search-input {
+  flex: 1 1 auto;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: var(--text-primary, #1c1c1e);
+  padding: 2px 0;
+}
+
+.p-bus__search-input::placeholder {
+  color: var(--text-tertiary, #8a8a8e);
+}
+
+.p-bus__go {
+  flex: 0 0 auto;
+  padding: 7px 16px;
+  font-size: 13px;
+  border-radius: 999px;
+}
+
+.p-bus__status {
+  font-size: 12px;
+  color: var(--text-tertiary, #8a8a8e);
+  margin: 10px 2px 4px;
+  min-height: 16px;
+}
+
+.p-bus__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.p-bus__card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.p-bus__card:active {
+  opacity: 0.85;
+}
+
+.p-bus__card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #1c1c1e);
+}
+
+.p-bus__card-title svg {
+  color: var(--brand, #3b82f6);
+  flex: 0 0 auto;
+}
+
+.p-bus__card-sub {
+  margin: 6px 0 0 26px;
+  font-size: 13px;
+  color: var(--text-secondary, #3a3a3c);
+  line-height: 1.4;
+}
+
+.p-bus__tag {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--brand, #3b82f6);
+  background: var(--brand-soft, rgba(59, 130, 246, 0.12));
+  padding: 2px 8px;
+  border-radius: 999px;
+}

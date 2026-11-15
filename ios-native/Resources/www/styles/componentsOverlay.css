@@ -1,0 +1,150 @@
+/* ============================================================================
+ * componentsOverlay.css —— 浮层与手势类组件
+ *  16. c-sheet     底部弹层（遮罩 0→1，面板上滑 350ms spring）
+ *  17. c-pull      下拉刷新（--pull-y 由 JS 写成像素值，指示器纯 transform 跟随）
+ *
+ * 拆文件的原因：check-rules 守卫③ 单文件 ≤400 行。
+ *
+ * 规矩：颜色只用 var(--…)，本文件不出现任何色值字面量。
+ * ========================================================================== */
+
+/* ═══ 16. 底部弹层 c-sheet ═══════════════════════════════════════════════ */
+
+.c-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  align-items: flex-end;
+  background-color: var(--bg-mask);
+  /* 初始透明：DOM 插入到动画开始之间不能闪一下满遮罩 */
+  opacity: 0;
+}
+
+.c-sheet__panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 82vh;
+  max-height: 82dvh;
+  padding-bottom: var(--safe-b);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background-color: var(--bg-elevated);
+  box-shadow: var(--e2);
+  outline: none;
+}
+
+/* 抓手：既是视觉暗示（可下滑），也是手指最容易落到的位置 */
+.c-sheet__grabber {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-8) 0 var(--space-4);
+}
+
+.c-sheet__handle {
+  width: 36px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background-color: var(--border-strong);
+}
+
+.c-sheet__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: 0 var(--card-padding) var(--space-8);
+}
+
+.c-sheet__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-h2);
+  color: var(--text-primary);
+}
+
+.c-sheet__close {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  margin-right: calc(var(--space-8) * -1);
+  border-radius: var(--r-full);
+  color: var(--text-secondary);
+}
+
+.c-sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--card-padding) var(--space-16);
+}
+
+.c-sheet__actions {
+  display: flex;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--card-padding) var(--space-16);
+}
+
+.c-sheet__actions .c-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* ═══ 17. 下拉刷新 c-pull ════════════════════════════════════════════════
+ * 指示器用 position:absolute + 位移露出，不用改高度：
+ * 高度动画每帧都要重排整页，下拉手势最容易掉帧的正是这一处。 */
+
+.c-pull {
+  position: relative;
+  overflow: hidden;
+}
+
+.c-pull__head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  height: 56px;
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  opacity: 0;
+  transform: translate3d(0, calc(var(--pull-y, 0px) - 56px), 0);
+  transition: opacity var(--dur-press) var(--ease-linear);
+}
+
+.c-pull.is-pulling .c-pull__head,
+.c-pull.is-refreshing .c-pull__head {
+  opacity: 1;
+}
+
+.c-pull.is-ready .c-pull__text {
+  color: var(--brand-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.c-pull__spinner {
+  display: flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.c-pull__body {
+  position: relative;
+  z-index: 1;
+  background-color: var(--bg-page);
+}

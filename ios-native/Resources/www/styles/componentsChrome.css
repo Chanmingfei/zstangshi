@@ -1,0 +1,209 @@
+/* ============================================================================
+ * componentsChrome.css —— 控件层（导航外壳）样式
+ *   1. c-appbar    顶栏 + 演示提示条
+ *   2. c-tabbar    底部 4 Tab + 滑动指示器
+ *
+ * 为什么单独一个文件：components.css 已逼近 400 行上限，且 HIG 重设计后控件层
+ * 要用毛玻璃材质（tokens.css 的 --mat-chrome / --blur-chrome），单独成文件便于
+ * 统一管理「Liquid Glass 只给导航层、内容层不叠 blur」这条规矩。
+ *
+ * 规矩：颜色只用 var(--…)，本文件不出现任何色值字面量。
+ * ========================================================================== */
+
+/* ═══ 1. 顶栏 c-appbar ═══════════════════════════════════════════════════ */
+
+.c-appbar {
+  position: relative;
+  /* 控件层毛玻璃：内容从下方滚过时透出模糊轮廓（Liquid Glass 配方） */
+  background-color: var(--mat-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+  backdrop-filter: var(--blur-chrome);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.c-appbar__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--appbar-h);
+  padding: 0 var(--page-gutter);
+  /* 兜底：系统字号放大到 130% 时宁可裁掉 1px 也不允许换行 */
+  overflow-x: clip;
+  transition: height var(--dur-page) var(--ease-standard);
+}
+
+.c-appbar.is-compact .c-appbar__bar {
+  height: var(--appbar-h-compact);
+}
+
+.c-appbar__back {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  margin-left: calc(var(--space-12) * -1);
+  border-radius: var(--r-full);
+  color: var(--text-primary);
+  /* 按下即反馈（Fluid Interfaces）：pointer-down 就生效，不等 click */
+  transition: transform var(--dur-press) var(--ease-press);
+}
+
+.c-appbar__back:active {
+  transform: scale(0.97);
+}
+
+.c-appbar__back[hidden],
+.c-appbar__notice[hidden] { display: none; }
+
+.c-appbar__back svg { width: 22px; height: 22px; }
+
+/* 左段：学年 + 学期（不截断 —— 截断即违约，见 PRD F-02） */
+.c-appbar__term {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-caption-strong);
+  color: var(--text-primary);
+  letter-spacing: 0;
+}
+
+/* 右段：第 N 教学周（永远靠右、永不被压缩） */
+.c-appbar__week {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-caption-strong);
+  color: var(--brand-primary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.c-appbar__actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-left: var(--space-8);
+}
+
+/* —— 演示提示条（内容层：实色，不叠 blur）—— */
+.c-appbar__notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--notice-h);
+  padding: 0 var(--page-gutter);
+  background-color: var(--brand-accent-soft);
+  color: var(--brand-on-accent);
+}
+
+.c-appbar__notice-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: var(--fw-medium);
+}
+
+.c-appbar__notice-close {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--notice-h);
+  margin-right: calc(var(--space-12) * -1);
+  border-radius: var(--r-full);
+  color: var(--brand-on-accent);
+  transition: transform var(--dur-press) var(--ease-press);
+}
+
+.c-appbar__notice-close:active {
+  transform: scale(0.97);
+}
+
+/* 提示条只有 36px 高，用伪元素把热区补到 44px */
+.c-appbar__notice-close::before { content: ''; position: absolute; inset: -4px 0; }
+
+.c-appbar__notice-close svg { width: 16px; height: 16px; }
+
+/* ═══ 2. 底部导航 c-tabbar ═══════════════════════════════════════════════ */
+
+.c-tabbar__inner {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: var(--tabbar-h);
+  /* 控件层毛玻璃 + 1px 亮顶边（光线打在材质上）+ 结构分隔线 */
+  background-color: var(--mat-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+  backdrop-filter: var(--blur-chrome);
+  border-top: 1px solid var(--border-subtle);
+  box-shadow: inset 0 1px 0 var(--mat-chrome-edge);
+}
+
+.c-tabbar__item {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--hit-min);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text-tertiary);
+  transition: color var(--dur-press) var(--ease-standard);
+}
+
+.c-tabbar__item[aria-selected='true'] {
+  color: var(--brand-primary);
+}
+
+.c-tabbar__item:active {
+  color: var(--brand-primary-deep);
+}
+
+.c-tabbar__icon { display: block; width: 24px; height: 24px; }
+
+.c-tabbar__icon svg { width: 24px; height: 24px; }
+
+.c-tabbar__label {
+  font-size: var(--fs-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--fw-micro);
+}
+
+/* 指示器：CSS 宽 1px，靠 scaleX 表达宽度，位移与宽度一次插值同步完成 */
+.c-tabbar__ind {
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  width: 1px;
+  height: 3px;
+  border-radius: var(--r-full);
+  background-color: var(--brand-primary);
+  transform-origin: left center;
+  transform: translate3d(0, 0, 0) scaleX(0);
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ═══ 3. 降低透明度：毛玻璃退化为实色（iOS 同款无障碍开关）══════════════ */
+@media (prefers-reduced-transparency: reduce) {
+  .c-appbar,
+  .c-tabbar__inner {
+    background-color: var(--bg-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

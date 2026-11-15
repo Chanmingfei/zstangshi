@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>视口验证 · 390 / 320 / 430</title>
+  <link rel="stylesheet" href="../styles/tokens.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: var(--font-sans);
+      background: var(--bg-sunken);
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    figure { margin: 0; }
+    figcaption {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-primary);
+    }
+    iframe {
+      border: 1px solid var(--border-strong);
+      background: var(--bg-surface);
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <figure>
+    <figcaption>320px（最窄）</figcaption>
+    <iframe src="../index.html" width="320" height="640"></iframe>
+  </figure>
+  <figure>
+    <figcaption>390px（主基准）</figcaption>
+    <iframe src="../index.html" width="390" height="640"></iframe>
+  </figure>
+  <figure>
+    <figcaption>430px（最宽）</figcaption>
+    <iframe src="../index.html" width="430" height="640"></iframe>
+  </figure>
+</body>
+</html>

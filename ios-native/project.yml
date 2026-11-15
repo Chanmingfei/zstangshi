@@ -43,11 +43,15 @@ targets:
     type: application
     platform: iOS
     deploymentTarget: "17.0"
-    # 白名单：只有 Sources/ 与资源目录进 app target。
-    # Widget/ 没列在这里 → 不会被 app target 编译（它自带 @main，混进来会冲突）。
+    # 网页套壳版：只编译 iOS 原生壳（WKWebView + NativeBridge），
+    # 界面全部由 Resources/www/ 里的 HTML/CSS/JS 渲染。
+    # 旧的 SwiftUI 原生页面（Sources/Pages、Bus、Net、Data 等）不再编译。
     sources:
-      - path: Sources
+      - path: Sources/App
       - path: Resources/Assets.xcassets
+      # www/ 作为 folder reference 整个打进 bundle，保持目录结构（ESM import 依赖相对路径）
+      - path: Resources/www
+        type: folder
     dependencies:
       - target: TodayWidgetExtension
         embed: true
@@ -58,7 +62,6 @@ targets:
         INFOPLIST_FILE: Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: Resources/App.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.tstc.zstangshi
-        # 可执行文件名必须 ASCII（见文件头说明）；中文名走 CFBundleDisplayName
         PRODUCT_NAME: ZhangShangTangShi
         MARKETING_VERSION: "4.0.0"
         CURRENT_PROJECT_VERSION: "58"

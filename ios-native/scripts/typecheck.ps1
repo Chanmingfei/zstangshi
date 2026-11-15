@@ -28,31 +28,32 @@ $env:Path = "$Toolchain;$Runtimes;$env:Path"
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $Sources = Join-Path $ProjectRoot "Sources"
+$Legacy = Join-Path $ProjectRoot "_legacy_swiftui"
 
 $strictGroups = @(
     @{
-        Name = "Data layer"
+        Name = "Data layer (legacy)"
         Files = @(
-            "Sources\Data\Dates.swift",
-            "Sources\Data\WeekRange.swift",
-            "Sources\Data\ScheduleSettings.swift",
-            "Sources\Data\Models.swift",
-            "Sources\Data\WeekMath.swift",
-            "Sources\Data\CourseColorAssigner.swift",
-            "Sources\Data\Holidays.swift",
-            "Sources\Data\WeekOverlay.swift",
-            "Sources\Data\DayPlan.swift"
+            "_legacy_swiftui\Data\Dates.swift",
+            "_legacy_swiftui\Data\WeekRange.swift",
+            "_legacy_swiftui\Data\ScheduleSettings.swift",
+            "_legacy_swiftui\Data\Models.swift",
+            "_legacy_swiftui\Data\WeekMath.swift",
+            "_legacy_swiftui\Data\CourseColorAssigner.swift",
+            "_legacy_swiftui\Data\Holidays.swift",
+            "_legacy_swiftui\Data\WeekOverlay.swift",
+            "_legacy_swiftui\Data\DayPlan.swift"
         )
     },
     @{
-        Name = "Net parser (Foundation only)"
+        Name = "Net parser (legacy)"
         Files = @(
-            "Sources\Data\Dates.swift",
-            "Sources\Data\WeekRange.swift",
-            "Sources\Data\ScheduleSettings.swift",
-            "Sources\Data\Models.swift",
-            "Sources\Data\CourseColorAssigner.swift",
-            "Sources\Net\KbParser.swift"
+            "_legacy_swiftui\Data\Dates.swift",
+            "_legacy_swiftui\Data\WeekRange.swift",
+            "_legacy_swiftui\Data\ScheduleSettings.swift",
+            "_legacy_swiftui\Data\Models.swift",
+            "_legacy_swiftui\Data\CourseColorAssigner.swift",
+            "_legacy_swiftui\Net\KbParser.swift"
         )
     }
 )
@@ -80,7 +81,7 @@ foreach ($group in $strictGroups) {
 }
 
 Write-Host ""
-Write-Host "=== Parse check (syntax only, every file) ===" -ForegroundColor Cyan
+Write-Host "=== Parse check (syntax only, shell + widget) ===" -ForegroundColor Cyan
 $widgetDir = Join-Path $ProjectRoot "Widget"
 $scanDirs = @($Sources)
 if (Test-Path $widgetDir) { $scanDirs += $widgetDir }

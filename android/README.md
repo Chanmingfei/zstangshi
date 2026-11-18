@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="../docs/assets/school-logo.png" width="72" alt="唐山师范学院校徽" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../docs/assets/school-logo-dark.png" />
+  <img src="../docs/assets/school-logo.png" width="88" alt="唐山师范学院校徽" />
+</picture>
 
 # 掌上唐师 · v2 WebView 套壳工程
 

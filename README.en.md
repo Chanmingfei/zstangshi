@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="docs/assets/school-logo.png" width="88" alt="Tangshan Normal University" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/school-logo-dark.png" />
+  <img src="docs/assets/school-logo.png" width="104" alt="Tangshan Normal University emblem" />
+</picture>
 
 # 掌上唐师 · ZSTangshi
 

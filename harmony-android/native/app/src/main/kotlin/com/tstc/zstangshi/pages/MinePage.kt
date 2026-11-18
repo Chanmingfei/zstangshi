@@ -2,6 +2,8 @@ package com.tstc.zstangshi.pages
 
 import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.pm.PackageManager
+import android.os.Build
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Intent
@@ -28,8 +30,14 @@ import com.tstc.zstangshi.data.AcademicCalendar
 import com.tstc.zstangshi.data.Dates
 import com.tstc.zstangshi.data.Store
 import com.tstc.zstangshi.data.Timetable
+import com.tstc.zstangshi.data.TimetableMerge
 import com.tstc.zstangshi.data.WeekMath
 import com.tstc.zstangshi.jw.JwClient
+import com.tstc.zstangshi.notif.Api36
+import com.tstc.zstangshi.notif.FocusController
+import com.tstc.zstangshi.notif.FocusPlan
+import com.tstc.zstangshi.notif.HarmonyLive
+import com.tstc.zstangshi.ui.ConfirmDialog
 import com.tstc.zstangshi.ui.OptionSheet
 import com.tstc.zstangshi.ui.SegmentedControl
 import com.tstc.zstangshi.ui.Sheet
@@ -58,6 +66,9 @@ class MinePage(private val host: Activity, private val store: Store,
     private lateinit var accountTag: TextView
     private lateinit var syncHint: TextView
     private var awaitingLogin = false
+
+    /** 用户点了「启用课程实况窗」但权限还没齐，等从授权弹窗 / 系统设置页回来再续上。 */
+    private var focusPending = false
 
     init {
         setBackgroundColor(if (store.darkNow()) 0xFF0F1520.toInt() else host.getColor(R.color.bg_page))
@@ -202,6 +213,119 @@ class MinePage(private val host: Activity, private val store: Store,
             TodayWidget.refreshAll(host)
             Toast.makeText(host, "已刷新", Toast.LENGTH_SHORT).show()
         }))
+
+        // ── 课程实况窗（鸿蒙「实况窗」/ Android 实况通知） ──
+        // 鸿蒙专版口径：不做「显不显示地点」开关，一律显示地点；
+        // 呈现形态由系统能力决定（实况协议 / 常驻倒计时），设置页直接把当前形态写出来。
+        val focus = card()
+        focus.addView(sectionTitle("课程实况窗"))
+        val fc = FocusController(host)
+        if (!FocusController.liveSupported(host)) {
+            focus.addView(item("当前不可用", "请先允许「掌上唐师」的通知", null))
+        } else {
+            val notifyOk = fc.notifyPermissionOk()
+            val alarmOk = fc.exactAlarmOk()
+            val liveMode = HarmonyLive.mode(host) == HarmonyLive.MODE_LIVE
+            val promotedOk = fc.canPostPromoted()
+
+            focus.addView(switchItem("启用课程实况窗",
+                    FocusController.isEnabled(host)) { btn, on ->
+                if (!on) {
+                    focusPending = false
+                    fc.setEnabled(false)
+                    build()
+                    return@switchItem
+                }
+                when {
+                    !notifyOk -> {
+                        focusPending = true
+                        paintSwitch(btn, false)
+                        askNotifyPermission()
+                    }
+                    liveMode && !promotedOk -> {
+                        focusPending = true
+                        paintSwitch(btn, false)
+                        guidePromoted()
+                    }
+                    else -> {
+                        focusPending = false
+                        fc.setEnabled(true)
+                        if (!alarmOk) toastAlarmHint()
+                        build()
+                    }
+                }
+            })
+
+            // 当前是「协议直连」还是「常驻倒计时」——不写清楚，用户会以为功能没生效
+            focus.addView(item("显示形态", HarmonyLive.modeName(host), null))
+            val modeHint = TextView(host)
+            modeHint.text = HarmonyLive.modeHint(host)
+            modeHint.setTextSize(11f)
+            modeHint.setTextColor(host.getColor(R.color.text_tertiary))
+            modeHint.setPadding(0, dp(2), 0, dp(6))
+            focus.addView(modeHint)
+
+            focus.addView(statusRow("通知权限", notifyOk, "未允许 · 去开启") {
+                if (notifyOk) {
+                    Api36.openNotificationSettings(host, host.packageName)
+                } else {
+                    focusPending = true
+                    askNotifyPermission()
+                }
+            })
+            // 只有实现了实况协议的系统才有这个开关，常驻形态下不显示，免得用户到处找
+            if (liveMode) {
+                focus.addView(statusRow("实况窗权限", promotedOk, "未允许 · 去开启") {
+                    if (promotedOk) {
+                        Api36.openNotificationSettings(host, host.packageName)
+                    } else {
+                        focusPending = true
+                        guidePromoted()
+                    }
+                })
+            }
+            focus.addView(statusRow("精确提醒", alarmOk, "会晚几分钟 · 去允许") {
+                if (!alarmOk) Api36.openExactAlarmSettings(host, host.packageName)
+            })
+
+            val leadRow = item("提前提醒",
+                    FocusController.leadLabel(FocusController.leadMinutes(host)), null)
+            val leadValue = leadRow.getChildAt(1) as? TextView
+            leadRow.setOnClickListener {
+                val opts = FocusController.LEAD_OPTIONS
+                val labels = Array(opts.size) { i -> FocusController.leadLabel(opts[i]) }
+                var sel = 0
+                for (i in opts.indices) if (opts[i] == FocusController.leadMinutes(host)) sel = i
+                OptionSheet.show(host, "提前多久显示", labels, sel, OptionSheet.OnPick { idx ->
+                    fc.setLead(opts[idx])
+                    leadValue?.text = labels[idx]
+                })
+            }
+            focus.addView(leadRow)
+
+            focus.addView(item("预览效果", "课前 / 课中各看一次",
+                    View.OnClickListener {
+                        OptionSheet.show(host, "预览哪种形态",
+                                arrayOf("还没上课（课程名 + 地点）", "已上课（倒计时）"),
+                                0, OptionSheet.OnPick { idx ->
+                                    val phase = if (idx == 0) FocusPlan.Phase.UPCOMING
+                                                else FocusPlan.Phase.IN_CLASS
+                                    if (fc.preview(phase)) {
+                                        Toast.makeText(host, "已发送示例通知", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(host, "发送失败，请检查通知权限", Toast.LENGTH_SHORT).show()
+                                    }
+                                })
+                    }))
+
+            if (fc.hasHidden()) {
+                focus.addView(item("恢复已划掉的提醒", "点击恢复",
+                        View.OnClickListener {
+                            fc.restoreAll()
+                            Toast.makeText(host, "已恢复", Toast.LENGTH_SHORT).show()
+                        }))
+            }
+        }
 
         // ── 关于 ──
         val about = card()
@@ -515,6 +639,19 @@ class MinePage(private val host: Activity, private val store: Store,
         if (awaitingLogin) {
             awaitingLogin = false
             build()
+            return
+        }
+        // 从授权弹窗 / 系统设置页回到本页：权限齐了就把实况窗开关自动打开
+        if (focusPending) {
+            focusPending = false
+            val fc = FocusController(host)
+            val ready = fc.notifyPermissionOk() &&
+                    (HarmonyLive.mode(host) != HarmonyLive.MODE_LIVE || fc.canPostPromoted())
+            if (ready) {
+                fc.setEnabled(true)
+                Toast.makeText(host, "课程实况窗已开启", Toast.LENGTH_SHORT).show()
+            }
+            build()
         }
     }
 
@@ -555,14 +692,28 @@ class MinePage(private val host: Activity, private val store: Store,
             } else {
                 timetable.semester.startDate = old
             }
+            // 同步口径：教务数据覆盖本地改动，但**手工添加的课 / 手动停课调课要留住**
+            // （切换账号是另一条路：LoginActivity 走 Auth，不带合并，整体覆盖）
+            val keptManual = TimetableMerge.keepManual(
+                    timetable, store.loadTimetable(timetable.semester.id))
+            val fromJw = timetable.courses.size - keptManual
             store.saveTimetable(timetable)
             TodayWidget.refreshAll(host)
+            // 课表变了：立刻重算实况窗（新课程马上生效）
+            try {
+                FocusController(host).reconcile()
+            } catch (t: Throwable) {
+            }
 
             host.runOnUiThread {
                 if (btn != null) btn.isEnabled = true
                 refreshAccount()
-                Toast.makeText(host, "同步完成：" + timetable.courses.size + " 门课",
-                        Toast.LENGTH_SHORT).show()
+                val msg = if (keptManual > 0) {
+                    "同步完成：教务 $fromJw 门，保留 $keptManual 门手工课"
+                } else {
+                    "同步完成：" + timetable.courses.size + " 门课"
+                }
+                Toast.makeText(host, msg, Toast.LENGTH_SHORT).show()
                 callback?.onChanged()
             }
         }).start()
@@ -612,6 +763,50 @@ class MinePage(private val host: Activity, private val store: Store,
         v.setTextColor(host.getColor(R.color.text_tertiary))
         v.setPadding(0, 0, 0, dp(8))
         return v
+    }
+
+    /** 一行「状态」：右边值是「已允许 / 未允许 · 去开启」，未满足时用品牌色强调。 */
+    private fun statusRow(label: String, ok: Boolean, badText: String,
+                          click: View.OnClickListener?): LinearLayout {
+        val row = item(label, if (ok) "已允许" else badText, click)
+        val v = row.getChildAt(1) as? TextView
+        if (!ok) v?.setTextColor(host.getColor(R.color.brand))
+        return row
+    }
+
+    /** 请求普通通知权限（Android 13+）。结果回到 [onReturned] 里续上。 */
+    private fun askNotifyPermission() {
+        if (Build.VERSION.SDK_INT < 33) return
+        try {
+            host.requestPermissions(arrayOf(Api36.PERM_NOTIFICATIONS), REQ_NOTIFY)
+        } catch (t: Throwable) {
+            ConfirmDialog.alert(host, "无法弹出授权窗口",
+                    "请到「系统设置 → 应用 → 掌上唐师 → 通知」里手动允许通知")
+            Api36.openNotificationSettings(host, host.packageName)
+        }
+    }
+
+    /**
+     * 实况窗权限引导。
+     *
+     * 它不是运行时权限（`protectionLevel=normal|appop`），运行时申请弹不出框，
+     * 只能把用户送到系统的通知设置页里手动打开；鸿蒙上这个入口通常叫「实况窗」。
+     */
+    private fun guidePromoted() {
+        ConfirmDialog.show(host, "还要单独开「实况窗」",
+                "普通通知权限和实况窗（实况通知 / 超级岛）是两个不同的开关，后者只能在系统设置里打开。\n\n" +
+                        "接下来这页里找到「实况窗」「显示实时动态」或「实况通知」，把它打开。\n\n" +
+                        "开好回到本页，开关会自动生效。",
+                "稍后", "去开启") {
+            if (!Api36.openNotificationSettings(host, host.packageName)) {
+                ConfirmDialog.alert(host, "打不开系统设置",
+                        "请手动进入「设置 → 应用 → 掌上唐师 → 通知」，打开实况窗")
+            }
+        }
+    }
+
+    private fun toastAlarmHint() {
+        Toast.makeText(host, "未允许精确闹钟，提醒可能晚几分钟", Toast.LENGTH_LONG).show()
     }
 
     private fun item(label: String, value: String, click: View.OnClickListener?): LinearLayout {
@@ -712,6 +907,8 @@ class MinePage(private val host: Activity, private val store: Store,
     companion object {
         private const val GITHUB_HOME = "https://github.com/Chanmingfei/"
         private const val GITEE_HOME = "https://gitee.com/mingfei123/"
+        /** 通知权限请求码（MainActivity.onRequestPermissionsResult 认这个值）。 */
+        private const val REQ_NOTIFY = 9001
         private const val REPO_GITHUB = "https://github.com/Chanmingfei/zstangshi"
         private const val REPO_GITEE = "https://gitee.com/mingfei123/zstangshi"
 

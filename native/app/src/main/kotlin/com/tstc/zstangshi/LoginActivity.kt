@@ -431,7 +431,10 @@ class LoginActivity : BaseActivity() {
         setBusy(true, "登录中…")
 
         Thread {
-            val o = Auth.loginAndMaybeSync(u, p, store, true)
+            // 换账号 = 整体覆盖课表（旧账号的手工课不能带过来）；
+            // 同一账号重新登录 = 普通刷新，手工加的课要留住。
+            val sameAccount = store.user().isNotEmpty() && store.user() == u
+            val o = Auth.loginAndMaybeSync(u, p, store, true, sameAccount)
             runOnUiThread {
                 setBusy(false, "登 录")
                 if (!o.ok) {

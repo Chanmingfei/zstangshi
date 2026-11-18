@@ -16,6 +16,7 @@ import com.tstc.zstangshi.pages.GradesPage
 import com.tstc.zstangshi.pages.HomePage
 import com.tstc.zstangshi.pages.MinePage
 import com.tstc.zstangshi.pages.TimetablePage
+import com.tstc.zstangshi.notif.FocusController
 import com.tstc.zstangshi.ui.BackGestures
 import com.tstc.zstangshi.ui.CapsuleDock
 import com.tstc.zstangshi.ui.PageDeck
@@ -50,6 +51,14 @@ class MainActivity : BaseActivity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         store = Store(this)
+
+        // 课程焦点通知：每次进入 App 对齐一次（后台线程，避开主线程 IO）
+        Thread {
+            try {
+                FocusController(applicationContext).reconcile()
+            } catch (t: Throwable) {
+            }
+        }.start()
 
         val root = FrameLayout(this)
         root.setBackgroundColor(if (store.darkNow()) 0xFF0F1520.toInt() else getColor(R.color.bg_page))
@@ -122,6 +131,24 @@ class MainActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         minePage?.onReturned()
+    }
+
+    /**
+     * 通知权限授权结果（对应 MinePage 的 REQ_NOTIFY）。
+     *
+     * 只负责把结果交回「我的」页：那里会重新检查**普通通知**与**焦点通知（AppOp）**
+     * 两项权限，齐了才真正打开开关；缺焦点权限时会引导去系统设置页。
+     * 权限链逻辑放在 MinePage 里，避免这里和界面各自判断一套。
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 9001) {
+            minePage?.onReturned()
+        }
     }
 
     /** 给首页宫格用：点「我的课表 / 成绩」直接切到对应底栏项。 */

@@ -12,6 +12,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ScrollView
 import com.tstc.zstangshi.data.Store
+import com.tstc.zstangshi.notif.FocusController
 import com.tstc.zstangshi.pages.GradesPage
 import com.tstc.zstangshi.pages.HomePage
 import com.tstc.zstangshi.pages.MinePage
@@ -50,6 +51,15 @@ class MainActivity : BaseActivity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         store = Store(this)
+
+        // 课程实况窗：每次进入 App 对齐一次（后台线程，避开主线程 IO）。
+        // 鸿蒙专版这里必须 try/catch：通知子系统在兼容层上缺失时不能把启动链路带崩。
+        Thread {
+            try {
+                FocusController(applicationContext).reconcile()
+            } catch (t: Throwable) {
+            }
+        }.start()
 
         val root = FrameLayout(this)
         root.setBackgroundColor(if (store.darkNow()) 0xFF0F1520.toInt() else getColor(R.color.bg_page))
@@ -122,6 +132,23 @@ class MainActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         minePage?.onReturned()
+    }
+
+    /**
+     * 通知权限授权结果（对应 MinePage 的 REQ_NOTIFY）。
+     *
+     * 只把结果交回「我的」页：那里重新检查通知权限与呈现模式，齐了才真正打开开关。
+     * 权限链逻辑收敛在 MinePage 一处，这里不重复判断。
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 9001) {
+            minePage?.onReturned()
+        }
     }
 
     /** 给首页宫格用：点「我的课表 / 成绩」直接切到对应底栏项。 */

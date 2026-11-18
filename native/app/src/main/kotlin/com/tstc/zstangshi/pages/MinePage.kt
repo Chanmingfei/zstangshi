@@ -5,11 +5,13 @@ import android.app.DatePickerDialog
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.content.res.ColorStateList
+import android.os.Build
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -28,8 +30,13 @@ import com.tstc.zstangshi.data.AcademicCalendar
 import com.tstc.zstangshi.data.Dates
 import com.tstc.zstangshi.data.Store
 import com.tstc.zstangshi.data.Timetable
+import com.tstc.zstangshi.data.TimetableMerge
 import com.tstc.zstangshi.data.WeekMath
 import com.tstc.zstangshi.jw.JwClient
+import com.tstc.zstangshi.notif.Api36
+import com.tstc.zstangshi.notif.FocusController
+import com.tstc.zstangshi.notif.FocusPlan
+import com.tstc.zstangshi.ui.ConfirmDialog
 import com.tstc.zstangshi.ui.OptionSheet
 import com.tstc.zstangshi.ui.SegmentedControl
 import com.tstc.zstangshi.ui.Sheet
@@ -58,6 +65,9 @@ class MinePage(private val host: Activity, private val store: Store,
     private lateinit var accountTag: TextView
     private lateinit var syncHint: TextView
     private var awaitingLogin = false
+
+    /** 用户点了「启用焦点通知」但权限还没齐，等从授权弹窗 / 系统设置页回来再续上。 */
+    private var focusPending = false
 
     init {
         setBackgroundColor(if (store.darkNow()) 0xFF0F1520.toInt() else host.getColor(R.color.bg_page))
@@ -202,6 +212,108 @@ class MinePage(private val host: Activity, private val store: Store,
             TodayWidget.refreshAll(host)
             Toast.makeText(host, "已刷新", Toast.LENGTH_SHORT).show()
         }))
+
+        // ── 课程焦点通知（超级岛 / 灵动岛） ──
+        // 注意：不做「显不显示地点」开关，一律显示地点；图标固定用校徽。
+        val focus = card()
+        focus.addView(sectionTitle("课程焦点通知"))
+        val fc = FocusController(host)
+        if (!FocusController.liveSupported()) {
+            focus.addView(item("当前系统不支持", "需要 Android 16 及以上", null))
+        } else {
+            val notifyOk = fc.notifyPermissionOk()
+            val promotedOk = notifyOk && fc.canPostPromoted()
+            val alarmOk = fc.exactAlarmOk()
+
+            focus.addView(switchItem("启用课程焦点通知",
+                    FocusController.isEnabled(host)) { btn, on ->
+                if (!on) {
+                    focusPending = false
+                    fc.setEnabled(false)
+                    build()
+                    return@switchItem
+                }
+                // 三步走：普通通知 → 焦点通知（AppOp，只能去系统里开）→ 精确闹钟（缺了只降级不阻断）
+                when {
+                    !notifyOk -> {
+                        focusPending = true
+                        paintSwitch(btn, false)
+                        askNotifyPermission()
+                    }
+                    !promotedOk -> {
+                        focusPending = true
+                        paintSwitch(btn, false)
+                        guidePromoted()
+                    }
+                    else -> {
+                        focusPending = false
+                        fc.setEnabled(true)
+                        if (!alarmOk) toastAlarmHint()
+                        build()
+                    }
+                }
+            })
+
+            // 两个权限必须分开显示：焦点通知权限不是普通通知权限的一部分，
+            // 很多人只点了「允许通知」，结果永远上不了岛。
+            focus.addView(statusRow("通知权限", notifyOk, "未允许 · 去开启") {
+                if (notifyOk) {
+                    Api36.openNotificationSettings(host, host.packageName)
+                } else {
+                    focusPending = true
+                    askNotifyPermission()
+                }
+            })
+            focus.addView(statusRow("焦点通知权限", promotedOk, "未允许 · 去开启") {
+                if (promotedOk) {
+                    Api36.openNotificationSettings(host, host.packageName)
+                } else {
+                    focusPending = true
+                    guidePromoted()
+                }
+            })
+            focus.addView(statusRow("精确提醒", alarmOk, "会晚几分钟 · 去允许") {
+                if (!alarmOk) Api36.openExactAlarmSettings(host, host.packageName)
+            })
+
+            val leadRow = item("提前提醒",
+                    FocusController.leadLabel(FocusController.leadMinutes(host)), null)
+            val leadValue = leadRow.getChildAt(1) as? TextView
+            leadRow.setOnClickListener {
+                val opts = FocusController.LEAD_OPTIONS
+                val labels = Array(opts.size) { i -> FocusController.leadLabel(opts[i]) }
+                var sel = 0
+                for (i in opts.indices) if (opts[i] == FocusController.leadMinutes(host)) sel = i
+                OptionSheet.show(host, "提前多久显示", labels, sel, OptionSheet.OnPick { idx ->
+                    fc.setLead(opts[idx])
+                    leadValue?.text = labels[idx]
+                })
+            }
+            focus.addView(leadRow)
+
+            focus.addView(item("预览效果", "课前 / 课中各看一次",
+                    View.OnClickListener {
+                        OptionSheet.show(host, "预览哪种形态",
+                                arrayOf("还没上课（课程名 + 地点）", "已上课（倒计时）"),
+                                0, OptionSheet.OnPick { idx ->
+                                    val phase = if (idx == 0) FocusPlan.Phase.UPCOMING
+                                                else FocusPlan.Phase.IN_CLASS
+                                    if (fc.preview(phase)) {
+                                        Toast.makeText(host, "已发送示例通知", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(host, "发送失败，请检查通知权限", Toast.LENGTH_SHORT).show()
+                                    }
+                                })
+                    }))
+
+            if (fc.hasHidden()) {
+                focus.addView(item("恢复已划掉的提醒", "点击恢复",
+                        View.OnClickListener {
+                            fc.restoreAll()
+                            Toast.makeText(host, "已恢复", Toast.LENGTH_SHORT).show()
+                        }))
+            }
+        }
 
         // ── 关于 ──
         val about = card()
@@ -508,10 +620,25 @@ class MinePage(private val host: Activity, private val store: Store,
 
     /** 登录页回来时叫一次：走了登录流程才重建，正常切页不白白刷一遍。 */
     fun onReturned() {
+        var rebuild = false
         if (awaitingLogin) {
             awaitingLogin = false
-            build()
+            rebuild = true
         }
+        if (focusPending) {
+            // 从授权弹窗 / 系统设置页回来：两项权限都齐了就自动把开关打开
+            focusPending = false
+            rebuild = true
+            try {
+                val fc = FocusController(host)
+                if (FocusController.liveSupported() && fc.notifyPermissionOk() && fc.canPostPromoted()) {
+                    fc.setEnabled(true)
+                    Toast.makeText(host, "课程焦点通知已开启", Toast.LENGTH_SHORT).show()
+                }
+            } catch (t: Throwable) {
+            }
+        }
+        if (rebuild) build()
     }
 
     // ---------- 同步 ----------
@@ -551,14 +678,28 @@ class MinePage(private val host: Activity, private val store: Store,
             } else {
                 timetable.semester.startDate = old
             }
+            // 同步口径：教务数据覆盖本地改动，但**手工添加的课 / 手动停课调课要留住**
+            // （切换账号是另一条路：LoginActivity 走 Auth，不带合并，整体覆盖）
+            val keptManual = TimetableMerge.keepManual(
+                    timetable, store.loadTimetable(timetable.semester.id))
+            val fromJw = timetable.courses.size - keptManual
             store.saveTimetable(timetable)
             TodayWidget.refreshAll(host)
+            // 课表变了：立刻重算焦点通知（新课程马上生效）
+            try {
+                FocusController(host).reconcile()
+            } catch (t: Throwable) {
+            }
 
             host.runOnUiThread {
                 if (btn != null) btn.isEnabled = true
                 refreshAccount()
-                Toast.makeText(host, "同步完成：" + timetable.courses.size + " 门课",
-                        Toast.LENGTH_SHORT).show()
+                val msg = if (keptManual > 0) {
+                    "同步完成：教务 $fromJw 门，保留 $keptManual 门手工课"
+                } else {
+                    "同步完成：" + timetable.courses.size + " 门课"
+                }
+                Toast.makeText(host, msg, Toast.LENGTH_SHORT).show()
                 callback?.onChanged()
             }
         }).start()
@@ -648,6 +789,55 @@ class MinePage(private val host: Activity, private val store: Store,
         sw.setTextColor(if (on) 0xFFFFFFFF.toInt() else host.getColor(R.color.text_secondary))
     }
 
+    // ---------- 焦点通知权限 ----------
+
+    /**
+     * 权限状态行。满足时右灰字「已允许」，不满足时品牌色提示并可直接点击去开。
+     * 焦点通知权限只能在系统里开，所以这一行本身就是入口。
+     */
+    private fun statusRow(label: String, ok: Boolean, badText: String,
+                          click: View.OnClickListener?): LinearLayout {
+        val row = item(label, if (ok) "已允许" else badText, click)
+        val v = row.getChildAt(1) as? TextView
+        if (!ok) v?.setTextColor(host.getColor(R.color.brand))
+        return row
+    }
+
+    /** 请求普通通知权限（Android 13+）。结果回到 [onReturned] 里续上。 */
+    private fun askNotifyPermission() {
+        if (Build.VERSION.SDK_INT < 33) return
+        try {
+            host.requestPermissions(arrayOf(Api36.PERM_NOTIFICATIONS), REQ_NOTIFY)
+        } catch (t: Throwable) {
+            ConfirmDialog.alert(host, "无法弹出授权窗口",
+                    "请到「系统设置 → 应用 → 掌上唐师 → 通知」里手动允许通知")
+            Api36.openNotificationSettings(host, host.packageName)
+        }
+    }
+
+    /**
+     * 焦点通知（实况通知 / 超级岛）权限的引导。
+     * 它不是运行时权限 —— `protectionLevel` 是 `normal|appop`，运行时申请根本弹不出框，
+     * 只能把用户送到系统的应用通知设置页里手动打开。
+     */
+    private fun guidePromoted() {
+        ConfirmDialog.show(host, "还要单独开「焦点通知」",
+                "普通通知权限和焦点通知（实况通知 / 超级岛）是两个不同的开关，后者只能在系统设置里打开。\n\n" +
+                        "接下来这页里找到「显示实时动态」「实况通知」或「焦点通知」" +
+                        "（有的机型叫「流体云」「灵犀通知」），把它打开。\n\n" +
+                        "开好回到本页，开关会自动生效。",
+                "稍后", "去开启") {
+            if (!Api36.openNotificationSettings(host, host.packageName)) {
+                ConfirmDialog.alert(host, "打不开系统设置",
+                        "请手动进入「设置 → 应用 → 掌上唐师 → 通知」，打开实况通知 / 焦点通知")
+            }
+        }
+    }
+
+    private fun toastAlarmHint() {
+        Toast.makeText(host, "未允许精确闹钟，提醒可能晚几分钟", Toast.LENGTH_LONG).show()
+    }
+
     private fun switchItem(label: String, on: Boolean, cb: SwitchChange): LinearLayout {
         val row = LinearLayout(host)
         row.orientation = LinearLayout.HORIZONTAL
@@ -710,6 +900,9 @@ class MinePage(private val host: Activity, private val store: Store,
         private const val GITEE_HOME = "https://gitee.com/mingfei123/"
         private const val REPO_GITHUB = "https://github.com/Chanmingfei/zstangshi"
         private const val REPO_GITEE = "https://gitee.com/mingfei123/zstangshi"
+
+        /** 通知运行时权限请求码（Android 13+） */
+        private const val REQ_NOTIFY = 9001
 
         private fun indexOf(arr: Array<String>, v: String): Int {
             for (i in arr.indices) {

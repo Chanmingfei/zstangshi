@@ -4,14 +4,18 @@
 最常用的几件事装进手机：课表、成绩、绩点、推荐课表、选课、校历、奖助贷与请假，
 以及校门口的**实时公交**（到站预测、候车站、首站发车时刻表、乘车码）。
 
-**当前版本 v4.0.0（versionCode 58）· 2026-11-15 发布 · 全量 Kotlin 重写**
+**当前版本**：标准版 **v4.0.5**（versionCode 63）· 鸿蒙专版 **v4.1.0-harmony**（versionCode 64）
 零第三方运行时依赖 · 不引 androidx、不引 Gradle · 纯 Android framework，
-`bash native/build.sh` 一条命令直出可安装 APK
+`bash native/build.sh` 一条命令直出可安装 APK · 采用 **GPL-3.0** 协议开源
 
-> 4.0.0 把 54 个源码文件（约 2.29 万行）从 Java 全量改写为 Kotlin，
-> 功能、界面、文案、尺寸、动画与 v3.1.1 保持一致；在此基础上把**实时公交**
-> 按 [追客 Trackr](https://github.com/5151561/Trackr)（MIT）的口径重新打磨了一遍：
-> 主卡三态、到站文案统一、数据同源、乘车码悬浮按钮、单车跟随。
+> **v4.0.5 / 鸿蒙 4.1.0 新增「课程实况窗」**：把正在上 / 即将上的课推到
+> 鸿蒙实况窗、ColorOS 流体云（超级岛）、小米焦点通知、Android 16 实况通知上 ——
+> 收起态显示「课程名 · 地点」，上课后走秒倒计时，地点、节次、课间一目了然。
+> 实现原理与「套用到自己项目」的六步清单见
+> [技术原理 9 · 课程实况窗](#9-课程实况窗鸿蒙实况窗--android-实况通知-)。
+>
+> 4.0.0 起全量 Kotlin 重写（54 个文件、约 2.29 万行），并把**实时公交**按
+> [追客 Trackr](https://github.com/5151561/Trackr)（MIT）的口径重新打磨。
 > 完整修改记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ---
@@ -22,8 +26,8 @@
 
 | 你的设备 | 下载 | 版本标识 |
 | --- | --- | --- |
-| **鸿蒙 / HarmonyOS**<br>华为、荣耀新机型 | **[⬇ 鸿蒙专版](https://github.com/Chanmingfei/zstangshi/releases/tag/harmony-v4.0.0)**<br>`zstangshi-harmony-4.0.0.apk` | 桌面名 **掌上唐师·鸿蒙版**<br>关于页有「版本类型：鸿蒙专版」 |
-| **普通安卓**<br>小米 / OPPO / vivo / 三星 / 一加 等 | **[⬇ 标准版](https://github.com/Chanmingfei/zstangshi/releases/tag/v4.0.0)**<br>`zstangshi-v4.0.0.apk` | 桌面名 **掌上唐师**<br>关于页无「版本类型」行 |
+| **鸿蒙 / HarmonyOS**<br>华为、荣耀新机型 | **[⬇ 鸿蒙专版（实况窗版）](https://github.com/Chanmingfei/zstangshi/releases/tag/harmony-v4.1.0)**<br>`zstangshi-harmony-4.1.0.apk` | 桌面名 **掌上唐师·鸿蒙版**<br>关于页有「版本类型：鸿蒙专版」 |
+| **普通安卓**<br>小米 / OPPO / vivo / 三星 / 一加 等 | **[⬇ 标准版](https://github.com/Chanmingfei/zstangshi/releases/tag/v4.0.5)**<br>`zstangshi-v4.0.5.apk` | 桌面名 **掌上唐师**<br>关于页无「版本类型」行 |
 
 > 始终拿最新版：<https://github.com/Chanmingfei/zstangshi/releases/latest>
 
@@ -36,16 +40,19 @@
 
 ### 两个版本有什么区别
 
-**功能完全一样**，没有删减。区别只在鸿蒙兼容性处理：
+**功能对齐，实现各自独立**。两版不再是「同一份代码打两个包」——
+鸿蒙专版从 4.1.0 起按鸿蒙的能力边界改造，允许与标准版分叉演进（避免互相牵制）。
 
 | | 标准版 | 鸿蒙专版 |
 | --- | --- | --- |
-| 功能 | 全部 | 全部（**一字不差**） |
-| 包名 | `com.tstc.zstangshi` | `com.tstc.zstangshi`（相同） |
-| 版本 | 4.0.0（58） | 4.0.0-harmony（58） |
-| 实时公交 | ✅ | ✅ |
+| 功能 | 全部 | 全部 |
+| 包名 | `com.tstc.zstangshi` | `com.tstc.zstangshi`（**故意相同**，为了保留课表与登录态） |
+| 版本 | 4.0.5（63） | 4.1.0-harmony（64） |
+| 桌面名 | 掌上唐师 | **掌上唐师·鸿蒙版** |
+| 课程实况窗 | ✅ Android 实况通知协议 | ✅ **实况窗协议 + 常驻倒计时双档降级** |
 | 鸿蒙登录兼容 | ❌ 会闪退 | ✅ 已修复 |
-| APK 体积 | 3.48 MiB | 1.62 MiB |
+| 源码 | `native/` | `harmony-android/native/`（独立演进） |
+| APK 体积 | ≈ 3.55 MiB | ≈ 1.66 MiB |
 
 ### 为什么鸿蒙需要单独一版
 
@@ -60,18 +67,23 @@
 
 两处都已修复，详见 [harmony-android/README.md](harmony-android/README.md)。
 
+从 **4.1.0** 起，鸿蒙专版不再与标准版共用同一份实现：
+鸿蒙的兼容层决定了它必须用「能力探测 + 降级」的写法，而标准版可以直接假设 Android 16 的接口存在。
+强行让两版共用同一份代码，只会让两边都写满对方不需要的判断 —— 所以两版**允许分叉**，
+只在业务逻辑（课表、教务、公交）上保持同步。
+
 ---
 
 ## 标准版（安卓）
 
 | 项目 | 值 |
 | --- | --- |
-| 版本 | 4.0.0（versionCode 58） |
-| 文件 | `zstangshi-v4.0.0.apk`，3,652,204 字节（约 3.48 MiB） |
-| 系统要求 | Android 8.0（API 26）及以上，目标 Android 14（API 34） |
-| 权限 | `INTERNET`、`ACCESS_NETWORK_STATE`；另加 `ACCESS_COARSE_LOCATION` / `ACCESS_FINE_LOCATION`，**只在实时公交首页取一次坐标**，不做后台定位、不上传位置 |
+| 版本 | 4.0.5（versionCode 63） |
+| 文件 | `zstangshi-v4.0.5.apk`，3,718,270 字节（约 3.55 MiB） |
+| 系统要求 | Android 8.0（API 26）及以上，目标 Android 14（API 34）<br>课程实况窗需 Android 16（API 36）及以上 |
+| 权限 | `INTERNET`、`ACCESS_NETWORK_STATE`；`ACCESS_COARSE_LOCATION` / `ACCESS_FINE_LOCATION`（**只在实时公交首页取一次坐标**）；`POST_NOTIFICATIONS`、`POST_PROMOTED_NOTIFICATIONS`、`SCHEDULE_EXACT_ALARM`、`RECEIVE_BOOT_COMPLETED`（课程实况窗用） |
 | 签名 | 本地调试密钥 `CN=ZSTS`，与 v3.x 各版本一致（证书 SHA-256 `5999bc84cd45f1e55b6afc711cfa0c53825b1bf40fa3530606d5e990cada11de`），**可直接覆盖安装** |
-| SHA-256 | `d420c75ce349d274bfc491d23c105aed350bad7fc8cb818046aef2e2532bc598` |
+| SHA-256 | `c08038d44b896ee63b55051a1022a68b65e28cb93f94e27f21b57756dcd69665` |
 
 APK 比 v3.1.1（1.10 MiB）大，主要是 Kotlin 标准库与编译产物，没有做 R8 裁剪。
 
@@ -84,8 +96,8 @@ APK 比 v3.1.1（1.10 MiB）大，主要是 Kotlin 标准库与编译产物，�
 校验下载完整性（可选）：
 
 ```bash
-certutil -hashfile zstangshi-v4.0.0.apk SHA256   # Windows
-sha256sum zstangshi-v4.0.0.apk                   # macOS / Linux
+certutil -hashfile zstangshi-v4.0.5.apk SHA256   # Windows
+sha256sum zstangshi-v4.0.5.apk                   # macOS / Linux
 ```
 
 ---
@@ -94,11 +106,21 @@ sha256sum zstangshi-v4.0.0.apk                   # macOS / Linux
 
 | 项目 | 值 |
 | --- | --- |
-| 版本 | 4.0.0-harmony（versionCode 58） |
-| 文件 | `zstangshi-harmony-4.0.0.apk`，1,702,514 字节（约 1.62 MiB） |
+| 版本 | 4.1.0-harmony（versionCode 64） |
+| 文件 | `zstangshi-harmony-4.1.0.apk`，1,744,002 字节（约 1.66 MiB） |
 | 应用名 | **掌上唐师·鸿蒙版** |
 | 系统要求 | HarmonyOS（鸿蒙 4.x 走 Android 兼容层，同样适用） |
-| 源码 | [harmony-android/](harmony-android/) |
+| 源码 | [harmony-android/](harmony-android/)（独立于标准版演进） |
+| SHA-256 | `14bda4d3b8e7bd47d18b88332bbb3cbbc9e2257231764fa91b6888c5cf7db344` |
+
+**这一版专门为「实况窗」做了适配**
+
+| 你的鸿蒙版本 | 实况窗形态 | 说明 |
+| --- | --- | --- |
+| HarmonyOS 5.x（兼容层 API 36+） | **实况窗 · 协议直连** | 与原生 Android 16 同一条通道 |
+| HarmonyOS 4.x / 3.x（API 29~33） | **常驻倒计时 · 等效实况窗** | 系统没有实况协议，用「常驻通知 + 系统计时器」等效呈现 |
+
+判定逻辑写在 `notif/HarmonyLive.kt`，「我的 → 课程实况窗 → 显示形态」会直接告诉你当前是哪一档。
 
 **⚠️ 可能遇到「签名冲突」**
 
@@ -115,7 +137,7 @@ sha256sum zstangshi-v4.0.0.apk                   # macOS / Linux
 | | 标准版 | 鸿蒙专版 |
 | --- | --- | --- |
 | 桌面名字 | 掌上唐师 | **掌上唐师·鸿蒙版** |
-| 版本 | 4.0.0 | **4.0.0-harmony** |
+| 版本 | 4.0.5 | **4.1.0-harmony** |
 | 版本类型 | 无此行 | **鸿蒙专版 · HarmonyOS 适配** |
 
 **还崩怎么办**
@@ -143,7 +165,8 @@ sha256sum zstangshi-v4.0.0.apk                   # macOS / Linux
 | 成绩 | 学期筛选、成绩列表、绩点换算、明细分项（平时/期末） |
 | 校历 | 月视图、法定节假日、调休补课、教学周次、事件提醒 |
 | 实时公交 | 附近站点、线路查询、到站预测、首站发车时刻表、收藏、乘车码入口、线路详情 |
-| 我的 | 账号管理、自动登录、课表设置、作息时间、调课停课、外观（浅色/深色/跟随系统）、桌面小组件、关于 |
+| 我的 | 账号管理、自动登录、课表设置、作息时间、调课停课、外观（浅色/深色/跟随系统）、桌面小组件、**课程实况窗**、关于 |
+| 课程实况窗 | 课前 N 分钟把课程推到实况窗 / 超级岛 / 焦点通知：收起态「课程名 · 地点」，上课后走秒倒计时，课间单独计时，划掉本节不再提醒 |
 | 教务集成 | 正方教务系统登录、课表同步、成绩查询、学分绩点、自主选课、推荐课表 |
 
 ---
@@ -152,7 +175,8 @@ sha256sum zstangshi-v4.0.0.apk                   # macOS / Linux
 
 ### 一句话概括
 
-**两个 App，同一份业务代码：纯 Android framework API + Kotlin，不用 Gradle、不用 androidx、零第三方运行时依赖。**
+**纯 Android framework API + Kotlin，不用 Gradle、不用 androidx、零第三方运行时依赖；
+鸿蒙专版从 4.1.0 起按鸿蒙能力边界独立演进，不再与标准版强行共用同一份实现。**
 鸿蒙专版是同一份代码的兼容性分支，额外加了一层崩溃兜底。
 
 ### 技术选型一览
@@ -528,6 +552,204 @@ URLEncoder / URLDecoder 引用：
 
 这类问题**编译期完全看不出来**（JDK 17 编译合法），只在真机上炸 —— 构建后跑一次能提前拦住。
 
+### 9. 课程实况窗（鸿蒙实况窗 / Android 实况通知）⭐
+
+**这是 v4.0.5 / 鸿蒙版 4.1.0 新增的功能，也是这份仓库里第二块值得整体复用的东西。**
+
+#### 9.1 概念对照：叫法五花八门，协议只有一个
+
+| 厂商 / 系统 | 用户看到的名字 | 开发者拿到的接口 |
+| --- | --- | --- |
+| Android 16 原生 | 实况通知（Live Updates） | `Notification.Builder#setShortCriticalText` + `requestPromotedOngoing` |
+| 鸿蒙 HarmonyOS 5 | 实况窗 | 同名协议的 Android 兼容层实现 |
+| OPPO ColorOS 16 | 流体云 / 超级岛 | 同上，系统侧映射 |
+| 小米 HyperOS 3 | 焦点通知 | 同上 |
+| 华为 HarmonyOS 4.x | 实况窗（**ArkUI 原生能力**） | ❌ APK 调不到 → 走降级形态（见 9.6） |
+
+所以**不要为每家写一套**，只写 Android 的实况通知协议，系统自己决定长什么样。
+
+#### 9.2 三件套：一条通知怎么变成实况窗
+
+```kotlin
+val builder = Notification.Builder(ctx, CHANNEL_ID)
+    .setContentTitle(courseName)          // 实况窗第一行：课程名
+    .setContentText(mainLine)             // 主行：距上课 25 分钟 · 东校区 3-518
+    .setSubText(phaseLabel)               // 副文本：即将上课 / 上课中 / 课间
+    .setSmallIcon(R.drawable.ic_emblem)   // 岛上的图标（单色 alpha 遮罩）
+    .setLargeIcon(colorEmblem)            // 通知栏大图（彩色）
+    .setOngoing(true)                     // 不可划掉
+    .setOnlyAlertOnce(true)               // 反复重发不响铃
+    .setShowWhen(true).setWhen(deadline)  // 终点时刻
+    .setUsesChronometer(true)             // 系统计时器（倒计时）
+    .setChronometerCountDown(true)
+    .setTimeoutAfter(deadline - now)      // 到点自动消失
+
+// ① 请求提升为实况通知（Android 16 QPR1 起的正式开关）
+builder.addExtras(Bundle().apply {
+    putBoolean("android.requestPromotedOngoing", true)
+})
+
+// ② 胶囊右侧的关键短文本（API 36 才有）
+builder.setShortCriticalText("东校区 3-518")   // 反射调用
+
+// ③ 兜底：Android 16 最初版本要求 colorized 才肯提升
+builder.setColorized(true)
+```
+
+**编译 SDK 34 也能用**：本工程构建链锁在 android-34（不升级 Gradle/SDK），
+API 36 的接口全部走反射，失败就静默降级成普通通知 —— 见 `notif/Api36.kt`：
+
+```kotlin
+fun setShortCriticalText(builder: Notification.Builder, text: CharSequence): Boolean {
+    if (Build.VERSION.SDK_INT < 36) return false
+    return try {
+        Notification.Builder::class.java
+            .getMethod("setShortCriticalText", CharSequence::class.java)
+            .invoke(builder, text)
+        true
+    } catch (t: Throwable) { false }   // 低版本 / 精简 ROM 直接跳过
+}
+```
+
+#### 9.3 字段落位表（踩坑最集中的地方）
+
+同一个字段在不同 ROM 上的渲染位置不同，**这份表是实测出来的**：
+
+| 想显示的内容 | 放哪个字段 | 实测表现 |
+| --- | --- | --- |
+| 课程名 | `setContentTitle` | 实况窗第一行（所有 ROM 都认） |
+| **剩余时间 + 地点** | `setContentText`（同时是 `bigText` 首行） | 实况窗主行 |
+| 阶段标签 | `setSubText` | 副文本行 |
+| 节次 / 上下课时间 | `bigText` 第二行 | 详情行 |
+| 胶囊短文本 | `setShortCriticalText` | 收起态右侧 |
+
+> ⚠️ **地点只写一次**。我们踩过：地点同时写进 `contentText` 和 `subText`，
+> 在「文本形态」下展开后出现两遍。现在固定只有主行带地点，`subText` 只放阶段标签。
+
+#### 9.4 三个绕不过去的系统限制
+
+**① `setUsesChronometer` 是全局开关，同时管两处**
+
+它既管「展开态的大号倒计时」，也管「收起态胶囊显示计时器还是文字」。没有 API 能只关一处。
+
+```kotlin
+// 课前：关掉计时器 → 胶囊才能显示「课程名 · 地点」，代价是展开态大数字也没了
+builder.setShowWhen(false); builder.setUsesChronometer(false)
+builder.setShortCriticalText("$courseName · $place")
+
+// 上课中 / 课间：开计时器 → 秒级走秒
+builder.setShowWhen(true); builder.setWhen(deadline); builder.setUsesChronometer(true)
+```
+
+课前的「距上课 25 分钟」是**自己算的文本**，所以需要每分钟刷一次才不会停在旧数字上
+（见 9.5 的 tick 闹钟）。
+
+**② 胶囊只有一个文本槽**：「课程名 + 地点」和「倒计时」只能二选一，
+做不出「左边课程名、右边倒计时」的并排布局。
+
+**③ 通知必须有终点**：`setTimeoutAfter` 用剩余时间，`deadline` 变了要重发，
+否则通知会在错误的时刻自己消失。
+
+#### 9.5 调度：边界闹钟 + 每分钟 tick
+
+课程状态只有三个，切换点都是**确定的时刻**，用 `AlarmManager` 在边界醒来重算即可，
+不需要常驻服务：
+
+```
+课前 N 分钟 ──→ 上课 ──→ 下课（或课间）──→ 下一节上课 ──→ 下课
+   UPCOMING      IN_CLASS      BREAK          IN_CLASS      （通知结束）
+```
+
+```kotlin
+// 边界：课前 N 分钟 / 上课 / 下课 / 每一小节的上课下课
+if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)      // 无精确权限 → 降级
+} else {
+    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi) // 准点
+}
+```
+
+再叠三件事：
+
+- **每分钟 tick**（只在课前阶段跑）：下一个整分钟 +2s 唤醒，重算「距上课 X 分钟」，
+  进入上课自动取消，不长期耗电
+- **划掉屏蔽**：`setDeleteIntent` 收到 `ACTION_DISMISS` → 记住「本节内不再提醒」，
+  用 `lessonEnd` 做过期，到点自动失效
+- **开机 / 改时间 / 应用更新**：`BOOT_COMPLETED`、`TIME_SET`、`MY_PACKAGE_REPLACED`
+  重新对齐闹钟（`notif/FocusReceiver.kt`）
+
+课程数据直接复用 `DayPlan.of()`，**调课、停课、补课、自定义时间都能正确参与**，
+不用为通知单独算一遍课表。
+
+#### 9.6 权限是两套，别混
+
+| 权限 | protectionLevel | 怎么申请 | 没开的后果 |
+| --- | --- | --- | --- |
+| `POST_NOTIFICATIONS` | dangerous | **运行时弹窗**（Android 13+） | 通知根本发不出来 |
+| `POST_PROMOTED_NOTIFICATIONS` | `normal\|appop` | ❌ 运行时申请弹不出框 | 通知能发，但**永远不会被提升**为实况窗 |
+| `SCHEDULE_EXACT_ALARM` | appop | 跳系统授权页 | 闹钟退化为不精确，晚几分钟 |
+
+第二条最容易搞错 —— 它**安装时就已授予**，真正的闸门是 AppOp：
+
+```kotlin
+// 官方 API 优先，AppOps 兜底（有的 ROM 上 canPostPromotedNotifications 恒 false）
+fun canPostPromoted(ctx: Context): Boolean {
+    if (Build.VERSION.SDK_INT < 36) return false
+    val nm = ctx.getSystemService(NotificationManager::class.java)
+    try {
+        nm.javaClass.getMethod("canPostPromotedNotifications")
+            .invoke(nm) as? Boolean
+    } catch (t: Throwable) { null }
+        ?: appOpAllowed(ctx, "android:post_promoted_notifications")
+}
+```
+
+用户只能在系统设置里开，所以 UI 上要**分开显示两行状态**，未允许时点一下直达设置页
+（`android.settings.APP_NOTIFICATION_PROMOTION_SETTINGS` → `ACTION_APP_NOTIFICATION_SETTINGS`
+→ 应用详情页三级降级）。从设置页返回时用 `onResume` 续上流程，别让用户再点一遍开关。
+
+#### 9.7 鸿蒙：两档降级（`notif/HarmonyLive.kt`）
+
+鸿蒙的 Android 兼容层版本跨度很大，**不能只看 `SDK_INT`**：
+
+| 设备 | 兼容层 | 判定 | 呈现 |
+| --- | --- | --- | --- |
+| HarmonyOS 5.x | API 36+ | `MODE_LIVE` | 实况窗协议直连 |
+| HarmonyOS 4.x / 3.x | API 29~33 | `MODE_PERSISTENT` | **常驻通知 + 系统计时器**，等效实况窗 |
+| 通知被系统关闭 | — | `MODE_NONE` | 提示去开通知 |
+
+```kotlin
+fun mode(ctx: Context): Int {
+    val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        ?: return MODE_NONE
+    if (Build.VERSION.SDK_INT >= 24 && !nm.areNotificationsEnabled()) return MODE_NONE
+    return if (Api36.supported()) MODE_LIVE else MODE_PERSISTENT
+}
+```
+
+鸿蒙原生「实况窗」是 ArkTS（LiveViewKit / 服务卡片）能力，**APK 创建不了**；
+`MODE_PERSISTENT` 就是在这种设备上的等效做法：`setOngoing(true)` 不可划掉 +
+`setUsesChronometer(true)` 交给系统走秒 + `setVisibility(VISIBILITY_PUBLIC)` 锁屏可见。
+
+设置页会把当前形态写出来（`显示形态：常驻倒计时 · 等效实况窗`），
+用户不会以为功能没生效。
+
+#### 9.8 套用到自己的项目（30 分钟）
+
+1. **拷 5 个文件**：`native/app/src/main/kotlin/com/tstc/zstangshi/notif/`
+   （`Api36` / `FocusPlan` / `FocusNotification` / `FocusController` / `FocusReceiver`，
+   鸿蒙版再加 `HarmonyLive`）
+2. **改数据入口**：`FocusPlan.build()` 里把 `DayPlan.of(...)` 换成你自己的课表模型，
+   输出 `Reminder{title, place, detail, phase, deadline}`
+3. **Manifest**：4 个权限 + `.notif.FocusReceiver`（`BOOT_COMPLETED` 等 5 个 action）
+4. **图标**：一张**单色带 alpha 的 PNG**（透明底、图形为纯白），
+   生成 24/36/48/72/96px 五个密度做 `smallIcon`，系统会按深浅色自动染色；
+   再留一张彩色版给 `largeIcon`
+5. **设置页**：开关 + 提前分钟数 + 两行权限状态 + 「预览效果」（能立刻验形态，不用等真实课程）
+6. **验证**：先点「预览效果」看形态对不对，再等一节真实课看边界切换
+
+> 调试建议：把 `preview()` 做成可指定阶段（课前 / 课中），比改系统时间快得多。
+
 ---
 
 ## 网络协议速查
@@ -653,8 +875,8 @@ node scripts/check-java-api.js native/build/dex/classes.dex
 
 ```
 .
-├── native/        ★ Android 主线（v4.0.0 起纯 Kotlin，纯 framework，build.sh 出 APK）
-├── harmony-android/ ★ 鸿蒙专版（基于 native/，修复鸿蒙兼容问题，独立 build.sh）
+├── native/        ★ Android 标准版主线（纯 Kotlin、纯 framework，build.sh 出 APK）
+├── harmony-android/ ★ 鸿蒙专版（实况窗适配 + 兼容层加固，**独立演进**，自带 build.sh）
 │
 ├── web/           legacy · v2 的 H5 业务代码（v3 不再使用）
 ├── android/       legacy · v2 的 WebView 壳工程（现也作为本机 APK 输出目录）
@@ -700,6 +922,25 @@ bash android/build-manual.sh                   # v2 的 WebView 壳 APK
 ---
 
 ## 版本脉络
+
+### harmony-v4.1.0 · 鸿蒙专版「实况窗版」（2026-11-18 发布）
+
+| 项 | 内容 |
+| --- | --- |
+| 新增 | **课程实况窗**：`notif/` 整包（`Api36` 反射、`FocusPlan` 计划、`FocusNotification` 构建、`FocusController` 调度、`FocusReceiver` 广播） |
+| 鸿蒙特化 | 新增 `notif/HarmonyLive.kt`：实况窗协议 / 常驻倒计时双档判定，「我的」页直接显示当前形态 |
+| 界面 | 「我的 → 课程实况窗」：开关、显示形态、通知权限、实况窗权限（有协议才显示）、精确提醒、提前提醒、预览效果 |
+| 顺带 | 同步课表不再抹掉手工添加的课程（`data/TimetableMerge.kt`）；切换账号仍整体覆盖 |
+| 定位 | 与标准版**代码分叉**，鸿蒙专版按兼容层能力独立实现，避免与标准版功能冲突 |
+
+### v4.0.5 · 标准版（2026-11-18 发布）
+
+| 项 | 内容 |
+| --- | --- |
+| 新增 | 课程实况窗（Android 16 实况通知 / ColorOS 超级岛 / 小米焦点通知） |
+| 修复 | 「同步课表」会抹掉手工添加的课与手动停课调课；现按「教务为准、手工保留」合并 |
+| 修复 | 实况窗展开态地点重复显示；主行改为「距上课 25 分钟 · 教学楼」 |
+| 版本 | 4.0.5（versionCode 63） |
 
 ### harmony-v4.0.0 · 鸿蒙专版（2026-11-15 发布）
 
@@ -789,7 +1030,7 @@ v4.0.0 之前是 v3.1.1（versionCode 56）。v3 系列从 3.0.8 一路打磨到
   不携带学号、姓名、账号等任何身份信息；可拒绝定位授权，改用手动搜索线路。
 - 演示数据与成绩统计仅用于界面和算法验收，**不作为学业认定依据**；公交到站时间来自数据服务商预测，
   仅供参考，以实际车辆为准。
-- 仓库尚未添加开源许可证（LICENSE），默认保留所有权利；如需开源授权请单独声明。
+- 本仓库以 **GPL-3.0** 协议开源，详见 [LICENSE](LICENSE)。
 
 ---
 
@@ -801,6 +1042,23 @@ v4.0.0 之前是 v3.1.1（versionCode 56）。v3 系列从 3.0.8 一路打磨到
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 架构、数据结构与动效系统（v2 时期撰写，v3/v4 结构见各端 README）
 - [docs/remote-api-map.md](docs/remote-api-map.md) — 教务接口实测记录（端点、字段、周次、协议可达性）
 - [Releases](https://github.com/Chanmingfei/zstangshi/releases) — 各版本安装包与更新说明
+
+---
+
+## 许可证
+
+本项目以 **GNU General Public License v3.0（GPL-3.0）** 开源，全文见 [LICENSE](LICENSE)。
+
+简单说三件事（以 LICENSE 原文为准）：
+
+| 你可以 | 你必须 | 你不能 |
+| --- | --- | --- |
+| 自由使用、修改、分发 | 保留版权声明与许可证 | 把修改后的版本闭源分发 |
+| 用在商业场景 | 你分发的衍生作品同样以 GPL-3.0 开源 | 用作者名义为你的衍生品背书 |
+| 私有地自己改着玩 | 说明修改内容与日期 | 附加额外限制条款 |
+
+> 如果只是想**参考实现思路**（比如「课程实况窗」那套反射 + 降级写法），
+> 拿去写自己的项目没问题，不必把整个 App 也开源 —— 但直接复用本仓库代码时请遵循 GPL-3.0。
 
 ---
 

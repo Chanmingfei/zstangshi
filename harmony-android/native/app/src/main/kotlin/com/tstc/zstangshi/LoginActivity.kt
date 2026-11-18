@@ -432,7 +432,10 @@ class LoginActivity : BaseActivity() {
 
         Thread {
             val o = try {
-                Auth.loginAndMaybeSync(u, p, store, true)
+                // 换账号 = 整体覆盖课表（旧账号的手工课不能带过来）；
+                // 同一账号重新登录 = 普通刷新，手工加的课要留住。
+                val sameAccount = store.user().isNotEmpty() && store.user() == u
+                Auth.loginAndMaybeSync(u, p, store, true, sameAccount)
             } catch (t: Throwable) {
                 // 后台线程里的任何异常都不能穿透：转成一条明确的错误提示
                 Auth.Outcome().apply {

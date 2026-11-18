@@ -2,6 +2,7 @@ package com.tstc.zstangshi.jw
 
 import com.tstc.zstangshi.data.Store
 import com.tstc.zstangshi.data.Timetable
+import com.tstc.zstangshi.data.TimetableMerge
 import com.tstc.zstangshi.data.WeekMath
 
 /**
@@ -43,6 +44,22 @@ class Auth private constructor() {
 
         @JvmStatic
         fun loginAndMaybeSync(user: String, pass: String, store: Store, forceSync: Boolean): Outcome {
+            return loginAndMaybeSync(user, pass, store, forceSync, false)
+        }
+
+        /**
+         * @param preserveManual 拉回教务课表时是否保留本地手工添加的课与手动停课/调课。
+         *   `true` = 同一账号刷新（开机自动同步），手工课不能丢；
+         *   `false` = **切换账号**，口径是整体覆盖，必须传 false。
+         */
+        @JvmStatic
+        fun loginAndMaybeSync(
+            user: String,
+            pass: String,
+            store: Store,
+            forceSync: Boolean,
+            preserveManual: Boolean
+        ): Outcome {
             val o = Outcome()
             val c = JwClient(store)
             val r = c.login(user, pass)
@@ -62,6 +79,10 @@ class Auth private constructor() {
             if (t.ok && tt != null) {
                 val old = store.startDate(t.semesterId)
                 tt.semester.startDate = if (old.isEmpty()) guessStart() else old
+                if (preserveManual) {
+                    // 教务覆盖本地，但手工课与手动调课要留住
+                    TimetableMerge.keepManual(tt, store.loadTimetable(tt.semester.id))
+                }
                 store.saveTimetable(tt)
                 o.synced = true
                 o.courses = tt.courses.size

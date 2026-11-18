@@ -8,6 +8,16 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- 课程实况窗（鸿蒙「实况窗」/ Android 实况通知 / 超级岛）
+         · POST_NOTIFICATIONS：Android 13+ 的普通通知运行时权限（鸿蒙兼容层同样需要）
+         · POST_PROMOTED_NOTIFICATIONS：实况通知 AppOp（只有实现了实况协议的系统才有）
+         · SCHEDULE_EXACT_ALARM：课前 N 分钟 / 上课 / 下课 准点切换
+         · RECEIVE_BOOT_COMPLETED：开机后重新对齐闹钟 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Android 11（API 30）起，包可见性默认是「看不见」：不声明 queries 时，
          startActivity 的隐式 intent 解析不到别的 App，getPackageInfo /
          getLaunchIntentForPackage 也一律抛 NameNotFoundException。
@@ -92,6 +102,19 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_today_info" />
+        </receiver>
+
+        <!-- 课程实况窗：边界闹钟、每分钟刷新、划掉、开机/更新/改时间后重新对齐 -->
+        <receiver
+            android:name=".notif.FocusReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
         </receiver>
 
         <service

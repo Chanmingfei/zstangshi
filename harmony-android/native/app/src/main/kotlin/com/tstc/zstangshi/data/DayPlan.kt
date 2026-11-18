@@ -18,6 +18,10 @@ object DayPlan {
         /** 「3-4节」或空（自定义时间的安排） */
         @JvmField var sections: String = ""
 
+        /** 起始/结束节次（1 起）；自定义时间或解析不到时为 0。焦点通知用它算课间。 */
+        @JvmField var startSection: Int = 0
+        @JvmField var endSection: Int = 0
+
         /** 「补课」「调课」或空 */
         @JvmField var tag: String = ""
 
@@ -89,6 +93,8 @@ object DayPlan {
             if (a < 1 || b >= secStart.size || b >= secEnd.size) return null
             it.startMin = secStart[a]
             it.endMin = secEnd[b]
+            it.startSection = a
+            it.endSection = b
             it.sections = if (a == b) "第$a" + "节" else "$a-$b" + "节"
         }
         if (it.startMin < 0 || it.endMin <= it.startMin) return null

@@ -183,7 +183,8 @@ class SplashActivity : BaseActivity() {
         }, TIMEOUT_MS)
 
         Thread {
-            val o = Auth.loginAndMaybeSync(store.user(), store.pass(), store, false)
+            // 账号没变，纯刷新：教务覆盖本地，但手工加的课要留住
+            val o = Auth.loginAndMaybeSync(store.user(), store.pass(), store, false, true)
             ui.post {
                 if (left) return@post
                 loginDone = true

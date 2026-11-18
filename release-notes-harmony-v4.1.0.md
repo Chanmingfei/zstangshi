@@ -78,4 +78,4 @@
 ---
 
 完整技术原理（协议三件套、字段落位、系统限制、调度、权限模型、套用步骤）见
-[README 技术原理 9](https://github.com/Chanmingfei/zstangshi#9-课程实况窗鸿蒙实况窗--android-实况通知-)。
+[README 技术原理 9](https://github.com/Chanmingfei/zstangshi#9-课程实况窗鸿蒙实况窗--android-实况通知)。

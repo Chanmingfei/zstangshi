@@ -50,5 +50,5 @@
 
 ---
 
-技术原理见 [README 技术原理 9](https://github.com/Chanmingfei/zstangshi#9-课程实况窗鸿蒙实况窗--android-实况通知-)：
+技术原理见 [README 技术原理 9](https://github.com/Chanmingfei/zstangshi#9-课程实况窗鸿蒙实况窗--android-实况通知)：
 协议三件套、字段落位表、三个系统限制、调度模型、权限模型、套用到自己项目的六步清单。

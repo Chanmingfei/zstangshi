@@ -21,6 +21,7 @@ import com.tstc.zstangshi.ui.BackGestures
 import com.tstc.zstangshi.ui.CapsuleDock
 import com.tstc.zstangshi.ui.PageDeck
 import com.tstc.zstangshi.ui.PullRefreshLayout
+import com.tstc.zstangshi.update.AutoCheck
 
 /**
  * 原生版主界面：一条悬浮胶囊 Dock + 四个页面。
@@ -111,6 +112,10 @@ class MainActivity : BaseActivity() {
 
         if (b != null) index = b.getInt(STATE_TAB, 0)
         show(index)
+
+        // 启动时自动检查一次更新：延后 2.6s、后台低优先级线程，没网或连不上都静默；
+        // 有新版本才弹提醒（可「忽略此版本」）。同一个进程只跑一次。
+        AutoCheck.maybeCheck(this)
     }
 
     override fun onSaveInstanceState(out: Bundle) {

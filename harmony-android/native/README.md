@@ -10,8 +10,8 @@
 **`harmony-android/native/` —— 构建入口与版本真源都在这层**
 
 <p>
-  <img src="https://img.shields.io/badge/Version-4.1.0--harmony-CF0A2C?style=flat" alt="Version" />
-  <img src="https://img.shields.io/badge/versionCode-64-CF0A2C?style=flat" alt="versionCode" />
+  <img src="https://img.shields.io/badge/Version-4.1.2--harmony-CF0A2C?style=flat" alt="Version" />
+  <img src="https://img.shields.io/badge/versionCode-67-CF0A2C?style=flat" alt="versionCode" />
   <img src="https://img.shields.io/badge/Kotlin%20files-64-7F52FF?style=flat&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/Runtime%20deps-0-3DA639?style=flat" alt="Runtime dependencies" />
 </p>
@@ -52,8 +52,8 @@ bash native/typecheck.sh     # 只做类型检查
 唯一真源是 [`version.properties`](version.properties)：
 
 ```properties
-versionCode=64
-versionName=4.1.0-harmony
+versionCode=67
+versionName=4.1.2-harmony
 ```
 
 `build.sh` 里 `aapt2 link` 会把它同时写进 manifest 与包信息，不要在别处再改一份。
@@ -74,7 +74,7 @@ node ../scripts/check-java-api.js build/dex/classes.dex
 native/
 ├── build.sh                  aapt2 + kotlinc + d8 + apksigner
 ├── typecheck.sh              只做类型检查
-├── version.properties        4.1.0-harmony (64)
+├── version.properties        4.1.2-harmony (67)
 └── app/src/main/
     ├── AndroidManifest.xml   android:name=".harmony.ZstsApp"
     ├── res/                  字符串 / 颜色 / 图标 / 布局（41 个文件）

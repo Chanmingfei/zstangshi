@@ -28,6 +28,15 @@ import com.tstc.zstangshi.R
  */
 object Sheet {
 
+    /** 当前开着的弹层数量：自动更新提醒靠它判断「现在弹会不会叠在别的弹层上」。 */
+    private val openCount = java.util.concurrent.atomic.AtomicInteger(0)
+
+    /** 有没有弹层正开着。 */
+    @JvmStatic
+    fun anyShowing(): Boolean {
+        return openCount.get() > 0
+    }
+
     class Handle internal constructor(
         private val dialog: Dialog,
         private val card: View,
@@ -183,6 +192,8 @@ object Sheet {
             }
         }
 
+        dlg.setOnDismissListener { openCount.decrementAndGet() }
+        openCount.incrementAndGet()
         dlg.show()
         return handle
     }

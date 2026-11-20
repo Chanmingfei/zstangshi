@@ -11,7 +11,7 @@
 
 <p>
   <a href="native/version.properties">
-    <img src="https://img.shields.io/badge/Version-4.1.0--harmony-CF0A2C?style=flat" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-4.1.2--harmony-CF0A2C?style=flat" alt="Version" />
   </a>
   <a href="native/version.properties">
     <img src="https://img.shields.io/badge/versionCode-64-CF0A2C?style=flat" alt="versionCode" />
@@ -65,8 +65,11 @@
 
 | 你的手机 | 下载 | 说明 |
 | --- | --- | --- |
-| **鸿蒙 / HarmonyOS**<br>华为、荣耀新机型 | **[⬇ 鸿蒙专版](../releases/tag/harmony-v4.1.0)**<br>`zstangshi-harmony-4.1.0.apk` | 就是本目录这版，登录问题已修 |
-| **普通安卓**<br>小米 / OPPO / vivo / 三星等 | **[⬇ 标准版](../releases/tag/v4.0.5)**<br>`zstangshi-v4.0.5.apk` | 走 Android 16 实况通知协议 |
+| **鸿蒙 / HarmonyOS**<br>华为、荣耀新机型 | **[⬇ 鸿蒙专版](../releases/tag/harmony-v4.1.2)**<br>`zstangshi-harmony-4.1.2.apk` | 就是本目录这版，登录问题已修 |
+| **普通安卓**<br>小米 / OPPO / vivo / 三星等 | **[⬇ 标准版](../releases/tag/v4.0.7)**<br>`zstangshi-v4.0.7.apk` | 走 Android 16 实况通知协议 |
+
+两版都内置**启动自动检查更新**：有新版会在进 App 后提示，可「忽略此版本」（只跳过这个版本号，更高的版本照样提醒）。
+换机、重装后不必再手动找包。
 
 ### 不确定自己是不是鸿蒙？
 
@@ -88,7 +91,7 @@
 | | 标准版 | 鸿蒙专版 |
 | --- | --- | --- |
 | 桌面图标下的名字 | 掌上唐师 | **掌上唐师·鸿蒙版** |
-| 关于 → 版本 | 4.0.5 | **4.1.0-harmony** |
+| 关于 → 版本 | 4.0.7 | **4.1.2-harmony** |
 | 关于 → 版本类型 | 无此行 | **鸿蒙专版 · HarmonyOS 适配** |
 
 看到「鸿蒙专版」就说明下对了。
@@ -277,7 +280,7 @@ bash native/build.sh
 ```properties
 # harmony-android/native/version.properties
 versionCode=64
-versionName=4.1.0-harmony
+versionName=4.1.2-harmony
 ```
 
 > **⚠️ 路径不能有中文** —— `aapt2` 会报 `failed to open directory`。放到纯 ASCII 路径下再编：
@@ -313,7 +316,7 @@ harmony-android/
 ├── native/
 │   ├── build.sh                    aapt2 + kotlinc + d8 + apksigner
 │   ├── typecheck.sh
-│   ├── version.properties          4.1.0-harmony (64)
+│   ├── version.properties          4.1.2-harmony (67)
 │   └── app/src/main/
 │       ├── AndroidManifest.xml     已声明 android:name=".harmony.ZstsApp"
 │       ├── res/                    字符串/颜色/图标/布局
@@ -334,7 +337,7 @@ harmony-android/
 └── README.md
 ```
 
-★ = 鸿蒙专版的改动。规模：64 个 Kotlin 文件 · 24,725 行 · 41 个资源文件 · APK 1,744,002 字节（约 1.66 MiB）。
+★ = 鸿蒙专版的改动。规模：68 个 Kotlin 文件 · 26,123 行 · 41 个资源文件 · APK 1,768,581 字节（约 1.69 MiB）。
 
 ---
 
@@ -349,7 +352,7 @@ harmony-android/
 | | 标准版 | 鸿蒙专版 |
 | --- | --- | --- |
 | 源码 | [`../native/`](../native/) | 本目录 |
-| 版本 | 4.0.5（63） | 4.1.0-harmony（64） |
+| 版本 | 4.0.7（66） | 4.1.2-harmony（67） |
 | 实况窗 | Android 实况通知协议 | 实时协议 + 常驻倒计时**双档降级** |
 | 鸿蒙登录兼容 | 会闪退 | 已修复 |
 | 体积 | 3.55 MiB | 1.66 MiB |
@@ -385,7 +388,7 @@ A：发 Issue，附上 `Android/data/com.tstc.zstangshi/files/crash/` 里的日�
 | [README.en.md](../README.en.md) | English version |
 | [native/](../native/) | 标准版源码与自绘控件说明 |
 | [CHANGELOG.md](../CHANGELOG.md) | 逐版本改动 |
-| [release-notes-harmony-v4.1.0.md](../release-notes-harmony-v4.1.0.md) | 本版发布说明 |
+| [release-notes-harmony-v4.1.2.md](../release-notes-harmony-v4.1.2.md) | 本版发布说明 |
 
 ---
 

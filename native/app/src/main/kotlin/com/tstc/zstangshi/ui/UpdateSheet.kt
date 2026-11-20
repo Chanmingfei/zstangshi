@@ -29,7 +29,9 @@ import com.tstc.zstangshi.update.Updater
  */
 class UpdateSheet private constructor(
     private val host: Activity,
-    private val onLabel: ((String, Boolean) -> Unit)?
+    private val onLabel: ((String, Boolean) -> Unit)?,
+    /** 自动检查已经拿到了版本：直接展示，不再查一次（省一次网络往返）。 */
+    private val preset: Updater.Release? = null
 ) {
 
     companion object {
@@ -37,6 +39,35 @@ class UpdateSheet private constructor(
         fun show(host: Activity?, onLabel: ((String, Boolean) -> Unit)?) {
             if (host == null || host.isFinishing) return
             UpdateSheet(host, onLabel).open()
+        }
+
+        /** 从「发现新版本」的提醒里进来：直接停在更新说明页。 */
+        @JvmStatic
+        fun showFor(host: Activity?, onLabel: ((String, Boolean) -> Unit)?, release: Updater.Release?) {
+            if (host == null || host.isFinishing || release == null) return
+            UpdateSheet(host, onLabel, release).open()
+        }
+
+        /**
+         * Release 正文是 Markdown（带标题、表格、图片、链接）。这里只留给人看的文字：
+         * 去掉 HTML、图片、链接地址和各种前缀符号，连续空行压成一行。
+         * 不追求完整渲染 —— 更新说明本来就是扫一眼的东西。
+         */
+        @JvmStatic
+        fun plainNotes(src: String): String {
+            if (src.isBlank()) return "这个版本没有写更新说明。"
+            var t = src.replace("\r\n", "\n").replace("\r", "\n")
+            t = t.replace(Regex("<!--[\\s\\S]*?-->"), "")
+            t = t.replace(Regex("<[^>]+>"), "")
+            t = t.replace(Regex("!\\[[^\\]]*]\\([^)]*\\)"), "")
+            t = t.replace(Regex("\\[([^\\]]*)]\\([^)]*\\)"), "$1")
+            t = t.replace(Regex("^\\s{0,3}#{1,6}\\s*", RegexOption.MULTILINE), "")
+            t = t.replace(Regex("^\\s*>\\s?", RegexOption.MULTILINE), "")
+            t = t.replace(Regex("^\\s*[-*+]\\s+", RegexOption.MULTILINE), "· ")
+            t = t.replace(Regex("\\*\\*|__"), "")
+            t = t.replace(Regex("`+"), "")
+            t = t.replace(Regex("\n{3,}"), "\n\n")
+            return t.trim()
         }
     }
 
@@ -102,7 +133,15 @@ class UpdateSheet private constructor(
         handle = Sheet.show(host, box, d(396))
         setPrimary("立即更新", false) { }
         setSecondary("稍后") { handle.dismiss() }
-        startCheck()
+        val p = preset
+        if (p != null) {
+            // 自动检查已经把结果拿到了，直接渲染；resumeOrOffer 还会认领之前下好的包
+            release = p
+            onLabel?.invoke("v" + p.version + " 可更新", true)
+            resumeOrOffer(p)
+        } else {
+            startCheck()
+        }
     }
 
     // ──────────────────────────── 检查 ────────────────────────────
@@ -520,26 +559,5 @@ class UpdateSheet private constructor(
         } catch (e: Exception) {
             ""
         }
-    }
-
-    /**
-     * Release 正文是 Markdown（带标题、表格、图片、链接）。这里只留给人看的文字：
-     * 去掉 HTML、图片、链接地址和各种前缀符号，连续空行压成一行。
-     * 不追求完整渲染 —— 更新说明本来就是扫一眼的东西。
-     */
-    private fun plainNotes(src: String): String {
-        if (src.isBlank()) return "这个版本没有写更新说明。"
-        var t = src.replace("\r\n", "\n").replace("\r", "\n")
-        t = t.replace(Regex("<!--[\\s\\S]*?-->"), "")
-        t = t.replace(Regex("<[^>]+>"), "")
-        t = t.replace(Regex("!\\[[^\\]]*]\\([^)]*\\)"), "")
-        t = t.replace(Regex("\\[([^\\]]*)]\\([^)]*\\)"), "$1")
-        t = t.replace(Regex("^\\s{0,3}#{1,6}\\s*", RegexOption.MULTILINE), "")
-        t = t.replace(Regex("^\\s*>\\s?", RegexOption.MULTILINE), "")
-        t = t.replace(Regex("^\\s*[-*+]\\s+", RegexOption.MULTILINE), "· ")
-        t = t.replace(Regex("\\*\\*|__"), "")
-        t = t.replace(Regex("`+"), "")
-        t = t.replace(Regex("\n{3,}"), "\n\n")
-        return t.trim()
     }
 }

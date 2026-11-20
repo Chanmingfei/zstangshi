@@ -11,7 +11,7 @@
 
 <p>
   <a href="version.properties">
-    <img src="https://img.shields.io/badge/Version-4.0.5-006874?style=flat" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-4.0.7-006874?style=flat" alt="Version" />
   </a>
   <a href="version.properties">
     <img src="https://img.shields.io/badge/versionCode-63-006874?style=flat" alt="versionCode" />
@@ -39,7 +39,7 @@
 ---
 
 > 这里是**标准版（普通安卓）**的完整源码 —— 也是仓库的主线。
-> 60 个 Kotlin 文件、24,190 行，不引 androidx、不引 Gradle、运行时零第三方依赖。
+> 64 个 Kotlin 文件、25,588 行，不引 androidx、不引 Gradle、运行时零第三方依赖。
 >
 > 鸿蒙机型请走 [`../harmony-android/`](../harmony-android/)（代码已分叉，见文末对比）。
 
@@ -97,7 +97,7 @@ adb install -r android/build/app-debug.apk
 
 ```properties
 versionCode=63
-versionName=4.0.5
+versionName=4.0.7
 ```
 
 改了跑一遍 `build.sh`，`aapt2 link` 会把两个值同时写进 manifest 与包信息。
@@ -116,14 +116,14 @@ BT=C:/Android/sdk/build-tools/34.0.0
 
 | 项 | 值 |
 | --- | --- |
-| 版本 | **4.0.5**（versionCode 63） |
+| 版本 | **4.0.7**（versionCode 66） |
 | 包名 | `com.tstc.zstangshi` |
 | 桌面名 | 掌上唐师 |
 | minSdk | 26（Android 8.0） |
 | targetSdk | 34（Android 14，编译 SDK 同为 34） |
-| 权限 | `INTERNET`、`ACCESS_NETWORK_STATE`、一对定位权限 —— 定位只用于实时公交取一次附近站点，拒绝也能手动搜线路 |
-| 规模 | 60 个 Kotlin 文件 · 24,190 行 · 41 个资源文件 · 0 行 Java |
-| 体积 | 3,718,270 字节（约 3.55 MiB），含 kotlin-stdlib，未做 R8 裁剪 |
+| 权限 | `INTERNET`、`ACCESS_NETWORK_STATE`、一对定位权限、`REQUEST_INSTALL_PACKAGES` —— 定位只用于实时公交取一次附近站点（拒绝也能手动搜线路）；安装包权限只用于装更新 |
+| 规模 | 64 个 Kotlin 文件 · 25,588 行 · 41 个资源文件 · 0 行 Java |
+| 体积 | 3,771,518 字节（约 3.60 MiB），含 kotlin-stdlib，未做 R8 裁剪 |
 
 > API 36 的实况通知接口（`requestPromotedOngoing` 等）编译期不存在，
 > 全部走 `notif/Api36.kt` 反射调用 —— 这是编译 SDK 锁在 34 的代价，也是能在 Android 12~16 上跑同一份包的原因。
@@ -154,6 +154,7 @@ native/
     │   ├── notif/               课程实况窗：计划 / 通知 / 调度 / 广播 / 反射
     │   ├── pages/               四个主页面 + 课程编辑器
     │   ├── ui/                  自绘控件：PageDeck / PageSlide / CapsuleDock / Sheet …
+    │   ├── update/              检查更新、多源测速下载、启动自动检查
     │   └── widget/              桌面小组件（今日课程 4×2）
     └── res/                     主题、颜色（含 values-night）、图标、校园插画
 ```
@@ -162,13 +163,14 @@ native/
 
 ```text
 jw/        3 文件  1,745 行   正方教务接口
-bus/       7 文件  4,517 行   实时公交（两套协议）
+bus/       7 文件  4,543 行   实时公交（两套协议）
 data/     15 文件  2,928 行   课表 / 校历 / 作息 / 周次 / 存储
 notif/     5 文件    953 行   课程实况窗
-pages/     6 文件  3,446 行   主页面与编辑器
-ui/       13 文件  2,754 行   自绘控件
+pages/     6 文件  3,474 行   主页面与编辑器
+ui/       15 文件  3,485 行   自绘控件
+update/    2 文件    607 行   检查更新 / 自动检查
 widget/    3 文件    337 行   桌面小组件
-根目录      8 文件  7,510 行   Activity 壳与生命周期
+根目录      8 文件  7,516 行   Activity 壳与生命周期
 ```
 
 ---

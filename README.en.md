@@ -39,12 +39,13 @@
 ---
 
 > An academic-systems client, a student-affairs entrance and a real-time bus tracker,
-> packed into a **3.5 MB** APK. Hand-written against the Android framework only —
+> packed into a **3.6 MB** APK. Hand-written against the Android framework only —
 > no AndroidX, no Gradle, zero third-party runtime dependencies.
 > One command builds an installable package: `bash native/build.sh`.
 >
-> **Current**: Standard **v4.0.5** (63) · HarmonyOS **v4.1.0-harmony** (64).
-> New in this release: **course Live Updates** on HarmonyOS Live View, ColorOS Fluid Cloud,
+> **Current**: Standard **v4.0.7** (66) · HarmonyOS **v4.1.2-harmony** (67).
+> New in this release: **automatic update check on launch** (with “skip this version”)
+> and **course Live Updates** on HarmonyOS Live View, ColorOS Fluid Cloud,
 > Xiaomi Focus Notifications and Android 16 Live Updates.
 
 ---
@@ -67,8 +68,8 @@ Pick the package that matches your OS.
 
 | Your device | Download | How to verify |
 | --- | --- | --- |
-| **HarmonyOS** (Huawei / HONOR, recent models) | **[⬇ HarmonyOS build](https://github.com/Chanmingfei/zstangshi/releases/tag/harmony-v4.1.0)**<br>`zstangshi-harmony-4.1.0.apk` | Launcher name **掌上唐师·鸿蒙版**<br>About page shows a "版本类型" row |
-| **Any Android phone** (Xiaomi / OPPO / vivo / Samsung / OnePlus) | **[⬇ Standard build](https://github.com/Chanmingfei/zstangshi/releases/tag/v4.0.5)**<br>`zstangshi-v4.0.5.apk` | Launcher name **掌上唐师**<br>No "版本类型" row |
+| **HarmonyOS** (Huawei / HONOR, recent models) | **[⬇ HarmonyOS build](https://github.com/Chanmingfei/zstangshi/releases/tag/harmony-v4.1.2)**<br>`zstangshi-harmony-4.1.2.apk` | Launcher name **掌上唐师·鸿蒙版**<br>About page shows a "版本类型" row |
+| **Any Android phone** (Xiaomi / OPPO / vivo / Samsung / OnePlus) | **[⬇ Standard build](https://github.com/Chanmingfei/zstangshi/releases/tag/v4.0.7)**<br>`zstangshi-v4.0.7.apk` | Launcher name **掌上唐师**<br>No "版本类型" row |
 
 Check **Settings → About phone**: a "HarmonyOS version" entry means the HarmonyOS build,
 an "Android version" (or MIUI / ColorOS / OriginOS / One UI) means the standard build.
@@ -81,13 +82,13 @@ because the HarmonyOS compatibility layer has a different capability surface.
 | | Standard | HarmonyOS |
 | --- | --- | --- |
 | Features | all | all |
-| Version | 4.0.5 (63) | 4.1.0-harmony (64) |
+| Version | 4.0.7 (66) | 4.1.2-harmony (67) |
 | Launcher name | 掌上唐师 | **掌上唐师·鸿蒙版** |
 | Package | `com.tstc.zstangshi` | `com.tstc.zstangshi` (identical on purpose, keeps login & timetable) |
 | Live Updates | Android 16 protocol | **protocol + persistent-countdown fallback** |
 | HarmonyOS login crash | present | fixed |
 | Source | [`native/`](native/) | [`harmony-android/`](harmony-android/) |
-| Size | 3.55 MiB | 1.66 MiB |
+| Size | 3.60 MiB | 1.69 MiB |
 
 > **⚠️ The two builds share a package name but not a signature**, so they cannot overwrite each other.
 > Uninstall the old one first — that also clears the local timetable and login state.
@@ -151,6 +152,16 @@ Chinese README section **「课程实况窗的实现」** — the code is langua
 - Zhengfang (正方) login with RSA-encrypted password; timetable sync, grades, GPA, course selection, recommended schedule.
 - Optional auto-login and password saving; switching accounts replaces everything, syncing keeps manual edits.
 - Student-affairs pages open in an in-app WebView; nothing is parsed or stored.
+
+### Updates
+- **Checked once per launch, in the background** — 2.6 s after the first screen, on a low-priority thread,
+  so it never competes with rendering or auto-login. No network, no check; a failed check stays silent.
+- **Prompt only when there is a newer build** — date, size and a few lines of notes, with
+  “Update now / Later / **Skip this version**”. Skipping records the version number, not a global switch:
+  checks keep running and the next higher version is announced again.
+- **Works from mainland China** — release metadata is fetched from Gitee, GitHub and gh-proxy in parallel,
+  and the download URL is picked by a quick latency probe. The manual entry
+  (Profile → About → Check for updates) is always available and reports the failure reason.
 
 ---
 
@@ -268,8 +279,9 @@ City ids are listed at `https://web.chelaile.net.cn/wwd/ncitylist`.
 
 - The password is RSA-encrypted before it reaches the academic system. Saving it locally is optional
   (`SharedPreferences`), and it is never sent to a third-party server. All academic traffic goes to the school domain only.
-- **Live bus is the only feature that talks to the outside world**: it sends coordinates to the bus data provider
-  to look up nearby stops — no name, no student ID. Location can be denied; manual search still works.
+- **Live bus and update checks are the only outbound requests**: the bus sends coordinates to the bus data
+  provider to look up nearby stops — no name, no student ID (location can be denied; manual search still works);
+  the update check only reads release metadata and package URLs, and uploads nothing.
 - APKs are signed with a local debug key and are not distributed through any app store. Download only from this repo's Releases.
 - Arrival times are provider predictions — treat them as estimates.
 

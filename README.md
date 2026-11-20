@@ -42,8 +42,9 @@
 > 纯 Android framework 手写，不引 androidx、不引 Gradle、运行时零第三方依赖，
 > 一条 `bash native/build.sh` 直接出可安装包。
 >
-> **当前版本**：标准版 **v4.0.5**（63）· 鸿蒙专版 **v4.1.0-harmony**（64）·
-> 新增**课程实况窗** —— 上课信息推到鸿蒙实况窗、ColorOS 流体云、小米焦点通知与 Android 16 实况通知。
+> **当前版本**：标准版 **v4.0.7**（66）· 鸿蒙专版 **v4.1.2-harmony**（67）·
+> 新增**启动自动检查更新**（可「忽略此版本」）与**课程实况窗** ——
+> 上课信息推到鸿蒙实况窗、ColorOS 流体云、小米焦点通知与 Android 16 实况通知。
 
 ---
 
@@ -65,8 +66,8 @@
 
 | 你的设备 | 下载 | 认准这些标识 |
 | --- | --- | --- |
-| **鸿蒙 / HarmonyOS**<br>华为、荣耀新机型 | **[⬇ 鸿蒙专版（实况窗版）](https://github.com/Chanmingfei/zstangshi/releases/tag/harmony-v4.1.0)**<br>`zstangshi-harmony-4.1.0.apk` | 桌面名 **掌上唐师·鸿蒙版**<br>关于页有「版本类型：鸿蒙专版」 |
-| **普通安卓**<br>小米 / OPPO / vivo / 三星 / 一加 | **[⬇ 标准版](https://github.com/Chanmingfei/zstangshi/releases/tag/v4.0.5)**<br>`zstangshi-v4.0.5.apk` | 桌面名 **掌上唐师**<br>关于页无「版本类型」行 |
+| **鸿蒙 / HarmonyOS**<br>华为、荣耀新机型 | **[⬇ 鸿蒙专版（实况窗版）](https://github.com/Chanmingfei/zstangshi/releases/tag/harmony-v4.1.2)**<br>`zstangshi-harmony-4.1.2.apk` | 桌面名 **掌上唐师·鸿蒙版**<br>关于页有「版本类型：鸿蒙专版」 |
+| **普通安卓**<br>小米 / OPPO / vivo / 三星 / 一加 | **[⬇ 标准版](https://github.com/Chanmingfei/zstangshi/releases/tag/v4.0.7)**<br>`zstangshi-v4.0.7.apk` | 桌面名 **掌上唐师**<br>关于页无「版本类型」行 |
 
 最新版永远在 <https://github.com/Chanmingfei/zstangshi/releases/latest>。
 
@@ -84,13 +85,13 @@
 | | 标准版 | 鸿蒙专版 |
 | --- | --- | --- |
 | 功能 | 全部 | 全部 |
-| 版本 | 4.0.5（63） | 4.1.0-harmony（64） |
+| 版本 | 4.0.7（66） | 4.1.2-harmony（67） |
 | 桌面名 | 掌上唐师 | **掌上唐师·鸿蒙版** |
 | 包名 | `com.tstc.zstangshi` | `com.tstc.zstangshi`（故意相同，保留课表与登录态） |
 | 课程实况窗 | Android 实况通知协议 | **实况窗协议 + 常驻倒计时双档降级** |
 | 鸿蒙登录兼容 | 会闪退 | 已修复 |
 | 源码 | [`native/`](native/) | [`harmony-android/`](harmony-android/) |
-| 体积 | 3.55 MiB | 1.66 MiB |
+| 体积 | 3.60 MiB | 1.69 MiB |
 
 ### 安装
 
@@ -108,14 +109,14 @@
 校验下载完整性（可选）：
 
 ```bash
-certutil -hashfile zstangshi-v4.0.5.apk SHA256   # Windows
-sha256sum zstangshi-v4.0.5.apk                   # macOS / Linux
+certutil -hashfile zstangshi-v4.0.7.apk SHA256   # Windows
+sha256sum zstangshi-v4.0.7.apk                   # macOS / Linux
 ```
 
 | 包 | 大小 | SHA-256 |
 | --- | --- | --- |
-| `zstangshi-v4.0.5.apk` | 3,718,270 B | `c08038d4…96dcd69665` |
-| `zstangshi-harmony-4.1.0.apk` | 1,744,002 B | `14bda4d3…c5cf7db344` |
+| `zstangshi-v4.0.7.apk` | 3,771,518 B | `ad155743…46e59ddc6` |
+| `zstangshi-harmony-4.1.2.apk` | 1,768,581 B | `17fd08c6…3093bbcef` |
 
 ---
 
@@ -183,6 +184,17 @@ sha256sum zstangshi-v4.0.5.apk                   # macOS / Linux
 - 自动登录、记住密码可选；切账号整体覆盖，同步课表保留手工改动。
 - 学工系统走应用内 WebView 打开原页面，不解析、不留存。
 
+### 更新
+
+- **启动自动检查**：每次打开 App、且有网络时，在后台查一次 —— 延后 2.6 秒、低优先级线程，
+  不挡首屏渲染、不抢自动登录的资源；同一个进程只查一次，切页、换深色、回前台都不会重复查。
+- **有新版本才提示**：弹层给出日期、体积和几行更新说明，三个出口「立即更新 / 稍后 / **忽略此版本**」。
+  忽略的是**这个版本号**：自动检查照常进行，等更高的版本发布再提醒。
+- **连不上就安静**：自动检查失败不弹任何东西，想确认版本可以走「我的 → 关于 → 检查更新」，
+  那里一直可用，并且会说明失败原因。
+- **国内可用**：检查走 Gitee / GitHub / gh-proxy 三源并发，下载前对三条地址测速挑最快的一条，
+  不需要代理；三源都不通时还能一键打开发布页手动下载。
+
 ---
 
 ## 🏗️ 工程结构
@@ -198,6 +210,7 @@ sha256sum zstangshi-v4.0.5.apk                   # macOS / Linux
 │   │   ├── notif/                  课程实况窗：计划 / 通知 / 调度 / 广播 / 反射
 │   │   ├── pages/                  四个主页面与各类编辑器
 │   │   ├── ui/                     自绘控件（胶囊 Dock / 课表网格 / 页面带 / 弹层）
+│   │   ├── update/                 检查更新 / 多源测速下载 / 启动自动检查
 │   │   └── widget/                 桌面小组件
 │   ├── build.sh                    出 APK（aapt2 + kotlinc + d8 + apksigner）
 │   └── typecheck.sh                只做类型检查
@@ -270,7 +283,7 @@ bash native/build.sh
 node scripts/check-java-api.js native/build/dex/classes.dex   # 扫 Java 9+ API 引用
 ```
 
-版本号只在 `native/version.properties` 一处维护（`versionCode=63` / `versionName=4.0.5`）。
+版本号只在 `native/version.properties` 一处维护（`versionCode=66` / `versionName=4.0.7`）。
 
 > **⚠️ 工程路径不能含中文** —— `aapt2` 会报 `failed to open directory`。两个版本都要放在纯 ASCII 路径下编译。
 
@@ -545,8 +558,9 @@ const val DEFAULT_CITY_ID: String = "056"   // 唐山；换成你所在城市的
 
 - 登录密码 RSA 加密后提交给教务，本地可选保存（SharedPreferences），**不上传任何第三方服务器**；
   所有教务请求只到学校域名。
-- **实时公交是唯一对外发请求的功能**：只把坐标发给公交数据服务商用于查附近站点，
-  不携带学号、姓名等身份信息；可拒绝定位，改用手动搜索线路。
+- **实时公交与更新检查是仅有的两处对外请求**：公交只把坐标发给数据服务商用于查附近站点，
+  不携带学号、姓名等身份信息（可拒绝定位，改用手动搜索线路）；更新检查只读取 Releases 的
+  版本号与安装包地址，不上传任何本机信息，也不携带设备标识。
 - 公开仓库中的 `docs/` 含演示用样本数据，如需大范围对外分发请先脱敏。
 - Release 中的 APK 使用本地调试密钥签名（与 v3.x 一致，可直接覆盖升级），**未上架应用商店**；
   请只从本仓库 Releases 下载。
@@ -594,6 +608,7 @@ const val DEFAULT_CITY_ID: String = "056"   // 唐山；换成你所在城市的
 - [native/README.md](native/README.md) — 标准版：构建、目录、自绘控件与踩坑
 - [harmony-android/README.md](harmony-android/README.md) — 鸿蒙专版：兼容性问题分析、加固清单、构建与自检
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 架构、数据结构与动效系统
+- [docs/RELEASE.md](docs/RELEASE.md) — 发版流程：GitHub 发布后自动同步 Gitee（含 `GITEE_TOKEN` 配置）
 - [docs/remote-api-map.md](docs/remote-api-map.md) — 教务接口实测记录
 - [Releases](https://github.com/Chanmingfei/zstangshi/releases) — 安装包与更新说明
 - [English README](README.en.md) — English version

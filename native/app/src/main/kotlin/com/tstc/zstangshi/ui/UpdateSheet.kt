@@ -127,11 +127,39 @@ class UpdateSheet private constructor(
         if (r.hasUpdate && rel != null) {
             release = rel
             onLabel?.invoke("v" + rel.version + " 可更新", true)
-            // 之前关掉弹层时可能已经下好了同一个版本，直接让用户装
-            renderUpdate(rel, hasDownloaded(rel))
+            resumeOrOffer(rel)
         } else {
             onLabel?.invoke("已是最新", false)
             renderLatest()
+        }
+    }
+
+    /**
+     * 上次可能已经把这个版本下好了（弹层关掉、甚至进程重启）。
+     * 下载 id 记在 preference 里，这里先认领回来：下好了直接给「安装」，
+     * 下载中就直接续上进度，别让用户白下一遍。
+     */
+    private fun resumeOrOffer(r: Updater.Release) {
+        val id = prefs().getLong("id", -1L)
+        val ver = prefs().getString("ver", "")
+        if (id <= 0 || ver != r.version) {
+            renderUpdate(r, false)
+            return
+        }
+        val p = Updater.query(host, id)
+        when {
+            p == null -> renderUpdate(r, false)
+            p.state == DownloadManager.STATUS_SUCCESSFUL -> {
+                downloadId = id
+                renderUpdate(r, true)
+            }
+            p.state == DownloadManager.STATUS_RUNNING || p.state == DownloadManager.STATUS_PENDING -> {
+                downloadId = id
+                renderDownloading(r)
+                paintProgress(p)
+                poll()
+            }
+            else -> renderUpdate(r, false)
         }
     }
 
@@ -290,6 +318,7 @@ class UpdateSheet private constructor(
             return
         }
         downloadId = id
+        prefs().edit().putLong("id", id).putString("ver", r.version).apply()
         renderDownloading(r)
         poll()
     }
@@ -358,6 +387,7 @@ class UpdateSheet private constructor(
         setSecondary("取消下载") {
             if (downloadId > 0) Updater.cancel(host, downloadId)
             downloadId = -1
+            prefs().edit().remove("id").remove("ver").apply()
             handle.dismiss()
         }
     }
@@ -389,6 +419,7 @@ class UpdateSheet private constructor(
                     }
                     DownloadManager.STATUS_FAILED -> {
                         polling = false
+                        prefs().edit().remove("id").remove("ver").apply()
                         renderError("下载失败，请检查网络后重试")
                     }
                     else -> main.postDelayed(this, 600)
@@ -475,15 +506,7 @@ class UpdateSheet private constructor(
         return v
     }
 
-    private fun hasDownloaded(r: Updater.Release): Boolean {
-        return try {
-            val base = host.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: return false
-            java.io.File(java.io.File(base, "updates"),
-                "zstangshi-" + r.version + ".apk").isFile
-        } catch (e: Exception) {
-            false
-        }
-    }
+    private fun prefs() = host.getSharedPreferences("zsts_update", android.content.Context.MODE_PRIVATE)
 
     /** dp → px。 */
     private fun d(v: Int): Int {

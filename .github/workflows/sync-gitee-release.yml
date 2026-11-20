@@ -1,0 +1,39 @@
+name: 同步 Release 到 Gitee
+
+# Gitee 的仓库镜像只同步代码（分支 / tag），不会同步 Release 和附件，
+# 所以每次在 GitHub 发布后，这里调 Gitee OpenAPI 把发行版补上，
+# 让国内用户「检查更新」能走 gitee.com 直连。
+
+on:
+  release:
+    types: [published, edited]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要同步的 tag（留空＝同步最新 Release）
+        required: false
+        default: ""
+
+concurrency:
+  group: gitee-release-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 同步到 Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          if [ -z "$GITEE_TOKEN" ]; then
+            echo "::error::缺少 GITEE_TOKEN。请在 Settings → Secrets and variables → Actions 里添加，值取 Gitee → 设置 → 私人令牌（勾 projects）。"
+            exit 1
+          fi
+          python3 tools/sync_gitee_release.py "$TAG"

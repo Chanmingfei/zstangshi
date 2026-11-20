@@ -48,17 +48,25 @@ gh release create v4.0.6 android/build/app-debug.apk \
 手动补同步（Actions 没跑、或想补历史版本）：
 
 ```bash
-GITEE_TOKEN=xxxx python3 tools/sync_gitee_release.py          # 最新
-GITEE_TOKEN=xxxx python3 tools/sync_gitee_release.py v4.0.6   # 指定 tag
-python3 tools/sync_gitee_release.py v4.0.6 --dry-run          # 只看差异，不写
+GITEE_TOKEN=xxxx python3 tools/sync_gitee_release.py                   # 全部 Release 对一遍
+GITEE_TOKEN=xxxx python3 tools/sync_gitee_release.py v4.0.7            # 指定 tag
+GITEE_TOKEN=xxxx python3 tools/sync_gitee_release.py v4.0.7 harmony-v4.1.2   # 多个 tag
+python3 tools/sync_gitee_release.py v4.0.7 --dry-run                    # 只看差异，不写
 ```
+
+也可以在 Actions 页面手动跑「同步 Release 到 Gitee」，`tag` 输入框留空＝全部对一遍，多个 tag 用空格分开。
+
+> 只用这一行也可以：`gh workflow run 425084356 -R Chanmingfei/zstangshi -f tag="v4.0.7 harmony-v4.1.2"`
 
 脚本做的事：
 
 1. 按 tag 拉 GitHub Release（标题、说明、附件清单）；
 2. Gitee 上没有就建 Release；缺 tag 时先建 tag，指向 GitHub 同名 tag 的 commit；
 3. 说明里只把 `/releases/` 直链换成 Gitee 的（README 锚点不动，避免两边标题不一致跳空）；
-4. 附件逐个下载再上传，已存在同名附件跳过 —— 重复跑不会产生重复附件。
+4. 附件逐个下载再上传，已存在同名附件跳过 —— 重复跑不会产生重复附件；
+5. 单个请求失败会重试（5xx / 断连），整轮失败 workflow 再重跑最多 3 次；因为幂等，重跑只会补上一轮没传完的部分。
+
+**方向是单向的**：GitHub 是唯一源头，Gitee 只是镜像。Gitee 上没有 Release 事件 webhook（官方只有 Push / Tag Push / Issue / PR / 评论五种），也拿不到 `updated_at`，所以不做 Gitee → GitHub 的反向同步。若确实在 Gitee 上手工建了什么，以 GitHub 为准重跑一次即可覆盖。
 
 ## 与 App 内「检查更新」的关系
 

@@ -3,6 +3,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 「我的 → 关于 → 检查更新」：下载完新版本后交给系统安装器。
+         Android 8 起装 APK 还需要用户在系统里单独允许「安装未知应用」，
+         这个权限只声明意图，开关由用户自己给（代码里会先引导） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- 实时公交的「附近站点」用一次定位。只在前台取一帧坐标，不后台定位、不上传；
          用户拒绝授权时页面仍可用（搜索线路、收藏、看站表） -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />

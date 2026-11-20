@@ -2546,13 +2546,14 @@ class BusActivity : BaseActivity() {
         summary.layoutParams = slp
 
         summary.addView(summaryColumn("距终点", toTerminus.toString() + " 站", null))
-        summary.addView(
-            summaryColumn(
-                "时速",
-                if (v.speedKmh > 0) v.speedKmh.toInt().toString() + " km/h" else "—",
-                null
+        // 时速拿不到就整列不画（追客 0.1.13-beta.1 同款修复）：上游没给时留一格「—」
+        // 看着像「这车停着」，比空着更容易误读。掌上公交这条通道压根没有时速，
+        // 这一列长期是空的；车来了停在站上时也是 0。
+        if (v.speedKmh > 0) {
+            summary.addView(
+                summaryColumn("时速", v.speedKmh.toInt().toString() + " km/h", null)
             )
-        )
+        }
         summary.addView(
             summaryColumn(
                 // v.etaSeconds 是「这辆车到候车站」的剩余秒（busDetail 逐车 travelTime），

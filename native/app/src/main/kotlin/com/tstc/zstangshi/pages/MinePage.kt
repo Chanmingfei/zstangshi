@@ -40,6 +40,7 @@ import com.tstc.zstangshi.ui.ConfirmDialog
 import com.tstc.zstangshi.ui.OptionSheet
 import com.tstc.zstangshi.ui.SegmentedControl
 import com.tstc.zstangshi.ui.Sheet
+import com.tstc.zstangshi.ui.UpdateSheet
 import com.tstc.zstangshi.widget.TodayWidget
 import java.util.Calendar
 
@@ -68,6 +69,11 @@ class MinePage(private val host: Activity, private val store: Store,
 
     /** 用户点了「启用焦点通知」但权限还没齐，等从授权弹窗 / 系统设置页回来再续上。 */
     private var focusPending = false
+
+    /** 「检查更新」这一行上次查到的结果，退出重进页面也还留着。 */
+    private var updateLabel: String? = null
+    private var updateHot = false
+    private var updateValue: TextView? = null
 
     init {
         setBackgroundColor(if (store.darkNow()) 0xFF0F1520.toInt() else host.getColor(R.color.bg_page))
@@ -319,6 +325,13 @@ class MinePage(private val host: Activity, private val store: Store,
         val about = card()
         about.addView(sectionTitle("关于"))
         about.addView(item("版本", versionName(), null))
+        // 检查更新：读 GitHub Releases，标准版 / 鸿蒙版各看各的通道，
+        // 查到新版本后这一行会变成品牌色的「v4.0.6 可更新」，点进去能一键下载安装
+        val updateRow = item("检查更新", updateLabel ?: "检查是否有新版本",
+                View.OnClickListener { openUpdate() })
+        updateValue = updateRow.getChildAt(1) as? TextView
+        paintUpdateLabel()
+        about.addView(updateRow)
         about.addView(item("数据来源", "正方教务系统 · 教务处校历", null))
 
         // 开发者后面直接挂两个平台主页（logo 与文字等大，走 App 内置浏览器）
@@ -880,6 +893,21 @@ class MinePage(private val host: Activity, private val store: Store,
         } catch (e: Exception) {
             "—"
         }
+    }
+
+    /** 打开更新弹层；查到的结果回写到「检查更新」这一行的右侧文字。 */
+    private fun openUpdate() {
+        UpdateSheet.show(host) { text, hot ->
+            updateLabel = text
+            updateHot = hot
+            paintUpdateLabel()
+        }
+    }
+
+    private fun paintUpdateLabel() {
+        val v = updateValue ?: return
+        v.text = updateLabel ?: "检查是否有新版本"
+        v.setTextColor(host.getColor(if (updateHot) R.color.brand else R.color.text_tertiary))
     }
 
     private fun ago(ts: Long): String {

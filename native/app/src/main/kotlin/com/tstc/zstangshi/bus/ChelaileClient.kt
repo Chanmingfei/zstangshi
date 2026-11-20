@@ -479,6 +479,11 @@ class ChelaileClient private constructor() {
 
             // 在途车辆：上游每辆车都带真实经纬度和 order（正开往第 order 站），
             // 用它到上一站的距离比例算出「在两站之间的什么位置」。
+            // lineDetail 这次没带 targetOrder，上游的 distanceToWaitStn 默认按终点站
+            // 或定位最近站算（追客 #60）；只有它回的 targetOrder 正好是我们要的候车站时，
+            // 这个值才是「到本站」的，留一份给 busDetail 拉取失败时兜底。
+            val lineTargetOrder = data.optInt("targetOrder", -1)
+            val lineDist = HashMap<String, Int>()
             val buses = data.optJSONArray("buses")
             if (buses != null) {
                 for (i in 0 until buses.length()) {
@@ -499,7 +504,10 @@ class ChelaileClient private constructor() {
                     // （实测北京夜2：order 18/38/46 分别 19.8km / 8.6km / 2.7km，一路递减）。
                     // 拿它当「距本站」会显示十几公里，而且车子到站、busDetail 回了 -1 时
                     // 还会保留这个陈值 —— 就是「到站了 · 距本站 11.7公里」的来源。
-                    // 距离一律留空，等 fillEta 用 busDetail 的逐车值回填。
+                    // 距离一律留空，等 fillEta 用 busDetail 的逐车值回填；
+                    // 只有上面说的「targetOrder 撞上了」那一份留作兜底。
+                    val rawDist = b.optInt("distanceToWaitStn", -1)
+                    if (rawDist > 0) lineDist[v.id] = rawDist
                     v.distanceMeters = -1
                     d.vehicles.add(v)
 
@@ -566,7 +574,7 @@ class ChelaileClient private constructor() {
                 d.waitingStopId = wait.id
                 // 候车站确定后就去查「车到这一站还有多久」——不管有没有定位，
                 // 只要用户是从某个站点点进来的，这个数就该算出来
-                fillEta(d, cityId, lineId, wait, stationId, lat, lng)
+                fillEta(d, cityId, lineId, wait, stationId, lat, lng, lineDist, lineTargetOrder)
             }
             // 逐车卡片按站序升序：离候车站最近的车排最前
             Collections.sort(d.vehicles, Comparator<BusModels.Vehicle> { a, b -> a.order - b.order })
@@ -595,8 +603,21 @@ class ChelaileClient private constructor() {
 
         /** 拉一次到「候车站」的车辆预测，填分钟 / 站数 / 距离。失败不影响站表。 */
         private fun fillEta(d: BusModels.LineDetail, cityId: String, lineId: String,
-                            wait: BusModels.Stop, stationId: String?, lat: Double, lng: Double) {
-            val bd = busDetail(cityId, lineId, wait.order, wait.id, lat, lng) ?: return
+                            wait: BusModels.Stop, stationId: String?, lat: Double, lng: Double,
+                            lineDist: Map<String, Int>, lineTargetOrder: Int) {
+            val bd = busDetail(cityId, lineId, wait.order, wait.id, lat, lng)
+            if (bd == null) {
+                // busDetail 挂了才退一步用 lineDetail 的值，而且只在上游回的 targetOrder
+                // 就是我们这一站时才算数——否则那是「到终点站 / 定位最近站」的距离，
+                // 宁可空着，也不能写成「距本站 12 公里」（追客 #60 同一口径）
+                if (lineTargetOrder == wait.order) {
+                    for (v in d.vehicles) {
+                        val raw = lineDist[v.id] ?: continue
+                        if (raw > 0) v.distanceMeters = raw
+                    }
+                }
+                return
+            }
             val pr = bd.pred
             if (pr.secs >= 0) {
                 // 官方口径透传：0 秒=已到站；60 秒内=即将到站（分钟位写 0，
@@ -861,27 +882,33 @@ class ChelaileClient private constructor() {
                 var nextBusId = ""
                 for (i in 0 until buses.length()) {
                     val b = buses.optJSONObject(i) ?: continue
+                    val bId = b.optString("busId")
+                    // 距候车站的距离跟 travels 无关：上游对「这一轮没有到站预测」的车
+                    // 照样给 distanceToWaitStn（追客 0.1.13-beta.3 / #60 的回归用例就有一条
+                    // 「travels 为空但距离有值」）。先把距离落下，再判 ETA，否则这类车
+                    // 在逐车卡片上只剩一个空壳
+                    val rawDist = b.optInt("distanceToWaitStn", -1)
                     val travels = b.optJSONArray("travels")
-                    if (travels == null || travels.length() == 0) continue
-                    val tr = travels.optJSONObject(0) ?: continue
-                    val secs = tr.optInt("travelTime", -1)
+                    val tr = if (travels == null || travels.length() == 0) null else travels.optJSONObject(0)
+                    val hasEta = tr != null
+                    val secs = if (tr == null) -1 else tr.optInt("travelTime", -1)
                     // 官方口径直接透传：travelTime==0 就是车到站了（官方显示「已到站」）。
                     // 别用 buses[].state——实测那只是「车停靠在任意一站」的标记，
                     // 离候车站 30 分钟开外的车也一样是 1，拿来判定永远误报
                     val arrived = secs == 0
 
-                    // 逐车明细：上游只给「还没过站」的车列 travels，正好是卡片要的那批
-                    val bId = b.optString("busId")
-                    if (bId.isNotEmpty()) {
+                    // 逐车明细：上游只给「还没过站」的车列 travels，正好是卡片要的那批；
+                    // 没有 travels 但带距离的也收进来（卡片只写距离，不写时间）
+                    if (bId.isNotEmpty() && (hasEta || rawDist > 0)) {
                         val e = BusEta()
                         e.busId = bId
                         e.seconds = secs
-                        e.tip = tr.optString("recommTip")
+                        e.tip = if (tr == null) "" else tr.optString("recommTip")
                         e.order = b.optInt("order", 0)
-                        val dist = b.optInt("distanceToWaitStn", -1)
-                        e.distance = if (dist > 0) dist else -1
+                        e.distance = if (rawDist > 0) rawDist else -1
                         bd.byBus[bId] = e
                     }
+                    if (!hasEta) continue
 
                     if (secs < 0) continue
                     val busOrder = b.optInt("order", 0)
@@ -889,7 +916,6 @@ class ChelaileClient private constructor() {
                     // 直接拿 999 去减会算出「还有 974 站」
                     val mine = effectiveOrder(order, stopId)
                     val stops = if (busOrder > 0) Math.max(0, mine - busOrder) else -1
-                    val dist = b.optInt("distanceToWaitStn", -1)
                     // 取秒数最小的那辆（同秒数先到先得，别在两辆车之间来回跳），
                     // 并把它的 busId 记下来：秒数 / 距离是这辆车的，界面上的小字也只准读这辆。
                     // 被顶下来的那辆顺势成为「下辆」，秒数和站数都是同一份响应里的真值。
@@ -903,7 +929,7 @@ class ChelaileClient private constructor() {
                         bestArrived = arrived
                         out.busId = bId
                         out.stops = stops
-                        out.dist = if (dist > 0) dist else -1
+                        out.dist = if (rawDist > 0) rawDist else -1
                     } else if (secs < nextSecs) {
                         nextSecs = secs
                         nextStops = stops

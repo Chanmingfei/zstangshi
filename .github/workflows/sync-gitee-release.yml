@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 要同步的 tag（留空＝同步最新 Release）
+        description: 要同步的 tag（多个用空格分隔；留空＝同步全部 Release）
         required: false
         default: ""
 
@@ -21,6 +21,8 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # 海外 runner 到 gitee.com 的链路偏慢，留足时间
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,4 +38,15 @@ jobs:
             echo "::error::缺少 GITEE_TOKEN。请在 Settings → Secrets and variables → Actions 里添加，值取 Gitee → 设置 → 私人令牌（勾 projects）。"
             exit 1
           fi
-          python3 tools/sync_gitee_release.py "$TAG"
+          # 脚本本身会对单次请求重试；这里再兜一层整轮重跑。
+          # 脚本是幂等的：已经建好的 Release、已上传的附件都会跳过，
+          # 所以重跑只会补齐上一轮没传完的部分。
+          for attempt in 1 2 3; do
+            echo "—— 第 $attempt 轮 ——"
+            if python3 -u tools/sync_gitee_release.py $TAG; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::同步失败（已重试 3 轮），请看上面的日志"
+          exit 1

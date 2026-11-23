@@ -80,7 +80,7 @@ workflows:
       java: 17
       vars:
         KMP_DIR: ios-kmp
-        GRADLE_VER: "8.14"
+        GRADLE_VER: "8.14.4"
     scripts:
       - name: 准备 Gradle
         script: |

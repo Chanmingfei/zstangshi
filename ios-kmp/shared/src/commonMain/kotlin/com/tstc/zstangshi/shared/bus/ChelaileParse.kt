@@ -41,7 +41,7 @@ fun parseNearby(body: String, limit: Int, userLat: Double = 0.0, userLng: Double
         val serverDist = if (s.has("distance")) s.optInt("distance", -1) else -1
         st.distanceMeters = if (serverDist > 0) serverDist
         else Geo.haversineMeters(userLat, userLng, st.lat, st.lng)
-        readArrivals(s.optArr("lines"), st.arrivals)
+        readArrivals(s.optArr("lines")) { st.addArrival(it) }
         if (st.name.isEmpty()) continue
         out.add(st)
     }
@@ -95,7 +95,7 @@ fun parseLineDetail(body: String, lineId: String): BusLineDetail {
             stop.order = i + 1
             stop.lat = s.optDouble("wgsLat", 0.0)
             stop.lng = s.optDouble("wgsLng", 0.0)
-            d.stops.add(stop)
+            d.addStop(stop)
         }
     }
 
@@ -112,9 +112,9 @@ fun parseLineDetail(body: String, lineId: String): BusLineDetail {
             v.order = order
             v.speedKmh = b.optDouble("speed", 0.0)
             v.nextStopName = b.optString("nextStationName").trim()
-            d.vehicles.add(v)
+            d.addVehicle(v)
         }
-        d.vehicles.sortBy { it.order }
+        d.sortVehiclesByOrder()
     }
     return d
 }
@@ -125,7 +125,7 @@ fun parseLineDetail(body: String, lineId: String): BusLineDetail {
  * 解析 `lines[]`：每条的 `stnStates` 里 `value` = 距本站还剩几站，
  * `travelTime` = 秒。按到站先后排序后取前两辆。
  */
-private fun readArrivals(lines: Js.Arr?, into: MutableList<BusArrival>) {
+private fun readArrivals(lines: Js.Arr?, onEach: (BusArrival) -> Unit) {
     if (lines == null) return
     for (item in lines.items) {
         val li = item as? Js.Obj ?: continue
@@ -179,7 +179,7 @@ private fun readArrivals(lines: Js.Arr?, into: MutableList<BusArrival>) {
                 a.nextMinutes = BusText.minutesOfSecs(s2.secs)
             }
         }
-        into.add(a)
+        onEach(a)
     }
 }
 

@@ -45,7 +45,15 @@ class BusStation {
     var lat: Double = 0.0
     var lng: Double = 0.0
     var distanceMeters: Int = -1
-    val arrivals: MutableList<BusArrival> = ArrayList()
+
+    // 对外只暴露只读 List：K/N 会把 MutableList 导成 NSMutableArray，
+    // Swift 那边既不能 ForEach 也没有 isEmpty，只有 List 才映射成 [T]。
+    private val _arrivals = ArrayList<BusArrival>()
+    val arrivals: List<BusArrival> get() = _arrivals
+
+    internal fun addArrival(a: BusArrival) {
+        _arrivals.add(a)
+    }
 }
 
 /** 线路详情里的一个站。 */
@@ -91,6 +99,20 @@ class BusLineDetail {
     var reverseId: String = ""
     var reverseStart: String = ""
     var reverseEnd: String = ""
-    val stops: MutableList<BusStop> = ArrayList()
-    val vehicles: MutableList<BusVehicle> = ArrayList()
+    private val _stops = ArrayList<BusStop>()
+    private val _vehicles = ArrayList<BusVehicle>()
+    val stops: List<BusStop> get() = _stops
+    val vehicles: List<BusVehicle> get() = _vehicles
+
+    internal fun addStop(s: BusStop) {
+        _stops.add(s)
+    }
+
+    internal fun addVehicle(v: BusVehicle) {
+        _vehicles.add(v)
+    }
+
+    internal fun sortVehiclesByOrder() {
+        _vehicles.sortBy { it.order }
+    }
 }

@@ -3,10 +3,13 @@
 package com.tstc.zstangshi.shared.net
 
 import kotlinx.cinterop.ExperimentalForeignApi
+import platform.Foundation.NSData
+import platform.Foundation.NSError
 import platform.Foundation.NSHTTPURLResponse
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSString
 import platform.Foundation.NSURL
+import platform.Foundation.NSURLResponse
 import platform.Foundation.NSURLSession
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.create
@@ -20,8 +23,13 @@ import kotlin.coroutines.suspendCoroutine
  * 共享层至今仍保持「只用 Kotlin 标准库」，这是它能同时被 kotlinc 1.9（Android 手写链）
  * 和 Kotlin/Native 2.4（iOS）编译的前提。
  *
- * 注意：NSURLSession 的回调在后台队列，resume 是线程安全的；
- * 但 continuation 只能 resume 一次，所以成功/失败分支要互斥（这里用 if/else 保证）。
+ * 三个 K/N 特有的坑（都是编译期报出来的，记下来省得下次再踩）：
+ *   1. `NSMutableURLRequest.requestWithURL()` 的静态类型是只读的 `NSURLRequest`，
+ *      调不到 `setValue:forHTTPHeaderField:` —— 必须用构造器 `NSMutableURLRequest(uRL = …)`。
+ *   2. `HTTPMethod` 在 Kotlin/Native 里没有暴露（NSMutableURLRequest 的重声明没生成）。
+ *      好在 NSURLRequest 默认就是 GET，直接不设。
+ *   3. ObjC 带 completionHandler 的重载必须写 `completionHandler = { … }`，
+ *      漏掉标签会解析成无回调版本，然后报「参数太多」。
  */
 actual suspend fun httpGetText(url: String, headers: Map<String, String>): HttpResult =
     suspendCoroutine { cont ->
@@ -30,27 +38,27 @@ actual suspend fun httpGetText(url: String, headers: Map<String, String>): HttpR
             cont.resume(HttpResult(0, "", "URL 非法：$url"))
             return@suspendCoroutine
         }
-        // 必须用构造器：+requestWithURL: 声明在 NSURLRequest 上，返回静态类型是只读的，
-        // 拿不到 HTTPMethod 的 setter，也调不到 setValue:forHTTPHeaderField:（会连锁报错）。
         val request = NSMutableURLRequest(uRL = nsUrl)
-        // K/N 把 -setHTTPMethod: 映射成属性而不是方法，写方法名会「未解析」
-        request.HTTPMethod = "GET"
         for ((k, v) in headers) {
             request.setValue(v, forHTTPHeaderField = k)
         }
 
-        NSURLSession.sharedSession.dataTaskWithRequest(request) { data, response, error ->
-            if (error != null) {
-                cont.resume(HttpResult(0, "", error.localizedDescription))
-            } else {
-                val http = response as? NSHTTPURLResponse
-                val code = http?.statusCode?.toInt() ?: 0
-                val text = if (data == null) {
-                    ""
+        val task = NSURLSession.sharedSession.dataTaskWithRequest(
+            request,
+            completionHandler = { data: NSData?, response: NSURLResponse?, error: NSError? ->
+                if (error != null) {
+                    cont.resume(HttpResult(0, "", error.localizedDescription))
                 } else {
-                    NSString.create(data = data, encoding = NSUTF8StringEncoding)?.toString() ?: ""
+                    val http = response as? NSHTTPURLResponse
+                    val code = http?.statusCode?.toInt() ?: 0
+                    val text = if (data == null) {
+                        ""
+                    } else {
+                        NSString.create(data = data, encoding = NSUTF8StringEncoding)?.toString() ?: ""
+                    }
+                    cont.resume(HttpResult(code, text))
                 }
-                cont.resume(HttpResult(code, text))
             }
-        }.resume()
+        )
+        task.resume()
     }

@@ -32,7 +32,8 @@ actual suspend fun httpGetText(url: String, headers: Map<String, String>): HttpR
             return@suspendCoroutine
         }
         val request = NSMutableURLRequest.requestWithURL(nsUrl)
-        request.setHTTPMethod("GET")
+        // K/N 把 -setHTTPMethod: 映射成属性而不是方法，写方法名会「未解析」
+        request.HTTPMethod = "GET"
         for ((k, v) in headers) {
             request.setValue(v, forHTTPHeaderField = k)
         }

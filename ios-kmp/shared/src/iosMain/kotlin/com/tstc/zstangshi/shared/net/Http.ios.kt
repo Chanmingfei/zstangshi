@@ -10,7 +10,6 @@ import platform.Foundation.NSURL
 import platform.Foundation.NSURLSession
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.create
-import platform.Foundation.dataTaskWithRequest
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -31,7 +30,9 @@ actual suspend fun httpGetText(url: String, headers: Map<String, String>): HttpR
             cont.resume(HttpResult(0, "", "URL 非法：$url"))
             return@suspendCoroutine
         }
-        val request = NSMutableURLRequest.requestWithURL(nsUrl)
+        // 必须用构造器：+requestWithURL: 声明在 NSURLRequest 上，返回静态类型是只读的，
+        // 拿不到 HTTPMethod 的 setter，也调不到 setValue:forHTTPHeaderField:（会连锁报错）。
+        val request = NSMutableURLRequest(uRL = nsUrl)
         // K/N 把 -setHTTPMethod: 映射成属性而不是方法，写方法名会「未解析」
         request.HTTPMethod = "GET"
         for ((k, v) in headers) {

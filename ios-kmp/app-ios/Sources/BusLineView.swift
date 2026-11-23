@@ -59,7 +59,7 @@ final class BusLineModel: ObservableObject {
             cityId: cityId, lineId: uid, order: Int32(waitOrder),
             stationId: stop?.id ?? "", lat: 39.63, lng: 118.18)
         guard let body = try? await BusFetch.text(url) else { return }
-        pred = ChelaileParseKt.parseBusDetail(body: body)
+        pred = BusDetailKt.parseBusDetail(body: body)
     }
 
     private func loadTimetable() async {
@@ -107,9 +107,10 @@ final class BusLineModel: ObservableObject {
 
     var etaMinutes: Int {
         guard let p = pred, p.secs >= 0 else { return -1 }
-        if p.secs == 0 { return 0 }
-        if p.secs < 60 { return 0 }
-        return (p.secs + 59) / 60
+        let secs = Int(p.secs)
+        if secs == 0 { return 0 }
+        if secs < 60 { return 0 }
+        return (secs + 59) / 60
     }
 
     var etaArrived: Bool { pred?.arrived ?? false }
@@ -149,7 +150,8 @@ final class BusLineModel: ObservableObject {
     var nextBusText: String {
         guard let p = pred else { return "" }
         if p.nextSecs < 0 { return p.secs >= 0 ? "暂无下一辆" : "" }
-        let mins = p.nextSecs < 60 ? 0 : (p.nextSecs + 59) / 60
+        let ns = Int(p.nextSecs)
+        let mins = ns < 60 ? 0 : (ns + 59) / 60
         return mins > 0 ? "下一辆 \(mins) 分钟" : "下一辆 即将到站"
     }
 
@@ -355,9 +357,13 @@ struct BusLineView: View {
 
     private func vehicleRow(_ v: BusVehicle) -> some View {
         let eta = model.pred?.etaOf(busId: v.id)
-        let mins: Int = {
-            guard let s = eta?.seconds, s >= 0 else { return -1 }
-            return s < 60 ? 0 : (s + 59) / 60
+        let secs = Int(eta?.seconds ?? -1)
+        let mins = secs < 0 ? -1 : (secs < 60 ? 0 : (secs + 59) / 60)
+        // 到达时刻在 ViewBuilder 外面算好：ViewBuilder 里连续 let 会被判成 ()，编不过
+        let arriveText: String = {
+            guard secs > 0 else { return "" }
+            let f = DateFormatter(); f.dateFormat = "HH:mm"
+            return f.string(from: Date().addingTimeInterval(Double(secs))) + " 到"
         }()
         return HStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -383,10 +389,8 @@ struct BusLineView: View {
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(Color(UIColor.tertiarySystemFill))
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                if let s = eta?.seconds, s > 0 {
-                    let t = Date().addingTimeInterval(Double(s))
-                    let f = DateFormatter(); f.dateFormat = "HH:mm"
-                    Text("\(f.string(from: t)) 到").font(.caption2).foregroundColor(.secondary)
+                if !arriveText.isEmpty {
+                    Text(arriveText).font(.caption2).foregroundColor(.secondary)
                 }
             }
         }

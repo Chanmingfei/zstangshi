@@ -5,6 +5,7 @@ import Shared
 struct BusLineView: View {
     let hit: BusLineHit
     @State private var detail: BusLineDetail?
+    @State private var favTick = false
     @State private var status = "加载中…"
 
     var body: some View {
@@ -64,6 +65,19 @@ struct BusLineView: View {
                         }
                     }
                 }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    BusPrefs.toggleFavorite(lineId: hit.lineId, name: hit.name)
+                    favTick.toggle()
+                } label: {
+                    Image(systemName: BusPrefs.isFavorite(hit.lineId) ? "star.fill" : "star")
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                NavigationLink("时刻") { BusTimetableView(hit: hit) }
             }
         }
         .navigationTitle(hit.name)

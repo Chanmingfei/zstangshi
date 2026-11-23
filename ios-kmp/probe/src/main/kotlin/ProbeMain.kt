@@ -9,6 +9,8 @@ import com.tstc.zstangshi.shared.bus.ChelaileCrypto
 import com.tstc.zstangshi.shared.bus.BusText
 import com.tstc.zstangshi.shared.bus.parseLineDetail
 import com.tstc.zstangshi.shared.bus.parseNearby
+import com.tstc.zstangshi.shared.bus.parseStopDetail
+import com.tstc.zstangshi.shared.bus.parseTimetable
 import com.tstc.zstangshi.shared.crypto.base64Decode
 import com.tstc.zstangshi.shared.crypto.md5Hex
 import java.io.File
@@ -322,6 +324,30 @@ fun main(args: Array<String>) {
         eq(BusText.rowEtaText(-1, 0, false, "不在运营时间", false, false), "不在运营时间", "退到上游状态")
         eq(BusText.rowPrimaryText(12, 7, false, "", true, false), "12分钟 · 7站", "大字合并分钟与站数")
         eq(BusText.rowDetailText(2, -1, false, 12, 0), "还有 2 站 · 下一辆 12 分钟", "小字")
+
+        // ---------- 13. 站点详情与时刻表（真实样本） ----------
+        val stopBody = File(fixtures, "stopdetail.txt").readText(Charsets.UTF_8)
+        val stopStations = parseStopDetail(stopBody, 39.63, 118.18)
+        eq(stopStations.size, 3, "站点详情有 3 个同名站台（不合并，交给界面切换）")
+        check(stopStations.any { it.arrivals.isNotEmpty() }, "至少一个站台有线路")
+        check(stopStations.all { it.name.isNotEmpty() }, "所有站台名非空")
+        eq(stopStations.first().arrivals.size, 7, "首站台 7 条线路")
+        check(stopStations.first().name.isNotEmpty(), "站台名非空")
+
+        val ttBody = File(fixtures, "timetable.txt").readText(Charsets.UTF_8)
+        val tt = parseTimetable(ttBody)
+        eq(tt.lineName, "游1", "时刻表线路名")
+        check(tt.today.isNotEmpty(), "今日预测非空", tt.today.size, ">0")
+        check(tt.history.isNotEmpty(), "历史班次非空", tt.history.size, ">0")
+        check(tt.todayTimes().isNotEmpty(), "今日有具体班次")
+        eq(tt.historyTitle, "昨日实际班次", "优先用昨日而非前日")
+        check(tt.firstDep.isNotEmpty() && tt.lastDep.isNotEmpty(), "首末班已算出")
+        check(tt.todayTimes() == tt.todayTimes().sorted(), "今日班次升序")
+        check(tt.historyTimes() == tt.historyTimes().sorted(), "历史班次升序")
+
+        val emptyToday = """{"timetable":{"timetable":[{"fTime":"06:00","eTime":"07:00","schedules":[]}]}}"""
+        val emptyParsed = parseTimetable(emptyToday)
+        eq(emptyParsed.today.size, 0, "空分段不算有班次")
     }
 
     // ---------- 8. 平台无关性证据 ----------

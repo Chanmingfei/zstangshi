@@ -194,3 +194,129 @@ fun effectiveOrder(order: Int, sId: String?): Int {
     }
     return order
 }
+
+// ──────────────────────────── 站点详情 ────────────────────────────
+
+/**
+ * 站点详情（`stop!encryptedPhyStnDetail.action`）。
+ *
+ * 返回的是一个物理站台下的多个「同名站台」：同一路公交在不同方向/不同站台分别停，
+ * 上游拆成多条 stationList。所以这里**不合并**，交给界面用站台切换（和追客一致）。
+ */
+fun parseStopDetail(body: String, userLat: Double = 0.0, userLng: Double = 0.0): List<BusStation> {
+    val data = ChelaileCrypto.extract(body) ?: return emptyList()
+    val list = data.optArr("stationList") ?: return emptyList()
+    val out = ArrayList<BusStation>()
+    for (item in list.items) {
+        val st = item as? Js.Obj ?: continue
+        val station = BusStation()
+        station.id = st.optString("sId")
+        station.name = st.optString("sn")
+        station.physicalId = st.optString("physicalStId")
+        station.namesakeId = st.optString("namesakeStId")
+        station.lat = st.optDouble("lat", 0.0)
+        station.lng = st.optDouble("lng", 0.0)
+        val serverDist = if (st.has("distance")) st.optInt("distance", -1) else -1
+        station.distanceMeters = if (serverDist > 0) serverDist
+        else Geo.haversineMeters(userLat, userLng, station.lat, station.lng)
+        readArrivals(st.optArr("lines")) { station.addArrival(it) }
+        if (station.name.isEmpty()) continue
+        out.add(station)
+    }
+    return out
+}
+
+// ──────────────────────────── 发车时刻表 ────────────────────────────
+
+/**
+ * 首站发车时刻表。
+ *
+ * 上游给三块，按「越新越优先」取，但**块里真有班次才算数**：
+ * 实测唐山 1 路曾出现 today=0 段 / yesterday=0 段 / beforeYesterday=4 段，
+ * 只认前两块就会把整张首站发车卡判成「没有时刻表」。
+ * 这里三块都探，取到哪块就在 `historyTitle` 里写清是哪天的数据。
+ */
+fun parseTimetable(body: String): BusTimetable {
+    val t = BusTimetable()
+    val data = ChelaileCrypto.extract(body) ?: return t
+
+    val lo = data.optObj("line")
+    if (lo != null) {
+        t.lineName = lo.optString("name")
+        t.startName = lo.optString("startSn")
+        t.endName = lo.optString("endSn")
+    }
+
+    val todayBlock = data.optObj("timetable")
+    val yBlock = data.optObj("yesterdayTimetable")
+    val bBlock = data.optObj("beforeYesterdayTimetable")
+
+    val todaySegs = readScheduled(todayBlock)
+    val ySegs = readScheduled(yBlock)
+    val bSegs = readScheduled(bBlock)
+
+    if (todaySegs.isNotEmpty()) {
+        t.depTitle = todayBlock?.optString("depTitle") ?: ""
+        t.tip = todayBlock?.optString("tip") ?: todayBlock?.optString("depDesc") ?: ""
+        todaySegs.forEach { t.addToday(it) }
+    }
+    if (ySegs.isNotEmpty()) {
+        ySegs.forEach { t.addHistory(it) }
+        t.historyTitle = "昨日实际班次"
+        if (t.depTitle.isEmpty()) t.depTitle = yBlock?.optString("depTitle") ?: ""
+        if (t.tip.isEmpty()) t.tip = yBlock?.optString("tip") ?: ""
+    } else if (bSegs.isNotEmpty()) {
+        bSegs.forEach { t.addHistory(it) }
+        t.historyTitle = "前日实际班次"
+        if (t.depTitle.isEmpty()) t.depTitle = bBlock?.optString("depTitle") ?: ""
+        if (t.tip.isEmpty()) t.tip = "本时刻表取自前日的实际发车记录，仅供参考"
+    }
+
+    val hist = t.historyTimes()
+    if (hist.isNotEmpty()) {
+        t.firstDep = hist.first()
+        t.lastDep = hist.last()
+    }
+    for (seg in t.today) {
+        if (seg.interval > 0) { t.interval = seg.interval; break }
+    }
+    return t
+}
+
+/** 一段内的班次。`schedules` 是对象数组，`times` 是字符串数组，两种都兼容。 */
+private fun readScheduled(block: Js.Obj?): List<BusTimetableSegment> {
+    if (block == null) return emptyList()
+    val segs = block.optArr("timetable") ?: return emptyList()
+    val out = ArrayList<BusTimetableSegment>()
+    for (item in segs.items) {
+        val seg = item as? Js.Obj ?: continue
+        val s = BusTimetableSegment()
+        s.fromTime = seg.optString("fTime")
+        s.toTime = seg.optString("eTime")
+        s.interval = seg.optInt("depInterval", -1)
+
+        val schedules = seg.optArr("schedules")
+        if (schedules != null && schedules.size > 0) {
+            for (sc in schedules.items) {
+                val time = when (sc) {
+                    is Js.Obj -> sc.optString("time")
+                    is Js.Str -> sc.value
+                    else -> ""
+                }
+                if (time.isNotEmpty()) s.times.add(time)
+            }
+        } else {
+            val times = seg.optArr("times")
+            if (times != null) {
+                for (sc in times.items) {
+                    val time = (sc as? Js.Str)?.value ?: ""
+                    if (time.isNotEmpty()) s.times.add(time)
+                }
+            }
+        }
+        // 光有分组、班次为空的段不算数（否则渲染出一堆空网格）
+        if (s.times.isEmpty()) continue
+        out.add(s)
+    }
+    return out
+}

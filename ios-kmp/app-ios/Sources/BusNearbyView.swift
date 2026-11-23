@@ -12,6 +12,8 @@ final class NearbyModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private var coord: CLLocationCoordinate2D?
 
+    func currentCoord() -> CLLocationCoordinate2D? { coord }
+
     override init() {
         super.init()
         manager.delegate = self
@@ -60,7 +62,7 @@ final class NearbyModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     func load(_ lat: Double, _ lng: Double) async {
         loading = true
         defer { loading = false }
-        let url = ChelaileApi.shared.nearbyUrl(cityId: "056", lat: lat, lng: lng)
+        let url = ChelaileApi.shared.nearbyUrl(cityId: BusPrefs.cityId, lat: lat, lng: lng)
         do {
             let body = try await BusFetch.text(url)
             // 顶层函数挂在 <文件名>Kt 上：ChelaileParse.kt → ChelaileParseKt
@@ -78,7 +80,13 @@ struct BusNearbyView: View {
 
     var body: some View {
         List {
-            Section { Text(model.status).font(.caption).foregroundColor(.secondary) }
+            Section {
+                HStack {
+                    Text(model.status).font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                    Text(BusPrefs.cityName).font(.caption2).foregroundColor(.secondary)
+                }
+            }
 
             ForEach(model.stations, id: \.id) { st in
                 Section {
@@ -106,19 +114,37 @@ struct BusNearbyView: View {
                         }
                     }
                 } header: {
-                    HStack {
-                        Text(st.name)
-                        Spacer()
-                        if st.distanceMeters > 0 {
-                            Text("\(st.distanceMeters) m").font(.caption2)
+                    NavigationLink {
+                        BusStopDetailView(station: st)
+                    } label: {
+                        HStack {
+                            Text(st.name).font(.headline)
+                            Spacer()
+                            if st.distanceMeters > 0 {
+                                Text("\(st.distanceMeters) m").font(.caption2)
+                            }
+                            Image(systemName: "chevron.right").font(.caption2)
                         }
                     }
+                    .textCase(nil)
                 }
             }
         }
         .navigationTitle("附近站点")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                NavigationLink("城市") { BusCityPickerView() }
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { model.start() }
-        .onAppear { model.start() }
+        .task {
+            // 20 秒一轮：进页面先定位，之后定时刷新到站
+            model.start()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 20 * 1_000_000_000)
+                if let c = model.currentCoord() { await model.load(c.latitude, c.longitude) }
+            }
+        }
     }
 }

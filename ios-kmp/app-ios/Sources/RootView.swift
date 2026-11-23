@@ -42,6 +42,7 @@ struct RootView: View {
                     HStack(spacing: 12) {
                         NavigationLink("附近") { BusNearbyView() }
                         NavigationLink("搜索") { BusSearchView() }
+                        NavigationLink("乘车码") { TransitCodeView() }
                     }
                 }
             }

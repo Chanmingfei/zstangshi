@@ -9,7 +9,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HERE="$ROOT/ios-kmp"
-OUT="$HERE/build"
+OUT="$HERE/.probe-out"
 
 # ---- 工具链：沿用仓库里 Android 那套，不额外装东西 ----
 # Kotlin 1.9.24 的编译器读不懂 JDK 25 的版本号（JavaVersion.parse 抛异常），

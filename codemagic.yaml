@@ -66,3 +66,42 @@ workflows:
     artifacts:
       - ios-kmp/probe-ios/zstangshi-probe-unsigned.ipa
       - ios-kmp/probe-ios/build/Build/Products/Release-iphoneos/ZSTSProbe.app
+
+  # 共享层（KMP）单编：只产出 XCFramework，不编 App。
+  # 用途是「证明 commonMain 能被 Kotlin/Native 编译」—— 这一条在 Windows 上永远验不了。
+  ios-framework:
+    name: iOS 共享层 framework（KMP）
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      # 官方兼容表：Kotlin 2.4.20–2.4.21 ↔ Xcode 26.4 / Gradle 7.6.3–9.7.0。
+      # 不用 latest，避免 runner 升级后 Kotlin/Native 不认新 Xcode。
+      xcode: 26.4
+      java: 17
+      vars:
+        KMP_DIR: ios-kmp
+        GRADLE_VER: "8.14"
+    scripts:
+      - name: 准备 Gradle
+        script: |
+          set -e
+          if [ ! -x "/tmp/gradle-$GRADLE_VER/bin/gradle" ]; then
+            curl -sSLo /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-$GRADLE_VER-bin.zip"
+            unzip -q /tmp/gradle.zip -d /tmp
+          fi
+          /tmp/gradle-$GRADLE_VER/bin/gradle --version | sed -n '1,8p'
+
+      - name: 编译 XCFramework
+        script: |
+          set -e
+          cd "$KMP_DIR"
+          /tmp/gradle-$GRADLE_VER/bin/gradle --no-daemon --stacktrace :shared:assembleXCFramework
+
+      - name: 列出产物
+        script: |
+          set -e
+          find "$KMP_DIR/shared/build/XCFrameworks" -maxdepth 3 | head -30
+          du -sh "$KMP_DIR/shared/build/XCFrameworks"/* 2>/dev/null || true
+
+    artifacts:
+      - ios-kmp/shared/build/XCFrameworks/**/*.xcframework

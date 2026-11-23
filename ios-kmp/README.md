@@ -1,10 +1,49 @@
-# ios-kmp · P0 探针
+<div align="center">
 
-> 目标不是「把 iOS 写出来」，而是先用一天时间回答一个问题：
-> **把这批逻辑从 Android 搬到跨平台共享层，到底会不会改坏？**
-> 现在这个问题的答案是可以量化的：`bash ios-kmp/run-probe.sh` → 80 项断言全绿。
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../docs/assets/school-logo-dark.png" />
+  <img src="../docs/assets/school-logo.png" width="104" alt="唐山师范学院校徽" />
+</picture>
 
-## 为什么需要这一步
+# 掌上唐师 · iOS 版源码
+
+**SwiftUI 界面 · Kotlin 共享逻辑（KMP）· 纯云构建未签名 ipa**
+
+<p>
+  <a href="app-ios/project.yml">
+    <img src="https://img.shields.io/badge/Version-4.0.7-006874?style=flat" alt="Version" />
+  </a>
+  <a href="https://developer.apple.com">
+    <img src="https://img.shields.io/badge/Platform-iOS-000000?style=flat&logo=apple&logoColor=white" alt="iOS" />
+  </a>
+  <a href="https://developer.apple.com/swift/">
+    <img src="https://img.shields.io/badge/Swift-SwiftUI-F05134?style=flat&logo=swift&logoColor=white" alt="Swift" />
+  </a>
+  <a href="https://kotlinlang.org">
+    <img src="https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?style=flat&logo=kotlin&logoColor=white" alt="Kotlin" />
+  </a>
+  <a href="../codemagic.yaml">
+    <img src="https://img.shields.io/badge/Build-Codemagic%20cloud-0052CC?style=flat" alt="Cloud build" />
+  </a>
+  <a href="../LICENSE">
+    <img src="https://img.shields.io/badge/License-GPL%203.0-E91E63?style=flat" alt="License" />
+  </a>
+</p>
+
+<p>
+  <a href="../README.md"><b>简体中文</b></a> · <a href="../README.en.md">English</a>
+</p>
+
+</div>
+
+---
+
+> iOS 版是安卓主线的**功能对齐移植**：SwiftUI 负责界面，协议 / 解析 / 算法 / 状态规则
+> 尽量迁到 Kotlin 共享层（KMP），编成静态 `Shared.framework` 供 App 链接。
+> 项目没有 Mac，出包全程在 Codemagic 云上完成（XcodeGen → xcodebuild 不签名 → 未签名 ipa）。
+> 共享层有 **230 项平台无关断言**，Windows 上 `bash ios-kmp/run-probe.sh` 秒级回归。
+
+## 为什么用 KMP 共享层
 
 iOS 版没有 Mac 可用，只能靠云构建出包，一轮 10–20 分钟。
 如果把逻辑和 UI 混在一起写，每改一行业务代码都要等一次云构建；
@@ -51,11 +90,11 @@ Xcode 的任何图形操作都用不了，所以全部写进 `project.yml`：
 gradle :shared:linkReleaseFrameworkIosArm64   ->  Shared.framework
 xcodegen generate                             ->  ZSTSApp.xcodeproj
 xcodebuild (CODE_SIGNING_ALLOWED=NO)          ->  ZSTSApp.app
-打包                                           ->  zstangshi-app-unsigned.ipa（500,857 B）
+打包                                           ->  zstangshi-ios-4.0.7-tabview-test.ipa（1,885,558 B）
 ```
 
-产物核对：App 二进制 1.78 MB，含 `Konan` / `kotlin` 运行时符号 4,599 处、`WeekMath` 42 处，
-且**没有 Frameworks 目录**（静态链接，符合预期）。
+产物核对：App 二进制约 4 MB，含 `Konan` / `kotlin` 运行时符号，以及 `TabView` / `WebViewPage` /
+`AcademicCalendar` / `RecommendView` 等全部新功能符号；**没有 Frameworks 目录**（静态链接，符合预期）。
 
 ## 目录
 

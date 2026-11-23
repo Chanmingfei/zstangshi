@@ -16,11 +16,17 @@
   <a href="https://developer.android.com">
     <img src="https://img.shields.io/badge/Platform-Android%208.0%2B-3DDC84?style=flat&logo=android&logoColor=white" alt="Android" />
   </a>
+  <a href="ios-kmp/">
+    <img src="https://img.shields.io/badge/Platform-iOS-000000?style=flat&logo=apple&logoColor=white" alt="iOS" />
+  </a>
   <a href="harmony-android">
     <img src="https://img.shields.io/badge/HarmonyOS-%E5%AE%9E%E5%86%B5%E7%AA%97-CF0A2C?style=flat&logo=harmonyos&logoColor=white" alt="HarmonyOS" />
   </a>
   <a href="https://kotlinlang.org">
     <img src="https://img.shields.io/badge/Kotlin-1.9.24-7F52FF?style=flat&logo=kotlin&logoColor=white" alt="Kotlin" />
+  </a>
+  <a href="https://developer.apple.com/swift/">
+    <img src="https://img.shields.io/badge/Swift-SwiftUI-F05134?style=flat&logo=swift&logoColor=white" alt="Swift" />
   </a>
   <a href="native/build.sh">
     <img src="https://img.shields.io/badge/Runtime%20deps-0-3DA639?style=flat" alt="Runtime dependencies" />

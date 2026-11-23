@@ -16,11 +16,17 @@
   <a href="https://developer.android.com">
     <img src="https://img.shields.io/badge/Platform-Android%208.0%2B-3DDC84?style=flat&logo=android&logoColor=white" alt="Android" />
   </a>
+  <a href="ios-kmp/">
+    <img src="https://img.shields.io/badge/Platform-iOS-000000?style=flat&logo=apple&logoColor=white" alt="iOS" />
+  </a>
   <a href="harmony-android">
     <img src="https://img.shields.io/badge/HarmonyOS-Live%20View-CF0A2C?style=flat&logo=harmonyos&logoColor=white" alt="HarmonyOS" />
   </a>
   <a href="https://kotlinlang.org">
     <img src="https://img.shields.io/badge/Kotlin-1.9.24-7F52FF?style=flat&logo=kotlin&logoColor=white" alt="Kotlin" />
+  </a>
+  <a href="https://developer.apple.com/swift/">
+    <img src="https://img.shields.io/badge/Swift-SwiftUI-F05134?style=flat&logo=swift&logoColor=white" alt="Swift" />
   </a>
   <a href="native/build.sh">
     <img src="https://img.shields.io/badge/Runtime%20deps-0-3DA639?style=flat" alt="Runtime dependencies" />
@@ -39,14 +45,22 @@
 ---
 
 > An academic-systems client, a student-affairs entrance and a real-time bus tracker,
-> packed into a **3.6 MB** APK. Hand-written against the Android framework only —
-> no AndroidX, no Gradle, zero third-party runtime dependencies.
-> One command builds an installable package: `bash native/build.sh`.
+> packed into a **3.5 MB** APK (Android) with a feature-complete iOS port. The Android build is
+> hand-written against the framework only — no AndroidX, no Gradle, zero third-party runtime
+> dependencies. One command builds an installable package: `bash native/build.sh`. The iOS build
+> shares the protocol / parsing layer via Kotlin Multiplatform and builds entirely in the cloud.
 >
-> **Current**: Standard **v4.0.7** (66) · HarmonyOS **v4.1.2-harmony** (67).
-> New in this release: **automatic update check on launch** (with “skip this version”)
+> **Current**: Standard **v4.0.7** (66) · HarmonyOS **v4.1.2-harmony** (67) ·
+> iOS test build **v4.0.7** (unsigned).
+> New in this release: **automatic update check on launch** (with "skip this version")
 > and **course Live Updates** on HarmonyOS Live View, ColorOS Fluid Cloud,
 > Xiaomi Focus Notifications and Android 16 Live Updates.
+>
+> **The iOS build is feature-complete against Android**: native `TabView` tabs
+> (Home / Timetable / Grades / Profile), academic login & sync, grades / GPA / calendar /
+> course selection / recommended schedule, timetable editing & adjustments, dual-source
+> live bus, and an in-app WebView (academic / student affairs / repository pages).
+> See the **iOS test build** section below.
 
 ---
 
@@ -70,6 +84,9 @@ Pick the package that matches your OS.
 | --- | --- | --- |
 | **HarmonyOS** (Huawei / HONOR, recent models) | **[⬇ HarmonyOS build](https://github.com/Chanmingfei/zstangshi/releases/tag/harmony-v4.1.2)**<br>`zstangshi-harmony-4.1.2.apk` | Launcher name **掌上唐师·鸿蒙版**<br>About page shows a "版本类型" row |
 | **Any Android phone** (Xiaomi / OPPO / vivo / Samsung / OnePlus) | **[⬇ Standard build](https://github.com/Chanmingfei/zstangshi/releases/tag/v4.0.7)**<br>`zstangshi-v4.0.7.apk` | Launcher name **掌上唐师**<br>No "版本类型" row |
+| **iPhone / iPad** (test) | **[⬇ iOS test build](https://github.com/Chanmingfei/zstangshi/releases/tag/ios-v4.0.7-test)**<br>`zstangshi-ios-4.0.7-tabview-test.ipa` | Unsigned, re-sign yourself<br>See the iOS test build section below |
+
+The latest builds are always at <https://github.com/Chanmingfei/zstangshi/releases/latest>.
 
 Check **Settings → About phone**: a "HarmonyOS version" entry means the HarmonyOS build,
 an "Android version" (or MIUI / ColorOS / OriginOS / One UI) means the standard build.
@@ -93,6 +110,54 @@ because the HarmonyOS compatibility layer has a different capability surface.
 > **⚠️ The two builds share a package name but not a signature**, so they cannot overwrite each other.
 > Uninstall the old one first — that also clears the local timetable and login state.
 
+> **Downloads from mainland China often time out on GitHub attachments — use the Gitee mirror:**
+> [gitee.com/mingfei123/zstangshi/releases](https://gitee.com/mingfei123/zstangshi/releases)
+> — release contents are identical in both repos, and the in-app update checker prefers Gitee.
+
+Verify the download (optional):
+
+```bash
+sha256sum zstangshi-v4.0.7.apk          # macOS / Linux
+certutil -hashfile zstangshi-v4.0.7.apk SHA256   # Windows
+```
+
+| Package | Size | SHA-256 |
+| --- | --- | --- |
+| `zstangshi-v4.0.7.apk` | 3,771,518 B | `ad155743…46e59ddc6` |
+| `zstangshi-harmony-4.1.2.apk` | 1,768,581 B | `17fd08c6…3093bbcef` |
+| `zstangshi-ios-4.0.7-tabview-test.ipa` | 1,885,558 B | `9e3a3d55…6a107f` |
+
+---
+
+## 🍎 iOS test build
+
+The iOS build is a **feature-complete port of the Android mainline**, source in [`ios-kmp/`](ios-kmp/):
+SwiftUI draws the interface, while protocols / parsing / algorithms / state rules are ported into a
+shared Kotlin layer (KMP) and compiled to a static `Shared.framework` for the app to link.
+
+**The current build is unsigned** (`ios-v4.0.7-test`) — the project has no Mac and no Apple signing
+certificate, so it is built entirely in the cloud on Codemagic (XcodeGen generates the project →
+xcodebuild without signing → package the ipa):
+
+- the ipa is **unsigned** and cannot be installed on an iPhone as-is; re-sign it with your own
+  certificate (or use TestFlight / enterprise distribution);
+- re-sign with any of `ios-app-signer` / `AltStore` / `Sideloadly`; Bundle ID `com.tstc.zstangshi.app`.
+
+**Feature parity** (checked item by item against Android Standard):
+
+| Module | Notes |
+| --- | --- |
+| Navigation | Native iOS `TabView`: Home / Timetable / Grades / Profile; grid tiles switch tabs directly |
+| Academic | RSA login, auto http/https detection with no manual switch, first-login auto-sync, later manual sync only from Profile |
+| Timetable | Week grid, odd/even weeks, editing (weeks / 8 colours), cancel / move class, hide academic courses, back to current week |
+| Grades / GPA | Term filter, weighted average, GPA summary |
+| Calendar / selection / recommended | Month-view teaching weeks, selection-window notice, four-level cascading recommended schedule |
+| Live bus | Chelaile + Mygolbs dual sources, nearby / search / stop / line / timetable / favourites / ride QR / bike-follow / breathing halo |
+| Web pages | In-app `WKWebView`: academic / student affairs / GitHub / Gitee / release pages, two-way Cookie sharing, https→http fallback |
+
+The Kotlin shared layer has 230 platform-independent assertions (nearby bus / academic parsing /
+calendar / cascading), runnable locally with `bash ios-kmp/run-probe.sh`.
+
 ---
 
 ## 📖 What it is
@@ -113,10 +178,11 @@ No splash ads, no feed, no permissions beyond what the features need.
 ### Home
 - Greeting, today's teaching week, and a timeline of today's classes — the ongoing one highlighted with a countdown.
 - Eight quick actions: timetable, grades, GPA, academic calendar, course selection, recommended schedule, live bus, more.
-- One-tap entrance to the student-affairs system (aid, leave requests, activity records).
+- One-tap entrance to the academic system (the "more" tile) and to the student-affairs system (aid, leave requests, activity records).
+- Native bottom tabs on both platforms (Home / Timetable / Grades / Profile); the grid's timetable/grades tiles switch tabs directly.
 
 ### Timetable
-- Four-colour course blocks, odd/even weeks, overlapping courses side by side, tap to edit.
+- Eight-colour course blocks, odd/even weeks, overlapping courses side by side, tap to edit.
 - Swipe between weeks, one tap back to the current week; period times shown alongside.
 - Manual courses, cancellations and moved classes survive a **sync** — sync only overwrites what the academic system owns.
 
@@ -183,6 +249,11 @@ Chinese README section **「课程实况窗的实现」** — the code is langua
 │   └── typecheck.sh            Type check only
 │
 ├── harmony-android/   ★ HarmonyOS build (Live View adaptation, compatibility hardening)
+├── ios-kmp/            ★ iOS build (KMP): shared/ Kotlin layer + app-ios/ SwiftUI app
+│   ├── shared/src/commonMain/   Protocol / parsing / algorithm / state logic (230 assertions)
+│   ├── app-ios/Sources/         SwiftUI views, native TabView, WKWebView, system capabilities
+│   ├── probe/ · run-probe.sh     Platform-independent assertion harness (runs on Windows)
+│   └── codemagic.yaml workflow  Cloud-only build → unsigned ipa (no Mac required)
 ├── docs/              Architecture, PRD, protocol notes, screenshots, calendar
 ├── web/ · android/ · tools/ · server.js   legacy v2 (H5 + WebView shell)
 └── reference/         Xiaoai timetable parser adapter (reference only, not built)
@@ -193,7 +264,9 @@ Conventions:
 - Pages are stateless: state lives in `data/` stores, pages only read and draw.
 - All navigation animation goes through one `PageDeck`; sub-pages use the rounded-card transition.
 - One notification protocol for every vendor — never one implementation per ROM.
-- The two builds may diverge on platform capability, but stay in sync on business logic.
+- The three builds may diverge on platform capability, but stay in sync on business logic.
+- iOS puts every piece of portable logic in the Kotlin shared layer; SwiftUI keeps only the UI,
+  system capabilities (notifications / location / Keychain) and session injection.
 
 ---
 
@@ -210,7 +283,17 @@ Conventions:
 | Build | `aapt2` + `kotlinc` + `d8` + `apksigner` | No Gradle, no `maven.google.com` |
 | Notifications | Notification API + reflection | compileSdk 34, API 36 probed at runtime |
 
-**Zero third-party runtime dependencies.** Nothing beyond the Kotlin standard library.
+iOS build (`ios-kmp/`):
+
+| Layer | Choice | Why |
+| --- | --- | --- |
+| Shared logic | Kotlin/Native → `Shared.framework` | Same protocol / parsing / state code as Android, compiled statically |
+| UI | SwiftUI + `TabView` | Native iOS tabs and sheets; 8-colour timetable, in-app `WKWebView` |
+| Crypto | `platform.CoreCrypto` (CC_MD5 / CCCrypt) | MD5 signing + AES decryption matched to the Android implementation |
+| HTTP | `URLSession` | K/N Foundation cannot set Referer/method — requests stay in Swift |
+| Build | XcodeGen + xcodebuild + Codemagic | No Mac locally: generate project and build unsigned ipa in the cloud |
+
+**Zero third-party runtime dependencies** on Android. Nothing beyond the Kotlin standard library.
 
 ```text
 60 Kotlin files · 24,190 lines
@@ -301,7 +384,12 @@ City ids are listed at `https://web.chelaile.net.cn/wwd/ncitylist`.
 - [CHANGELOG.md](CHANGELOG.md) — full per-version history
 - [native/README.md](native/README.md) — standard build internals
 - [harmony-android/README.md](harmony-android/README.md) — HarmonyOS compatibility work
-- [Releases](https://github.com/Chanmingfei/zstangshi/releases)
+- [ios-kmp/README.md](ios-kmp/README.md) — iOS / KMP build, shared layer and cloud build
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — architecture, data model and motion
+- [docs/RELEASE.md](docs/RELEASE.md) — release flow: auto-sync to Gitee after GitHub release
+- [docs/remote-api-map.md](docs/remote-api-map.md) — measured academic-system API notes
+- [Releases](https://github.com/Chanmingfei/zstangshi/releases) — packages and release notes
+- [iOS test build](https://github.com/Chanmingfei/zstangshi/releases/tag/ios-v4.0.7-test) — unsigned ipa
 
 <div align="center">
 

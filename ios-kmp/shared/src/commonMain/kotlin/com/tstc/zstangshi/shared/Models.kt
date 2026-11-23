@@ -10,6 +10,9 @@ package com.tstc.zstangshi.shared
 class Timetable {
     val semester: Semester = Semester()
     val courses: MutableList<Course> = ArrayList()
+
+    /** Swift 只读视图（ForEach / first 都要它）。 */
+    fun courseList(): List<Course> = courses
 }
 
 class Semester {
@@ -35,6 +38,9 @@ class Course {
     var colorTouched: Boolean = false
 
     val sessions: MutableList<Session> = ArrayList()
+
+    /** Swift 只读视图：MutableList 会导成 NSMutableArray，取元素全是 Any。 */
+    fun sessionList(): List<Session> = sessions
 }
 
 class Session {
@@ -50,6 +56,9 @@ class Session {
 
     /** 按周换老师（如形势与政策每周一个主讲）：周次 → 教师。 */
     val weekTeachers: MutableMap<Int, String> = LinkedHashMap()
+
+    /** Swift 只读视图。 */
+    fun weekList(): List<Int> = weeks
 }
 
 const val SOURCE_JWGLXT = "jwglxt"

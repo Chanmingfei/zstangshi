@@ -52,7 +52,7 @@ final class TimetableModel: ObservableObject {
     }
 
     func course(of key: String) -> Course? {
-        timetable?.courses.first { ($0 as? Course)?.key == key } as? Course
+        timetable?.courseList().first { $0.key == key }
     }
 
     /// 当前教学周：有学期开始日就按日期推，否则用 1。
@@ -101,7 +101,8 @@ final class TimetableModel: ObservableObject {
 struct TimetableView: View {
     @StateObject private var model = TimetableModel()
 
-    @State private var editing: Course?
+    @State private var editingKey: String?
+    @State private var editingCourse: Course?
     @State private var adding = false
     @State private var addDay = 1
     @State private var addSection = 1
@@ -143,8 +144,11 @@ struct TimetableView: View {
             model.week = model.currentWeek()
             await model.bootstrap()
         }
-        .sheet(item: $editing) { c in
-            editSheet(for: c)
+        .sheet(isPresented: Binding(
+            get: { editingCourse != nil },
+            set: { if !$0 { editingCourse = nil; editingKey = nil } }
+        )) {
+            if let c = editingCourse { editSheet(for: c) }
         }
         .sheet(isPresented: $adding) {
             CourseEditSheet(existing: nil, defaultDay: addDay,
@@ -258,7 +262,10 @@ struct TimetableView: View {
 
                 ForEach(Array(model.cellsOf(day: day).enumerated()), id: \.offset) { pair in
                     cellBlock(pair.element, onTap: { key in
-                        if let c = model.course(of: key) { editing = c }
+                        if let c = model.course(of: key) {
+                            editingKey = key
+                            editingCourse = c
+                        }
                     })
                 }
             }

@@ -38,7 +38,7 @@ struct CourseEditSheet: View {
         self.onSave = onSave
         self.onDelete = onDelete
 
-        if let c = existing, let s = c.sessions.first {
+        if let c = existing, let s = c.sessionList().first {
             _name = State(initialValue: c.name)
             _teacher = State(initialValue: c.teacher)
             _room = State(initialValue: s.location)
@@ -46,7 +46,7 @@ struct CourseEditSheet: View {
             _day = State(initialValue: Int(s.dayOfWeek))
             _startSection = State(initialValue: Int(s.startSection))
             _endSection = State(initialValue: Int(s.endSection))
-            _weeks = State(initialValue: Set(s.weeks.map { Int(truncating: $0) }))
+            _weeks = State(initialValue: Set(s.weekList().map { Int(truncating: $0) }))
             _colorIndex = State(initialValue: Int(c.colorIndex))
         } else {
             _day = State(initialValue: defaultDay)

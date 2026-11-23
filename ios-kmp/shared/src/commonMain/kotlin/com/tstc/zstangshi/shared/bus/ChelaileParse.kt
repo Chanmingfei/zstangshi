@@ -303,14 +303,14 @@ private fun readScheduled(block: Js.Obj?): List<BusTimetableSegment> {
                     is Js.Str -> sc.value
                     else -> ""
                 }
-                if (time.isNotEmpty()) s.times.add(time)
+                if (time.isNotEmpty()) s.addTime(time)
             }
         } else {
             val times = seg.optArr("times")
             if (times != null) {
                 for (sc in times.items) {
                     val time = (sc as? Js.Str)?.value ?: ""
-                    if (time.isNotEmpty()) s.times.add(time)
+                    if (time.isNotEmpty()) s.addTime(time)
                 }
             }
         }

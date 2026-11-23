@@ -5,7 +5,14 @@ class BusTimetableSegment {
     var fromTime: String = ""
     var toTime: String = ""
     var interval: Int = -1
-    val times: MutableList<String> = ArrayList()
+
+    // 同样只暴露只读 List，否则 Swift 拿到的元素是 Any，join/filter 都用不了
+    private val _times = ArrayList<String>()
+    val times: List<String> get() = _times
+
+    internal fun addTime(t: String) {
+        _times.add(t)
+    }
 }
 
 /** 首站发车时刻表（含「今天预测 / 昨日实际 / 前日实际」三种来源）。 */

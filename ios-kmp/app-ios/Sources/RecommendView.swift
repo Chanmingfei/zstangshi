@@ -129,7 +129,7 @@ struct RecommendView: View {
         HStack {
             Text("\(label)：").font(.subheadline).foregroundColor(.secondary)
             Menu {
-                ForEach(0..<options.size, id: \.self) { i in
+                ForEach(0..<Int(options.size), id: \.self) { i in
                     Button(options.names[i]) { onChange(i) }
                 }
             } label: {
@@ -238,7 +238,6 @@ struct RecommendView: View {
         guard !allRows.isEmpty else { return }
         let g = currentId(gradeOpts, gradeIdx)
         let d = currentId(deptOpts, deptIdx)
-        let m = currentId(majorOpts, majorIdx)
         if level <= 0 {
             majorOpts = JwFeaturesKt.recommendCascade(
                 rows: allRows, gradeId: g, deptId: d, majorId: "", group: 2)
@@ -290,10 +289,11 @@ struct RecommendView: View {
         }
         let repaired = JwFeaturesKt.repairKbJson(json: kb)
         let parsed = KbParser.shared.parse(json: repaired)
-        guard parsed.ok(), let t = parsed.timetable else {
+        guard parsed.ok() else {
             kbStatus = "班级课表解析失败（\(parsed.warnings.count) 条提示）"
             return
         }
+        let t = parsed.timetable
         kbTimetable = t
         kbWeek = 1
         kbTitle = JwFeaturesKt.className(rowJson: row)

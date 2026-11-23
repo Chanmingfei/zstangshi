@@ -17,6 +17,12 @@ Release 是平台侧的另一套数据（标题、说明、附件），**镜像�
 
 两条路用的是同一个脚本 `tools/sync_gitee_release.py`，逻辑一致、幂等。
 
+**仓库简介（description）也不在 git 里**，镜像同样不会带过去。
+`.github/workflows/sync-gitee-about.yml` 在 README 改动推送或发版时，用同一个
+`GITEE_TOKEN` 调 Gitee PATCH 接口把简介覆写成含 iOS 的版本（Gitee 接口不支持 topics，
+且 description 有长度上限，故用精简文案）。需要时也可在 Actions 页手动跑
+「同步仓库简介到 Gitee」。
+
 ## 一次性配置
 
 1. Gitee → 头像 → 设置 → 私人令牌 → 生成新令牌，勾 **projects**，复制。

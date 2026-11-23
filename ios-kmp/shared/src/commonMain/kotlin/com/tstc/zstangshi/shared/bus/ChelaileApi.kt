@@ -132,6 +132,30 @@ object ChelaileApi {
         return signedUrl("/bus/stop!encryptedPhyStnDetail.action", p)
     }
 
+    /** 到站预测（busDetail）：候车站由 targetOrder 指定，坐标只是参考。 */
+    fun busDetailUrl(cityId: String, lineId: String, order: Int, stationId: String,
+                     lat: Double, lng: Double): String {
+        val p = baseParams()
+        p["cityId"] = cityId
+        p["localCityId"] = cityId
+        p["lineId"] = lineId
+        p["targetOrder"] = order.toString()
+        p["specialTargetOrder"] = order.toString()
+        p["stationId"] = stationId
+        val la = if (lat > 0) formatCoord(lat) else ""
+        val ln = if (lng > 0) formatCoord(lng) else ""
+        p["lat"] = la
+        p["lng"] = ln
+        p["geo_lat"] = la
+        p["geo_lng"] = ln
+        p["userId"] = ""
+        p["h5Id"] = ""
+        p["unionId"] = ""
+        p["accountId"] = ""
+        p["secret"] = ""
+        return signedUrl("/bus/line!encryptedBusDetail.action", p)
+    }
+
     /** 发车时刻表。**不传 tabType**，否则昨日完整班次会被截掉（追客同款约定）。 */
     fun timetableUrl(cityId: String, lineId: String, lineNo: String, direction: Int): String {
         val p = baseParams()

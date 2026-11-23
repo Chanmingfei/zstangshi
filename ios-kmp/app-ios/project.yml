@@ -30,6 +30,8 @@ targets:
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Resources/Info.plist
+        # 图标用安卓同款校徽（由 tools/MakeIcon.java 生成 1024 方图）
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         # 官方 Direct integration 要求在 Xcode 里手动关掉 User Script Sandboxing。
         # 没有 Xcode，就只能在工程描述里写死：将来真加 Run Script 时才不会被沙盒拦住。

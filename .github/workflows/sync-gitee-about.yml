@@ -37,7 +37,10 @@ jobs:
           desc = os.environ["GITEE_DESC"]
           token = os.environ["GITEE_TOKEN"]
           url = "https://gitee.com/api/v5/repos/mingfei123/zstangshi"
-          data = urllib.parse.urlencode({"access_token": token, "description": desc}).encode()
+          # Gitee PATCH /repos 要求 name 必填（即使不改名字）
+          data = urllib.parse.urlencode({
+              "access_token": token, "name": "zstangshi", "description": desc,
+          }).encode()
           req = urllib.request.Request(url, data=data, method="PATCH")
           req.add_header("Content-Type", "application/x-www-form-urlencoded")
           try:

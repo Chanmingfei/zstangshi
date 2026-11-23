@@ -1,0 +1,32 @@
+# XcodeGen 工程描述：不提交 .xcodeproj，云构建时用 xcodegen 现场生成。
+# 这样 Windows 上改源码也不会把 project.pbxproj 弄成冲突。
+name: ZSTSProbe
+
+options:
+  bundleIdPrefix: com.tstc.zstangshi
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+targets:
+  ZSTSProbe:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        # 必须是 ASCII：中文 PRODUCT_NAME 会让重签工具拆错路径，
+        # 表现是「装上去闪退」或「装不上」，跟代码质量无关。
+        PRODUCT_NAME: ZSTSProbe
+        PRODUCT_BUNDLE_IDENTIFIER: com.tstc.zstangshi.probe
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Resources/Info.plist
+        # 探针不需要任何 capability：不要 App Group、不要推送、不要 iCloud。
+        # 免费个人团队重签时，多余的 entitlement 会直接导致启动失败。
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_BITCODE: NO

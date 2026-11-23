@@ -64,11 +64,17 @@ bash ios-kmp/run-probe.sh
 
 ## 下一关（P0 剩下的部分）
 
-这份探针只覆盖「不联网、不碰系统」的那一半。还没验证的是：
+`probe-ios/` 是这一关：一个纯 SwiftUI 探针，只做「登录 + 打日志」。
 
-- iOS 上 ATS 放行 `http://jwxt.tstc.edu.cn`（Info.plist 例外）
-- 302 沿途 Set-Cookie 累积（Ktor/NSURLSession 行为差异）
-- `SecKeyCreateEncryptedData` 对教务 modulus/exponent 的 DER 拼装
+- **ATS 放行 `http://jwxt.tstc.edu.cn`**：Info.plist 里给 `tstc.edu.cn` 开子域例外；
+- **302 沿途 Set-Cookie 累积**：共享 `HTTPCookieStorage` + `.always` 接受策略；
+- **`SecKeyCreateEncryptedData` 接受教务的 modulus/exponent**：`RSASPKI.swift` 手拼 SPKI。
 
-这三项只能在云构建里验，验法是一个 SwiftUI 单页直接打「登录结果 + 课程数」。
-过了这一关，剩下的都是体力活。
+其中第三项不用等云构建 —— `python ios-kmp/verify_rsa_der.py` 会用 openssl 现场生成密钥、
+校验拼出来的 DER 能被解析，并跑一遍 PKCS#1 v1.5 加解密往返。
+
+工程结构检查：`python ios-kmp/preflight.py`（括号平衡、plist 合法性、路径、ASCII 可执行名）。
+它**不能**替代编译器 —— SwiftUI 的类型只能在云构建里验。
+
+出包与装机的完整步骤见 [`probe-ios/README.md`](probe-ios/README.md)。
+

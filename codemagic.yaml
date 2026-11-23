@@ -1,0 +1,68 @@
+# Codemagic 云构建：没有 Mac 时出未签名 ipa，再用 Sideloadly/AltStore 用免费 Apple ID 重签安装。
+#
+# 用法：
+#   1. codemagic.io 用 GitHub 登录 → Add application → 选 zstangshi 仓库
+#   2. 它会自动读到本文件 → Start new build → 选 ios-probe
+#   3. 10 分钟左右在 Artifacts 下载 zstangshi-probe-unsigned.ipa
+#   4. Windows 上装 Sideloadly（需 iTunes 驱动）→ 拖 ipa → 选你的 Apple ID → Start
+#   5. 手机上「设置 → 通用 → VPN与设备管理」信任你的开发者证书，然后打开 App
+#
+# 免费账号的限制：7 天后失效需重签；每台设备最多 3 个自签 App。
+workflows:
+  ios-probe:
+    name: iOS 探针（未签名 ipa）
+    instance_type: mac_mini_m2
+    max_build_duration: 40
+    environment:
+      xcode: latest
+      vars:
+        PROBE_DIR: ios-kmp/probe-ios
+    scripts:
+      - name: 安装 XcodeGen
+        script: |
+          set -e
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: 生成 Xcode 工程
+        script: |
+          set -e
+          cd "$PROBE_DIR"
+          xcodegen generate
+          echo "--- 工程已生成 ---"
+          ls -la
+
+      - name: 编译（不签名）
+        script: |
+          set -e
+          cd "$PROBE_DIR"
+          xcodebuild \
+            -project ZSTSProbe.xcodeproj \
+            -scheme ZSTSProbe \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            build
+
+      - name: 打包未签名 ipa
+        script: |
+          set -e
+          cd "$PROBE_DIR"
+          rm -rf out
+          mkdir -p out/Payload
+          cp -R build/Build/Products/Release-iphoneos/ZSTSProbe.app out/Payload/
+          cd out
+          zip -qry ../zstangshi-probe-unsigned.ipa Payload
+          ls -lh ../zstangshi-probe-unsigned.ipa
+          echo "产物：$PROBE_DIR/zstangshi-probe-unsigned.ipa"
+
+    artifacts:
+      - ios-kmp/probe-ios/zstangshi-probe-unsigned.ipa
+      - ios-kmp/probe-ios/build/Build/Products/Release-iphoneos/ZSTSProbe.app

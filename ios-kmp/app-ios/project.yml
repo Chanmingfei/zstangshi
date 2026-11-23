@@ -1,0 +1,38 @@
+# 纯云构建的 App 工程：没有 Xcode，所以工程描述必须写全。
+# XcodeGen 从这份文件生成 .xcodeproj，一个字段都不能靠「在 Xcode 里点一下」补。
+name: ZSTSApp
+
+options:
+  bundleIdPrefix: com.tstc.zstangshi
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+targets:
+  ZSTSApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    dependencies:
+      # 共享层由 Gradle 产出（Codemagic 里先跑 :shared:linkReleaseFrameworkIosArm64）。
+      # 静态 framework 只参与链接、不需要嵌入签名 —— 免费账号重签时少一个失败点，
+      # 所以 embed: false。
+      - framework: ../shared/build/bin/iosArm64/releaseFramework/Shared.framework
+        embed: false
+    settings:
+      base:
+        PRODUCT_NAME: ZSTSApp
+        PRODUCT_BUNDLE_IDENTIFIER: com.tstc.zstangshi.app
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Resources/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        # 官方 Direct integration 要求在 Xcode 里手动关掉 User Script Sandboxing。
+        # 没有 Xcode，就只能在工程描述里写死：将来真加 Run Script 时才不会被沙盒拦住。
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        # 静态 framework 里带的是 arm64 真机切片，模拟器切片不参与本次构建
+        ONLY_ACTIVE_ARCH: NO

@@ -110,3 +110,72 @@ workflows:
 
     artifacts:
       - ios-kmp/shared/build/bin/**/*.framework
+
+  # 真 App：先编 Kotlin framework，再让 Xcode 链接它。
+  # 没有 Mac，所以不用官方那套「在 Xcode 里加 Run Script phase」的 Direct integration，
+  # 改成「先构建 framework → XcodeGen 声明依赖」——同样的产物，全流程可脚本化。
+  ios-app:
+    name: iOS App（接入 Kotlin 共享层）
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: 26.4
+      java: 17
+      vars:
+        KMP_DIR: ios-kmp
+        APP_DIR: ios-kmp/app-ios
+        GRADLE_VER: "8.14.4"
+    scripts:
+      - name: 准备 Gradle
+        script: |
+          set -e
+          if [ ! -x "/tmp/gradle-$GRADLE_VER/bin/gradle" ]; then
+            curl -sSLo /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-$GRADLE_VER-bin.zip"
+            unzip -q /tmp/gradle.zip -d /tmp
+          fi
+          /tmp/gradle-$GRADLE_VER/bin/gradle --version | sed -n '1,6p'
+
+      - name: 编译 Kotlin framework（release / arm64）
+        script: |
+          set -e
+          cd "$KMP_DIR"
+          /tmp/gradle-$GRADLE_VER/bin/gradle --no-daemon --stacktrace \
+            :shared:linkReleaseFrameworkIosArm64
+          ls -lh shared/build/bin/iosArm64/releaseFramework/
+
+      - name: 安装 XcodeGen 并生成工程
+        script: |
+          set -e
+          command -v xcodegen >/dev/null 2>&1 || brew install xcodegen
+          cd "$APP_DIR"
+          xcodegen generate
+          ls -la
+
+      - name: 编译 App（不签名）
+        script: |
+          set -e
+          cd "$APP_DIR"
+          xcodebuild \
+            -project ZSTSApp.xcodeproj \
+            -scheme ZSTSApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            build
+
+      - name: 打包未签名 ipa
+        script: |
+          set -e
+          cd "$APP_DIR"
+          rm -rf out && mkdir -p out/Payload
+          cp -R build/Build/Products/Release-iphoneos/ZSTSApp.app out/Payload/
+          cd out && zip -qry ../zstangshi-app-unsigned.ipa Payload
+          ls -lh ../zstangshi-app-unsigned.ipa
+
+    artifacts:
+      - ios-kmp/app-ios/zstangshi-app-unsigned.ipa

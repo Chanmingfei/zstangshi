@@ -22,9 +22,6 @@ class BusArrival {
     var arrived: Boolean = false
     var distanceMeters: Int = -1
 
-    /** 同名站台数（车来了 `namesakeStSize`）。首页显示「N 个站台 X m」用。 */
-    var platformCount: Int = 0
-
     /** 第二辆车的估算，对应界面「下一辆」。 */
     var nextStopsAway: Int = -1
     var nextMinutes: Int = -1
@@ -48,6 +45,9 @@ class BusStation {
     var lat: Double = 0.0
     var lng: Double = 0.0
     var distanceMeters: Int = -1
+
+    /** 同名站台数（车来了 `namesakeStSize`）。首页显示「N 个站台 X m」用。 */
+    var platformCount: Int = 0
 
     // 对外只暴露只读 List：K/N 会把 MutableList 导成 NSMutableArray，
     // Swift 那边既不能 ForEach 也没有 isEmpty，只有 List 才映射成 [T]。

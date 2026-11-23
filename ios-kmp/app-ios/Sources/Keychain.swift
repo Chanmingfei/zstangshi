@@ -11,8 +11,8 @@ enum Keychain {
     static func saveNo(_ value: String) { put("studentNo", value) }
     static func savePassword(_ value: String) { put("password", value) }
 
-    static var studentNo: String { get("studentNo") ?? "" }
-    static var password: String { get("password") ?? "" }
+    static var studentNo: String { read("studentNo") ?? "" }
+    static var password: String { read("password") ?? "" }
 
     static func deletePassword() { remove("password") }
 
@@ -31,7 +31,7 @@ enum Keychain {
         SecItemAdd(add as CFDictionary, nil)
     }
 
-    private static func get(_ key: String) -> String? {
+    private static func read(_ key: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

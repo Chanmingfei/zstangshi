@@ -18,7 +18,19 @@ final class JwAuth: ObservableObject {
     @Published var message = ""
 
     private let host = "jwxt.tstc.edu.cn"
-    private var origin = "https://jwxt.tstc.edu.cn"
+
+    /// 校外移动数据下 443 常常不通、80 正常（安卓端实测同款问题），所以必须能走 http。
+    /// 这里做成「自动降级 + 手动开关」双保险：自动降级兜住偶发，手动开关兜住一直不通。
+    var forceHttp: Bool {
+        get { UserDefaults.standard.bool(forKey: "jw.forceHttp") }
+    }
+
+    func setForceHttp(_ on: Bool) {
+        UserDefaults.standard.set(on, forKey: "jw.forceHttp")
+        origin = on ? "http://\(host)" : "https://\(host)"
+    }
+    private var origin = UserDefaults.standard.bool(forKey: "jw.forceHttp")
+        ? "http://jwxt.tstc.edu.cn" : "https://jwxt.tstc.edu.cn"
 
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.default
@@ -45,17 +57,14 @@ final class JwAuth: ObservableObject {
 
         do {
             // ① 登录页拿 csrftoken（https 优先，失败降级 http）
-            var page = ""
-            do {
-                let (_, body) = try await send("GET", "/xtgl/login_slogin.html", nil, "https://\(host)")
-                page = body
-                origin = "https://\(host)"
-            } catch {
-                let (_, body) = try await send("GET", "/xtgl/login_slogin.html", nil, "http://\(host)")
-                page = body
-                origin = "http://\(host)"
+            var (_, page) = try await sendWithFallback("GET", "/xtgl/login_slogin.html", nil)
+            var csrf = JwHtml.hiddenValue(page, id: "csrftoken")
+            if csrf.isEmpty && origin.hasPrefix("https") {
+                // https 通了但拿不到登录表单，多半是被网关/拦截页截了 → 换 http 再来一次
+                try await switchToHttp()
+                (_, page) = try await send("GET", "/xtgl/login_slogin.html", nil, origin)
+                csrf = JwHtml.hiddenValue(page, id: "csrftoken")
             }
-            let csrf = JwHtml.hiddenValue(page, id: "csrftoken")
             guard !csrf.isEmpty else {
                 message = "拿不到 csrftoken（页面结构变了？）"
                 return false
@@ -63,8 +72,8 @@ final class JwAuth: ObservableObject {
 
             // ② 公钥
             let ts = Int(Date().timeIntervalSince1970 * 1000)
-            let (_, keyJson) = try await send(
-                "GET", "/xtgl/login_getPublicKey.html?time=\(ts)", nil, origin)
+            let (_, keyJson) = try await sendWithFallback(
+                "GET", "/xtgl/login_getPublicKey.html?time=\(ts)", nil)
             let modulus = jsonField(keyJson, "modulus")
             let exponent = jsonField(keyJson, "exponent")
             guard !modulus.isEmpty, let cipher = RSASPKI.encrypt(
@@ -82,7 +91,7 @@ final class JwAuth: ObservableObject {
                 "language": "zh_CN",
                 "mmsfjm": "1",
             ]
-            let (_, loginBody) = try await send("POST", "/xtgl/login_slogin.html", form, origin)
+            let (_, loginBody) = try await sendWithFallback("POST", "/xtgl/login_slogin.html", form)
             let err = JwHtml.loginError(loginBody)
             if !err.isEmpty {
                 message = err
@@ -90,7 +99,7 @@ final class JwAuth: ObservableObject {
             }
 
             // ④ 用菜单页确认会话真的建立了（302 上的 Cookie 有没有留住）
-            let (code, menu) = try await send("GET", "/xtgl/index_cxMenuList.html", nil, origin)
+            let (code, menu) = try await sendWithFallback("GET", "/xtgl/index_cxMenuList.html", nil)
             if code != 200 || !menu.contains("gnmkdm") {
                 message = "登录未生效（会话没建立）"
                 return false
@@ -123,15 +132,15 @@ final class JwAuth: ObservableObject {
         // 学年学期从课表页的 select 里取；取不到就留空让教务用默认值
         var xnm = ""
         var xqm = ""
-        if let (_, page) = try? await send(
-            "GET", "/kbcx/xskbcx_cxXskbcxIndex.html?gnmkdm=N2151&layout=default", nil, origin) {
+        if let (_, page) = try? await sendWithFallback(
+            "GET", "/kbcx/xskbcx_cxXskbcxIndex.html?gnmkdm=N2151&layout=default", nil) {
             xnm = JwHtml.selectedOption(page, name: "xnm")
             xqm = JwHtml.selectedOption(page, name: "xqm")
         }
         var form: [String: String] = [:]
         if !xnm.isEmpty { form["xnm"] = xnm }
         if !xqm.isEmpty { form["xqm"] = xqm }
-        guard let (code, body) = try? await send("POST", "/kbcx/xskbcx_cxXsKb.html", form, origin),
+        guard let (code, body) = try? await sendWithFallback("POST", "/kbcx/xskbcx_cxXsKb.html", form),
               code == 200, !body.isEmpty else {
             message = "课表接口没有响应"
             return nil
@@ -148,8 +157,8 @@ final class JwAuth: ObservableObject {
 
     func fetchGrades() async -> GradeResult? {
         let form = ["xnm": "", "xqm": "", "kcbj": "", "sfzgcj": "", "zyfxgk": "0"]
-        guard let (code, body) = try? await send(
-            "POST", "/cjcx/cjcx_cxXsgrcj.html?doType=query", form, origin), code == 200 else {
+        guard let (code, body) = try? await sendWithFallback(
+            "POST", "/cjcx/cjcx_cxXsgrcj.html?doType=query", form), code == 200 else {
             message = "成绩接口没有响应"
             return nil
         }
@@ -159,6 +168,30 @@ final class JwAuth: ObservableObject {
     }
 
     // MARK: - HTTP
+
+    /// 换到 http 并记住（下一次启动直接走 http，省掉一次失败往返）。
+    private func switchToHttp() async throws {
+        origin = "http://\(host)"
+        UserDefaults.standard.set(true, forKey: "jw.forceHttp")
+    }
+
+    /// 带协议降级的请求：当前协议失败（抛错 / 5xx / 空体）就换另一种协议再试一次，
+    /// 成功则记住这次用的是什么。教务在校外移动数据下 443 不通是常态，不能只靠登录那一步兜。
+    private func sendWithFallback(_ method: String, _ path: String,
+                                  _ form: [String: String]?) async throws -> (Int, String) {
+        let first = origin
+        do {
+            let r = try await send(method, path, form, first)
+            if r.0 < 500 && !r.1.isEmpty { return r }
+        } catch {
+            // 落到下面换协议
+        }
+        let alt = first.hasPrefix("https") ? "http://\(host)" : "https://\(host)"
+        let r = try await send(method, path, form, alt)
+        origin = alt
+        UserDefaults.standard.set(alt.hasPrefix("http://"), forKey: "jw.forceHttp")
+        return r
+    }
 
     private func send(_ method: String, _ path: String, _ form: [String: String]?,
                       _ base: String) async throws -> (Int, String) {

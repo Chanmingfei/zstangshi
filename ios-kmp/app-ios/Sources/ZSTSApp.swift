@@ -4,7 +4,7 @@ import SwiftUI
 struct ZSTSApp: App {
     var body: some Scene {
         WindowGroup {
-            RootView()
+            NavigationStack { RootView() }
         }
     }
 }

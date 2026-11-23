@@ -105,6 +105,7 @@ struct RootView: View {
                 tile("实时公交", "bus.fill") { BusHomeView() }
                 tile("乘车码", "qrcode") { TransitCodeView() }
                 tile("我的", "person.crop.circle") { ProfileView() }
+                tile("更多", "square.grid.2x2") { MoreView() }
             }
         }
     }

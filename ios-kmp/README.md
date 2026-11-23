@@ -37,6 +37,26 @@ shared/build/bin/iosSimulatorArm64/debugFramework/Shared.framework   20M
 
 这一条的意义：**commonMain 能被 Kotlin/Native 编过**，这是 Windows 上永远验不了的事。
 
+## 纯云构建（没有 Mac）
+
+Xcode 的任何图形操作都用不了，所以全部写进 `project.yml`：
+
+- framework 依赖：`dependencies: - framework: …, embed: false`（静态，不嵌入、不参与签名）
+- `ENABLE_USER_SCRIPT_SANDBOXING: NO` —— 官方 Direct integration 要在 Xcode 里手点关闭，这里预防性写死
+- 工程由 XcodeGen 现场生成，`.xcodeproj` 不入库
+
+工作流 `ios-app`（Codemagic）实测：
+
+```
+gradle :shared:linkReleaseFrameworkIosArm64   ->  Shared.framework
+xcodegen generate                             ->  ZSTSApp.xcodeproj
+xcodebuild (CODE_SIGNING_ALLOWED=NO)          ->  ZSTSApp.app
+打包                                           ->  zstangshi-app-unsigned.ipa（500,857 B）
+```
+
+产物核对：App 二进制 1.78 MB，含 `Konan` / `kotlin` 运行时符号 4,599 处、`WeekMath` 42 处，
+且**没有 Frameworks 目录**（静态链接，符合预期）。
+
 ## 目录
 
 ```

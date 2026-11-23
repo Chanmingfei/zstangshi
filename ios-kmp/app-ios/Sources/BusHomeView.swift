@@ -351,8 +351,9 @@ struct StationCard: View {
     }
 
     private var subtitle: String {
+        // 安卓：「4 个站台 127 m」——站台数来自 namesakeStSize，不是线路数
         var bits: [String] = []
-        if station.arrivals.count > 0 { bits.append("\(station.arrivals.count) 条线路") }
+        if station.platformCount > 0 { bits.append("\(station.platformCount) 个站台") }
         if station.distanceMeters > 0 { bits.append("\(station.distanceMeters) m") }
         return bits.joined(separator: " ")
     }

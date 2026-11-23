@@ -33,7 +33,13 @@ class BusPrediction {
     private val _buses = ArrayList<BusEta>()
     val buses: List<BusEta> get() = _buses
 
+    // 掌上公交的 104 把「车辆清单」和「逐车到站」放在同一个响应里，
+    // 车来了则把车辆放在 lineDetail。两边都归一到 BusVehicle，界面只读一个字段。
+    private val _vehicles = ArrayList<BusVehicle>()
+    val vehicles: List<BusVehicle> get() = _vehicles
+
     internal fun addBus(e: BusEta) { _buses.add(e) }
+    internal fun addVehicle(v: BusVehicle) { _vehicles.add(v) }
 
     fun etaOf(busId: String): BusEta? = _buses.firstOrNull { it.busId == busId }
 }

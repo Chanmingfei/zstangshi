@@ -20,12 +20,23 @@ final class BusLineModel: ObservableObject {
     private var reverseId = ""
     private var uid = ""
 
+    /// 掌上公交的线路 id 形如 `mg|唐山市|21路|1`，它没有车来了那种反向 lineId，靠方向位切换。
+    private let isMg: Bool
+    private let mgCity: String
+    private let mgLine: String
+    private var mgDir: Int
+
     init(lineId: String, lineName: String) {
         self.lineId = lineId
         self.lineName = lineName
         self.cityId = BusPrefs.cityId
         self.favorite = BusPrefs.isFavorite(lineId)
         self.uid = lineId
+        let seg = Mygolbs.shared.parseLineId(lineId: lineId)
+        self.isMg = seg != nil && seg!.count == 3
+        self.mgCity = (seg?.count == 3) ? seg![0] : BusPrefs.cityId
+        self.mgLine = (seg?.count == 3) ? seg![1] : lineName
+        self.mgDir = (seg?.count == 3 && seg![2] == "2") ? 1 : 0
     }
 
     func loadAll() async {
@@ -40,6 +51,24 @@ final class BusLineModel: ObservableObject {
     }
 
     private func loadDetail() async {
+        if isMg {
+            do {
+                let body = try await BusFetch.postForm(
+                    Mygolbs.shared.API,
+                    form: MygolbsRouteKt.mygolbsRouteForm(
+                        cityName: mgCity, lineName: mgLine, dir: Int32(mgDir)),
+                    headers: ["User-Agent": Mygolbs.shared.UA,
+                              "Origin": Mygolbs.shared.ORIGIN,
+                              "Referer": Mygolbs.shared.REFERER])
+                let d = MygolbsRouteKt.parseMygolbsRoute(
+                    body: body, cityName: mgCity, lineName: mgLine, dir: Int32(mgDir))
+                detail = d
+                status = "\(d.stops.count) 站"
+            } catch {
+                status = "失败：\(error.localizedDescription)"
+            }
+            return
+        }
         let url = ChelaileApi.shared.lineDetailUrl(cityId: cityId, lineId: uid, lat: 39.63, lng: 118.18)
         do {
             let body = try await BusFetch.text(url)
@@ -54,6 +83,17 @@ final class BusLineModel: ObservableObject {
 
     private func loadPrediction() async {
         guard waitOrder > 0, let d = detail else { return }
+        if isMg {
+            guard let body = try? await BusFetch.postForm(
+                Mygolbs.shared.API,
+                form: MygolbsRouteKt.mygolbsRealtimeForm(
+                    cityName: mgCity, lineName: mgLine, dir: Int32(mgDir), order: Int32(waitOrder)),
+                headers: ["User-Agent": Mygolbs.shared.UA,
+                          "Origin": Mygolbs.shared.ORIGIN,
+                          "Referer": Mygolbs.shared.REFERER]) else { return }
+            pred = MygolbsRouteKt.parseMygolbsRealtime(body: body)
+            return
+        }
         let stop = d.stops.first { Int($0.order) == waitOrder }
         let url = ChelaileApi.shared.busDetailUrl(
             cityId: cityId, lineId: uid, order: Int32(waitOrder),
@@ -63,6 +103,17 @@ final class BusLineModel: ObservableObject {
     }
 
     private func loadTimetable() async {
+        if isMg {
+            guard let body = try? await BusFetch.postForm(
+                Mygolbs.shared.API,
+                form: MygolbsRouteKt.mygolbsTimetableForm(
+                    cityName: mgCity, lineName: mgLine, dir: Int32(mgDir)),
+                headers: ["User-Agent": Mygolbs.shared.UA,
+                          "Origin": Mygolbs.shared.ORIGIN,
+                          "Referer": Mygolbs.shared.REFERER]) else { return }
+            timetable = MygolbsRouteKt.parseMygolbsTimetable(body: body, lineName: mgLine)
+            return
+        }
         let url = ChelaileApi.shared.timetableUrl(
             cityId: cityId, lineId: uid, lineNo: detail?.line.lineNo ?? "", direction: 0)
         guard let body = try? await BusFetch.text(url) else { return }
@@ -70,6 +121,15 @@ final class BusLineModel: ObservableObject {
     }
 
     func switchDirection() async {
+        if isMg {
+            // 掌上公交没有反向 lineId：方向位取反后重新拉站表
+            mgDir = mgDir == 0 ? 1 : 0
+            waitOrder = 0
+            detail = nil
+            pred = nil
+            await loadAll()
+            return
+        }
         guard !reverseId.isEmpty else {
             status = "这条线没有反向数据"
             return
@@ -317,11 +377,11 @@ struct BusLineView: View {
             HStack {
                 Text(model.nextBusText).font(.footnote)
                 Spacer()
-                if let d = model.detail, !d.vehicles.isEmpty {
+                if !vehicleRows.isEmpty {
                     Button {
                         model.showVehicles = true
                     } label: {
-                        Text("全线 \(d.vehicles.count) 辆车在途 · 查看")
+                        Text("全线 \(vehicleRows.count) 辆车在途 · 查看")
                             .font(.footnote)
                             .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
                     }
@@ -346,13 +406,14 @@ struct BusLineView: View {
             .buttonStyle(.plain)
             Text("到「\(model.waitStop?.name ?? "")」的全部车辆").font(.subheadline).bold()
             Spacer()
-            Text("共 \(model.detail?.vehicles.count ?? 0) 辆").font(.caption).foregroundColor(.secondary)
+            Text("共 \(vehicleRows.count) 辆").font(.caption).foregroundColor(.secondary)
         }
         .padding(.bottom, 10)
     }
 
     private var vehicleRows: [BusVehicle] {
-        model.detail?.vehicles ?? []
+        let fromDetail = model.detail?.vehicles ?? []
+        return fromDetail.isEmpty ? (model.pred?.vehicles ?? []) : fromDetail
     }
 
     private func vehicleRow(_ v: BusVehicle) -> some View {

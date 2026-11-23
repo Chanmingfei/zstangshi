@@ -41,6 +41,7 @@ fun parseNearby(body: String, limit: Int, userLat: Double = 0.0, userLng: Double
         val serverDist = if (s.has("distance")) s.optInt("distance", -1) else -1
         st.distanceMeters = if (serverDist > 0) serverDist
         else Geo.haversineMeters(userLat, userLng, st.lat, st.lng)
+        st.platformCount = maxOf(1, s.optInt("namesakeStSize", 1))
         readArrivals(s.optArr("lines")) { st.addArrival(it) }
         if (st.name.isEmpty()) continue
         out.add(st)

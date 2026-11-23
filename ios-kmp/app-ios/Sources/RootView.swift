@@ -41,7 +41,6 @@ struct RootView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {
                         NavigationLink("公交") { BusHomeView() }
-                        NavigationLink("搜索") { BusSearchView() }
                         NavigationLink("乘车码") { TransitCodeView() }
                     }
                 }

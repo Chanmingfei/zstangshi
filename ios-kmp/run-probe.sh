@@ -43,16 +43,18 @@ fi
 echo "==> 平台依赖检查：commonMain 无 java.* / android.* 引用 ✓"
 
 SRC_SHARED=$(find "$HERE/shared/src/commonMain/kotlin" -name '*.kt' | tr '\n' ' ')
+SRC_JVM=$(find "$HERE/shared/src/jvmMain/kotlin" -name '*.kt' | tr '\n' ' ')
 SRC_PROBE=$(find "$HERE/probe/src/main/kotlin" -name '*.kt' | tr '\n' ' ')
 
 echo "==> 编译共享层 + 探针（$(echo $SRC_SHARED | wc -w) 个共享文件）"
 "$JDK_HOME/bin/java" -Xmx1g -cp "$KC_CP" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
   -no-stdlib -no-reflect \
   -jvm-target 17 \
+  -Xmulti-platform \
   -classpath "$KOTLIN_STDLIB" \
   -d "$OUT/classes" \
   -nowarn \
-  $SRC_SHARED $SRC_PROBE
+  $SRC_SHARED $SRC_JVM $SRC_PROBE
 
 echo "==> 运行探针"
 cd "$ROOT"

@@ -4,6 +4,9 @@ import com.tstc.zstangshi.shared.KbParser
 import com.tstc.zstangshi.shared.Timetable
 import com.tstc.zstangshi.shared.WeekMath
 import com.tstc.zstangshi.shared.WeekRange
+import com.tstc.zstangshi.shared.bus.ChelaileCrypto
+import com.tstc.zstangshi.shared.crypto.base64Decode
+import com.tstc.zstangshi.shared.crypto.md5Hex
 import java.io.File
 import java.time.LocalDate
 
@@ -168,6 +171,68 @@ fun main(args: Array<String>) {
         eq(WeekMath.firstCourseDate("", r.timetable), "", "无开学日期返回空")
         eq(WeekMath.firstCourseLabel("", t), "暂无可计算的首节课", "空课表文案")
     }
+
+
+    // ---------- 9. 车来了签名 / 解密 / 拆壳 ----------
+    // 向量来源：MD5 用 Python hashlib 独立算；AES 密文用 openssl 命令行
+    // （aes-256-ecb，密钥取 KEY 的 ASCII 字节）生成 —— 都是外部 oracle，不是我自己的实现。
+    eq(md5Hex(""), "d41d8cd98f00b204e9800998ecf8427e", "MD5 空串")
+    eq(md5Hex("abc"), "900150983cd24fb0d6963f7d28e17f72", "MD5 abc")
+
+    val signParams = linkedMapOf(
+        "cityId" to "050",
+        "lineId" to "027-0",
+        "stationName" to "TSSF",
+        "lat" to "39.63",
+        "lng" to "118.18"
+    )
+    eq(ChelaileCrypto.sign(signParams), "a844576714d1b8ea6836c4073475237d", "车来了签名（参数顺序敏感）")
+
+    // 调换顺序必须得到不同签名，否则说明 Map 被重排过
+    val reordered = linkedMapOf(
+        "lineId" to "027-0",
+        "cityId" to "050",
+        "stationName" to "TSSF",
+        "lat" to "39.63",
+        "lng" to "118.18"
+    )
+    check(ChelaileCrypto.sign(reordered) != ChelaileCrypto.sign(signParams), "参数顺序变了签名必须变")
+
+    val wxCipher = "YiWMVt9sJSHjs8vq5Y9Uj6S9ZXL3ssnefrLhxyLkaQGAPTIwJtYVpJ5ObaNG1OiarTCFw2O5hKCpViryIoBkvMgYGkdNwUEnfG6IaBhquKU="
+    val h5Cipher = "S4BBp6bYl+wDqZee8gkwJOUsZFKFGQfFNSw+fqhTy29h0D7Nsr9botsLIynGPpuM8ZbUc8it/ODi27xmSBCQLw=="
+
+    val wxPlain = runCatching { ChelaileCrypto.decrypt(wxCipher) }.getOrNull()
+    eq(wxPlain, """{"code":0,"msg":"ok","data":{"lines":[{"lineId":"027-0","name":"you1"}]}}""",
+        "AES-256-ECB 解密（KEY_WX）")
+
+    val h5Plain = runCatching { ChelaileCrypto.decrypt(h5Cipher) }.getOrNull()
+    eq(h5Plain, """{"code":0,"data":{"stnList":[{"sId":"abc","sn":"TSSF"}]}}""",
+        "AES-256-ECB 解密（回落到 KEY_H5）")
+
+    // base64 里混空白、缺填充都要能吃
+    val messy = wxCipher.substring(0, 20) + "\n  " + wxCipher.substring(20).trimEnd('=')
+    eq(runCatching { ChelaileCrypto.decrypt(messy) }.getOrNull(), wxPlain, "base64 带换行/缺 = 仍可解")
+
+    // 拆壳：真实响应形态 `**YGKJ{jsonr:{data:{encryptResult}}}**YGKJ`
+    val envelope = "**YGKJ{\"jsonr\":{\"code\":0,\"data\":{\"encryptResult\":\"$wxCipher\"}}}**YGKJ"
+    val envObj = ChelaileCrypto.extract(envelope)
+    eq(envObj?.optObj("data")?.optArr("lines")?.size, 1, "拆壳后能取到 lines[0]")
+    eq(envObj?.optObj("data")?.optArr("lines")?.items?.let { (it[0] as? com.tstc.zstangshi.shared.Js.Obj)?.optString("name") },
+        "you1", "拆壳后课表/线路名正确")
+
+    // data 直接是 JSON 字符串（部分接口如此）
+    val strData = "{\"jsonr\":{\"data\":\"{\\\"code\\\":0,\\\"msg\\\":\\\"plain\\\"}\"}}"
+    eq(ChelaileCrypto.extract(strData)?.optString("msg"), "plain", "data 是明文字符串时直接解析")
+
+    // 非 JSON（网关 HTML 错误页）返回 null，不能抛异常
+    eq(ChelaileCrypto.extract("<html><body>502 Bad Gateway</body></html>"), null, "HTML 错误页返回 null")
+
+    // 字符串里的花括号不能干扰括号计数
+    eq(ChelaileCrypto.jsonEnd("{\"a\":\"}{\"}", 0), 10, "jsonEnd 跳过字符串内的花括号")
+
+    // base64 解码基础行为
+    eq(base64Decode("aGVsbG8=").decodeToString(), "hello", "base64 基本解码")
+    eq(base64Decode("aGVs bG8").decodeToString(), "hello", "base64 忽略空格、允许缺填充")
 
     // ---------- 8. 平台无关性证据 ----------
     // Kotlin 的 String.hashCode 在 JVM 与 Native 上算法相同，这里把 JVM 实测值钉住，

@@ -11,6 +11,7 @@ final class BusLineModel: ObservableObject {
     @Published var status = "加载中…"
     @Published var loading = false
     @Published var showVehicles = false
+    @Published var followBusId = ""
     @Published var waitOrder: Int = 0
     @Published var favorite = false
 
@@ -293,7 +294,9 @@ struct BusLineView: View {
 
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if model.showVehicles {
+            if !model.followBusId.isEmpty {
+                followCard
+            } else if model.showVehicles {
                 vehiclesHeader
                 ForEach(vehicleRows, id: \.id) { v in
                     vehicleRow(v)
@@ -393,6 +396,91 @@ struct BusLineView: View {
         .padding(.top, 10)
     }
 
+    // MARK: 单车跟随（主卡第三态）
+
+    private var followVehicle: BusVehicle? {
+        let all = vehicleRows
+        return all.first { $0.id == model.followBusId }
+    }
+
+    private var followCard: some View {
+        let v = followVehicle
+        let busOrder = Int(v?.order ?? 0)
+        let total = Int(model.detail?.line.stationsNum ?? 0)
+        let left = (total > 0 && busOrder > 0) ? max(0, total - busOrder) : 0
+        let eta = model.pred?.etaOf(busId: v?.id ?? "")
+        let etaMins: Int = {
+            let s = Int(eta?.seconds ?? -1)
+            if s < 0 { return -1 }
+            return s < 60 ? 0 : (s + 59) / 60
+        }()
+        let distKm = Double(eta?.distanceMeters ?? -1) / 1000.0
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Button {
+                    model.followBusId = ""
+                } label: {
+                    Image(systemName: "arrow.left")
+                        .padding(6)
+                        .background(Color(UIColor.tertiarySystemFill))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("单车跟随 · \(v?.plate.isEmpty == false ? v!.plate : (v?.id ?? ""))")
+                        .font(.subheadline).bold()
+                    Text("开往 \(model.detail?.line.endName ?? "")")
+                        .font(.caption2).foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 0) {
+                statCell(title: "距终点", value: left > 0 ? "\(left) 站" : "—", highlight: false)
+                statCell(title: "时速", value: "\(Int(v?.speedKmh ?? 0)) km/h", highlight: false)
+                statCell(title: "到候车站预测",
+                         value: etaMins < 0 ? "—" : (etaMins == 0 ? "即将到站" : "约 \(etaMins) 分钟"),
+                         highlight: true)
+            }
+            .padding(.vertical, 10)
+            .background(Color(UIColor.tertiarySystemFill))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            if distKm > 0 {
+                Text(String(format: "距候车站 %.1f公里", distKm))
+                    .font(.caption).foregroundColor(.secondary)
+            }
+
+            Text("全线途经站行程流：").font(.caption).foregroundColor(.secondary)
+
+            if let stops = model.detail?.stops, busOrder > 0 {
+                let lo = max(0, busOrder - 3)
+                let hi = min(stops.count - 1, busOrder + 3)
+                VStack(spacing: 0) {
+                    ForEach(Array(stops[lo...hi].enumerated()), id: \.element.id) { pair in
+                        FlowRow(
+                            order: Int(pair.element.order),
+                            name: pair.element.name,
+                            passed: Int(pair.element.order) < busOrder,
+                            current: Int(pair.element.order) == busOrder,
+                            isNext: Int(pair.element.order) == busOrder + 1)
+                    }
+                }
+            }
+        }
+    }
+
+    private func statCell(title: String, value: String, highlight: Bool) -> some View {
+        VStack(spacing: 3) {
+            Text(title).font(.caption2).foregroundColor(.secondary)
+            Text(value)
+                .font(.footnote).bold()
+                .foregroundColor(highlight ? Color(red: 0.0, green: 0.48, blue: 1.0) : .primary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private var vehiclesHeader: some View {
         HStack {
             Button {
@@ -417,6 +505,16 @@ struct BusLineView: View {
     }
 
     private func vehicleRow(_ v: BusVehicle) -> some View {
+        let passed = model.waitOrder > 0 && Int(v.order) > model.waitOrder
+        return Button {
+            model.followBusId = v.id
+        } label: {
+            vehicleRowBody(v, passed: passed)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func vehicleRowBody(_ v: BusVehicle, passed: Bool) -> some View {
         let eta = model.pred?.etaOf(busId: v.id)
         let secs = Int(eta?.seconds ?? -1)
         let mins = secs < 0 ? -1 : (secs < 60 ? 0 : (secs + 59) / 60)
@@ -428,11 +526,11 @@ struct BusLineView: View {
         }()
         return HStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.12))
+                .fill((passed ? Color(UIColor.systemGray4) : Color(red: 0.0, green: 0.48, blue: 1.0)).opacity(0.14))
                 .frame(width: 34, height: 34)
                 .overlay(Image(systemName: "bus.fill")
                     .font(.system(size: 14))
-                    .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0)))
+                    .foregroundColor(passed ? Color.secondary : Color(red: 0.0, green: 0.48, blue: 1.0)))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(v.plate.isEmpty ? v.id : v.plate).font(.subheadline).bold()
@@ -445,17 +543,21 @@ struct BusLineView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text(mins < 0 ? "—" : (mins == 0 ? "即将" : "约 \(mins) 分钟"))
+                Text(passed ? "已过站" : (mins < 0 ? "—" : (mins == 0 ? "即将到站" : "约 \(mins) 分钟")))
                     .font(.footnote)
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(Color(UIColor.tertiarySystemFill))
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                if !arriveText.isEmpty {
+                if !arriveText.isEmpty && !passed {
                     Text(arriveText).font(.caption2).foregroundColor(.secondary)
                 }
             }
+            Image(systemName: "chevron.right").font(.caption2).foregroundColor(.secondary)
         }
-        .padding(.vertical, 8)
+        .padding(12)
+        .background(Color(UIColor.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.vertical, 4)
     }
 
     // MARK: 线路图
@@ -573,6 +675,11 @@ struct LineDiagram: View {
         return (lo...hi).map { (i: $0, stop: stops[$0]) }
     }
 
+    /// 该站是否有车（车来了 vehicles.order 即"开往第 N 站"；掌上公交为所在站序）
+    private func isVehicleHere(_ stop: BusStop) -> Bool {
+        vehicles.contains { Int($0.order) == Int(stop.order) }
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -585,6 +692,17 @@ struct LineDiagram: View {
                                 Rectangle()
                                     .fill(Color(UIColor.tertiarySystemFill))
                                     .frame(height: 3)
+                                // 车辆所在站：橙色小车标（对齐安卓线路图上方那个橙车）
+                                if isVehicleHere(item.stop) && Int(item.stop.order) != waitOrder {
+                                    Image(systemName: "bus.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.orange)
+                                        .offset(y: -14)
+                                }
+                                // 候车站：呼吸光晕（安卓那圈缓慢扩散的蓝光）
+                                if Int(item.stop.order) == waitOrder {
+                                    PulseHalo(diameter: 22)
+                                }
                                 Circle()
                                     .fill(Int(item.stop.order) == waitOrder
                                           ? Color(red: 0.0, green: 0.48, blue: 1.0)
@@ -632,6 +750,71 @@ struct LineDiagram: View {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .onAppear {
                 proxy.scrollTo(waitOrder, anchor: .center)
+            }
+        }
+    }
+}
+
+/// 行程流一行：左侧竖线 + 圆点（当前站是绿色车标 + 呼吸光晕）+ 站序 + 站名 + 右侧状态。
+struct FlowRow: View {
+    let order: Int
+    let name: String
+    let passed: Bool
+    let current: Bool
+    let isNext: Bool
+
+    private let blue = Color(red: 0.0, green: 0.48, blue: 1.0)
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ZStack {
+                Rectangle()
+                    .fill(passed ? Color(UIColor.systemGray4) : blue)
+                    .frame(width: 2)
+                if current {
+                    PulseHalo(color: Color.green, diameter: 26)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.green)
+                        .frame(width: 24, height: 24)
+                        .overlay(Image(systemName: "bus.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white))
+                } else {
+                    Circle()
+                        .fill(passed ? Color(UIColor.systemGray3) : blue)
+                        .frame(width: 8, height: 8)
+                }
+            }
+            .frame(width: 28, height: 42)
+
+            Text("\(order)")
+                .font(.caption2)
+                .foregroundColor(passed ? .secondary : .primary)
+                .frame(width: 26, alignment: .trailing)
+
+            Text(name)
+                .font(.subheadline)
+                .foregroundColor(current ? Color.green : (passed ? .secondary : .primary))
+                .padding(.leading, 8)
+
+            Spacer()
+
+            if current {
+                Text("正在接近")
+                    .font(.caption2)
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(Color.green.opacity(0.14))
+                    .foregroundColor(Color.green)
+                    .clipShape(Capsule())
+            } else if isNext {
+                Text("下一站")
+                    .font(.caption2)
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(Color(UIColor.tertiarySystemFill))
+                    .foregroundColor(.secondary)
+                    .clipShape(Capsule())
+            } else if passed {
+                Text("已过").font(.caption2).foregroundColor(.secondary)
             }
         }
     }

@@ -90,10 +90,38 @@ struct BusSearchView: View {
             status = "输入线路或站点名再搜"
             return
         }
+        if BusSourceStore.current == .mygolbs {
+            await loadMygolbs()
+            return
+        }
         let url = ChelaileApi.shared.searchUrl(cityId: BusPrefs.cityId, keyword: keyword)
         do {
             let body = try await BusFetch.text(url)
             let r = BusSearchKt.parseSearchResult(body: body)
+            result = r
+            status = "线路 \(r.lineCount) 条 · 站点 \(r.stationCount) 个"
+        } catch {
+            status = "失败：\(error.localizedDescription)"
+        }
+    }
+
+    /// 掌上公交：114 搜线路 + 110 搜站点，合并成一个结果
+    private func loadMygolbs() async {
+        let city = Mygolbs.shared.cityName(cityId: BusPrefs.cityId)
+        let headers = ["User-Agent": Mygolbs.shared.UA,
+                       "Origin": Mygolbs.shared.ORIGIN,
+                       "Referer": Mygolbs.shared.REFERER]
+        do {
+            let linesBody = try await BusFetch.postForm(
+                Mygolbs.shared.API,
+                form: MygolbsSearchKt.mygolbsSearchLinesForm(cityName: city, keyword: keyword),
+                headers: headers)
+            let stopsBody = (try? await BusFetch.postForm(
+                Mygolbs.shared.API,
+                form: MygolbsSearchKt.mygolbsSearchStopsForm(cityName: city, keyword: keyword),
+                headers: headers)) ?? "{}"
+            let r = MygolbsSearchKt.composeMygolbsSearchResult(
+                cityName: city, linesBody: linesBody, stopsBody: stopsBody)
             result = r
             status = "线路 \(r.lineCount) 条 · 站点 \(r.stationCount) 个"
         } catch {

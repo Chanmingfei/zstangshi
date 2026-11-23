@@ -19,18 +19,11 @@ final class JwAuth: ObservableObject {
 
     private let host = "jwxt.tstc.edu.cn"
 
-    /// 校外移动数据下 443 常常不通、80 正常（安卓端实测同款问题），所以必须能走 http。
-    /// 这里做成「自动降级 + 手动开关」双保险：自动降级兜住偶发，手动开关兜住一直不通。
-    var forceHttp: Bool {
-        get { UserDefaults.standard.bool(forKey: "jw.forceHttp") }
-    }
-
-    func setForceHttp(_ on: Bool) {
-        UserDefaults.standard.set(on, forKey: "jw.forceHttp")
-        origin = on ? "http://\(host)" : "https://\(host)"
-    }
-    private var origin = UserDefaults.standard.bool(forKey: "jw.forceHttp")
-        ? "http://jwxt.tstc.edu.cn" : "https://jwxt.tstc.edu.cn"
+    /// 校外移动数据下 443 常常不通、80 正常（安卓端实测同款问题）。
+    /// 和安卓一致：**自动探测**，不给用户开关 ——
+    ///   先用 3 秒探一次 https 的 favicon，通了就走 https，不通直接走 http，
+    ///   结果记住（下次启动直接用），之后任何一步失败还会再降级一次。
+    private var origin = UserDefaults.standard.string(forKey: "jw.origin") ?? "https://jwxt.tstc.edu.cn"
 
     private let session: URLSession = {
         let cfg = URLSessionConfiguration.default
@@ -56,7 +49,9 @@ final class JwAuth: ObservableObject {
         }
 
         do {
-            // ① 登录页拿 csrftoken（https 优先，失败降级 http）
+            await pickOrigin()
+
+            // ① 登录页拿 csrftoken
             var (_, page) = try await sendWithFallback("GET", "/xtgl/login_slogin.html", nil)
             var csrf = JwHtml.hiddenValue(page, id: "csrftoken")
             if csrf.isEmpty && origin.hasPrefix("https") {
@@ -169,10 +164,36 @@ final class JwAuth: ObservableObject {
 
     // MARK: - HTTP
 
+    /// 和安卓 `jwxtOrigin.js` 同款：3 秒内拿不到 https 的 favicon 就认定 443 不通。
+    /// 探测结果缓存起来，避免每次请求都等一遍 3 秒超时。
+    private func pickOrigin() async {
+        if let cached = UserDefaults.standard.string(forKey: "jw.origin"),
+           let ts = UserDefaults.standard.object(forKey: "jw.originAt") as? Date,
+           Date().timeIntervalSince(ts) < 3 * 24 * 3600 {
+            origin = cached
+            return
+        }
+        let https = "https://\(host)"
+        var ok = false
+        if let url = URL(string: https + "/favicon.ico") {
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 3
+            req.httpMethod = "HEAD"
+            if let (_, resp) = try? await session.data(for: req),
+               let http = resp as? HTTPURLResponse, http.statusCode < 500 {
+                ok = true
+            }
+        }
+        origin = ok ? https : "http://\(host)"
+        UserDefaults.standard.set(origin, forKey: "jw.origin")
+        UserDefaults.standard.set(Date(), forKey: "jw.originAt")
+    }
+
     /// 换到 http 并记住（下一次启动直接走 http，省掉一次失败往返）。
     private func switchToHttp() async throws {
         origin = "http://\(host)"
-        UserDefaults.standard.set(true, forKey: "jw.forceHttp")
+        UserDefaults.standard.set(origin, forKey: "jw.origin")
+        UserDefaults.standard.set(Date(), forKey: "jw.originAt")
     }
 
     /// 带协议降级的请求：当前协议失败（抛错 / 5xx / 空体）就换另一种协议再试一次，
@@ -189,7 +210,8 @@ final class JwAuth: ObservableObject {
         let alt = first.hasPrefix("https") ? "http://\(host)" : "https://\(host)"
         let r = try await send(method, path, form, alt)
         origin = alt
-        UserDefaults.standard.set(alt.hasPrefix("http://"), forKey: "jw.forceHttp")
+        UserDefaults.standard.set(alt, forKey: "jw.origin")
+        UserDefaults.standard.set(Date(), forKey: "jw.originAt")
         return r
     }
 

@@ -9,7 +9,6 @@ struct LoginView: View {
     @State private var pwd = ""
     @State private var remember = UserDefaults.standard.bool(forKey: "jw.remember")
     @State private var busy = false
-    @State private var useHttp = UserDefaults.standard.bool(forKey: "jw.forceHttp")
     @State private var error = ""
 
     var body: some View {
@@ -22,15 +21,6 @@ struct LoginView: View {
                 SecureField("教务密码", text: $pwd)
             } footer: {
                 Text("密码只保存在本机 Keychain，不上传任何服务器。")
-            }
-
-            Section {
-                Toggle("使用 http 访问（校外 443 不通时打开）", isOn: $useHttp)
-                    .onChange(of: useHttp) { on in
-                        auth.setForceHttp(on)
-                    }
-            } footer: {
-                Text("教务在校外移动数据下经常只有 80 端口能通，打开后会以 http 访问；校内网络建议关闭。")
             }
 
             Section {

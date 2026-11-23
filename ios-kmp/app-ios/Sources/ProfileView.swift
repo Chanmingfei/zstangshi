@@ -103,7 +103,32 @@ struct ProfileView: View {
                 Text("退出不会删除本地课表；换账号登录后会自动用新账号的课表覆盖。")
             }
 
-            Section {
+            Section("网页（应用内打开）") {
+                NavigationLink("教务系统") {
+                    WebViewPage.link(WebViewPage.Link.jwxt, title: "教务系统")
+                }
+                NavigationLink("学工系统") {
+                    WebViewPage.link(WebViewPage.Link.xuegong, title: "学工系统")
+                }
+                NavigationLink("版本发布页") {
+                    WebViewPage.link(WebViewPage.Link.releases, title: "版本发布页")
+                }
+                NavigationLink("更多功能") { MoreView() }
+            }
+
+            Section("关于") {
+                NavigationLink("GitHub 仓库") {
+                    WebViewPage.link(WebViewPage.Link.githubRepo, title: "GitHub 仓库")
+                }
+                NavigationLink("Gitee 仓库") {
+                    WebViewPage.link(WebViewPage.Link.giteeRepo, title: "Gitee 仓库")
+                }
+                NavigationLink("开发者 · GitHub") {
+                    WebViewPage.link(WebViewPage.Link.githubHome, title: "GitHub")
+                }
+                NavigationLink("开发者 · Gitee") {
+                    WebViewPage.link(WebViewPage.Link.giteeHome, title: "Gitee")
+                }
                 HStack {
                     Text("版本")
                     Spacer()

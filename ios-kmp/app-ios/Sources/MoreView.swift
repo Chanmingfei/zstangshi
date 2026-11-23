@@ -15,6 +15,17 @@ struct MoreView: View {
                 NavigationLink("实时公交") { BusHomeView() }
                 NavigationLink("乘车码") { TransitCodeView() }
             }
+            Section("网页（应用内打开）") {
+                NavigationLink("教务系统") {
+                    WebViewPage.link(WebViewPage.Link.jwxt, title: "教务系统")
+                }
+                NavigationLink("学工系统") {
+                    WebViewPage.link(WebViewPage.Link.xuegong, title: "学工系统")
+                }
+                NavigationLink("版本发布页") {
+                    WebViewPage.link(WebViewPage.Link.releases, title: "版本发布页")
+                }
+            }
             Section("账号") {
                 NavigationLink("我的") { ProfileView() }
                 if !auth.loggedIn {

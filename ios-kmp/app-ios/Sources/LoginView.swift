@@ -47,6 +47,14 @@ struct LoginView: View {
                 }
                 .disabled(busy || no.isEmpty || pwd.isEmpty)
             }
+
+            Section {
+                NavigationLink("用学工系统登录 / 重置密码") {
+                    WebViewPage.link(WebViewPage.Link.xuegong, title: "学工系统")
+                }
+            } footer: {
+                Text("忘记密码可在学工系统里找回；页面在应用内打开，不跳出 App。")
+            }
         }
         .navigationTitle("登录教务系统")
         .navigationBarTitleDisplayMode(.inline)

@@ -18,6 +18,7 @@ struct RootView: View {
                 header
                 todayCard
                 gridSection
+                affairsCard
                 loginCard
             }
             .padding(16)
@@ -107,9 +108,35 @@ struct RootView: View {
                 tile("选课", "checkmark.rectangle.stack") { SelectionView() }
                 tile("推荐课表", "book.closed") { RecommendView() }
                 tile("实时公交", "bus.fill") { BusHomeView() }
-                tile("更多", "square.grid.2x2") { MoreView() }
+                tile("更多功能", "square.grid.2x2") {
+                    WebViewPage.link(WebViewPage.Link.jwxt, title: "教务系统")
+                }
             }
         }
+    }
+
+    /// 登录学工系统横条（对齐安卓首页 affairsCard：应用内打开，不跳浏览器）。
+    private var affairsCard: some View {
+        NavigationLink {
+            WebViewPage.link(WebViewPage.Link.xuegong, title: "学工系统")
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.up.right.square")
+                    .font(.title3)
+                    .foregroundColor(Color(red: 0.46, green: 0.08, blue: 0.10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("登录学工系统").font(.subheadline).bold()
+                    Text("奖助贷、请假、综合素质 · 应用内打开")
+                        .font(.caption2).foregroundColor(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption2).foregroundColor(.secondary)
+            }
+            .padding(14)
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private func tile<D: View>(_ title: String, _ icon: String, @ViewBuilder dest: @escaping () -> D) -> some View {

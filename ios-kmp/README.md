@@ -86,12 +86,18 @@ bash ios-kmp/run-probe.sh
 
 ## 覆盖了什么
 
+共享层断言 **230 项全绿**（`bash ios-kmp/run-probe.sh`）：
+
 | 组 | 内容 | 数量级 |
 |---|---|---|
 | 日期内核 | epoch day ↔ 年月日往返 5 万天、闰年、非法日期、星期 | 50,004 天 |
 | 周次 | 归一到周一、开学前后边界、20 周单调性、clamp | 20 周 × 2 端点 |
 | 周次表达式 | 区间/离散/单双周/全角逗号/顿号/写反/无「周」字/空串 | 14 组 |
+| 校历 | 学期节点、月历网格、教学周角标 | 全量 |
 | 真实课表解析 | `docs/diagnostics/bjkbdy-kb-sample.json`（14 条记录 → 11 门课） | 全字段 |
+| 成绩解析 | 真实样本 + 文本成绩（优秀/合格/缓考） | 全字段 |
+| 选课 / 推荐课表 | 选课窗口解析、四级级联（`jg_id`/`jgdm` 兼容）、课表修补、JSON 嵌套保留 | 真实样本 |
+| 公交 | 车来了签名 / 解密 / 拆壳、掌上公交解析、站点 / 线路 / 时刻表 / 地理 | 159 项相关 |
 | 配色 | 11 门课拿到 11 种不同颜色，索引在 24 色板内 | — |
 | 平台无关性 | `String.hashCode` 与 JVM 一致（配色初值依赖它） | — |
 
@@ -106,19 +112,35 @@ bash ios-kmp/run-probe.sh
 3. **今天的时间由外面注入**（`WeekMath.todayProvider`），共享层不碰系统时钟。
    Android 侧给 `java.time.LocalDate.now()`，iOS 侧给 `Date()`，测试里给固定日期。
 
-## 下一关（P0 剩下的部分）
+## iOS App 现状（已与安卓功能对齐）
 
-`probe-ios/` 是这一关：一个纯 SwiftUI 探针，只做「登录 + 打日志」。
+`app-ios/` 是完整 App，不是探针。SwiftUI 负责界面，Kotlin 共享层负责协议 / 解析 / 算法：
 
-- **ATS 放行 `http://jwxt.tstc.edu.cn`**：Info.plist 里给 `tstc.edu.cn` 开子域例外；
-- **302 沿途 Set-Cookie 累积**：共享 `HTTPCookieStorage` + `.always` 接受策略；
-- **`SecKeyCreateEncryptedData` 接受教务的 modulus/exponent**：`RSASPKI.swift` 手拼 SPKI。
+- **底部导航**：原生 `TabView` 四 tab（首页 / 课表 / 成绩 / 我的），对齐安卓 MainActivity。
+- **教务**：RSA 登录、`http`/`https` 自动探测（无手动开关）、首次登录自动同步、
+  之后只在我的页手动同步、http 失败全链路降级。
+- **课表 / 成绩**：周网格 + 8 色编辑、停调课、隐藏教务课、回到本周；成绩学期筛选、绩点汇总。
+- **校历 / 选课 / 推荐课表**：月历教学周、选课窗口提示、四级级联推荐课表。
+- **实时公交**：车来了 + 掌上公交双数据源，附近 / 搜索 / 站详 / 线详 / 时刻表 / 收藏 /
+  乘车码 / 单车跟随 / 呼吸光晕，全部对齐安卓。
+- **App 内嵌网页**：`WKWebView` 打开教务 / 学工 / GitHub / Gitee / 版本发布页，
+  Cookie 与 URLSession 双向共享、https→http 降级、网页后退。
 
-其中第三项不用等云构建 —— `python ios-kmp/verify_rsa_der.py` 会用 openssl 现场生成密钥、
-校验拼出来的 DER 能被解析，并跑一遍 PKCS#1 v1.5 加解密往返。
+**版本号**在 `ios-kmp/app-ios/project.yml` 的 `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` 维护，
+与安卓 `native/version.properties` 对齐（当前 4.0.7）。
 
-工程结构检查：`python ios-kmp/preflight.py`（括号平衡、plist 合法性、路径、ASCII 可执行名）。
-它**不能**替代编译器 —— SwiftUI 的类型只能在云构建里验。
+## 云构建出包（没有 Mac）
 
-出包与装机的完整步骤见 [`probe-ios/README.md`](probe-ios/README.md)。
+`codemagic.yaml` 的 `ios-app` 工作流：Gradle 编 `Shared.framework` → XcodeGen 生成工程 →
+xcodebuild 不签名 → 打包未签名 ipa。用 `python _tools/codemagic.py run ios-app main` 触发，
+`watch <buildId>` 等结果，产物在 Codemagic 的 `build.artefacts`。
+
+ipa 未签名，装机需自行重签（TestFlight / 企业分发 / AltStore 等），Bundle ID `com.tstc.zstangshi.app`。
+
+本地可跑的检查：
+
+- `bash ios-kmp/run-probe.sh` —— 230 项共享层断言；
+- `python ios-kmp/verify_rsa_der.py` —— RSA SPKI 拼装与加解密往返；
+- `python ios-kmp/preflight.py` —— 工程结构（括号 / plist / 路径）。它**不能**替代编译器，
+  SwiftUI 的类型只能在云构建里验。
 

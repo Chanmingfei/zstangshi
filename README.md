@@ -43,8 +43,13 @@
 > 一条 `bash native/build.sh` 直接出可安装包。
 >
 > **当前版本**：标准版 **v4.0.7**（66）· 鸿蒙专版 **v4.1.2-harmony**（67）·
+> iOS 测试版 **v4.0.7**（未签名）·
 > 新增**启动自动检查更新**（可「忽略此版本」）与**课程实况窗** ——
 > 上课信息推到鸿蒙实况窗、ColorOS 流体云、小米焦点通知与 Android 16 实况通知。
+>
+> **iOS 版已与安卓功能对齐**：原生底部 TabView（首页 / 课表 / 成绩 / 我的）、教务登录与同步、
+> 成绩 / 绩点 / 校历 / 选课 / 推荐课表、课表编辑与停调课、双数据源实时公交、
+> App 内嵌 WebView（教务 / 学工 / 仓库页）。详见下方「iOS 测试版」一节。
 
 ---
 
@@ -68,6 +73,7 @@
 | --- | --- | --- |
 | **鸿蒙 / HarmonyOS**<br>华为、荣耀新机型 | **[⬇ 鸿蒙专版（实况窗版）](https://github.com/Chanmingfei/zstangshi/releases/tag/harmony-v4.1.2)**<br>`zstangshi-harmony-4.1.2.apk` | 桌面名 **掌上唐师·鸿蒙版**<br>关于页有「版本类型：鸿蒙专版」 |
 | **普通安卓**<br>小米 / OPPO / vivo / 三星 / 一加 | **[⬇ 标准版](https://github.com/Chanmingfei/zstangshi/releases/tag/v4.0.7)**<br>`zstangshi-v4.0.7.apk` | 桌面名 **掌上唐师**<br>关于页无「版本类型」行 |
+| **iPhone / iPad**（测试） | **[⬇ iOS 测试版](https://github.com/Chanmingfei/zstangshi/releases/tag/ios-v4.0.7-test)**<br>`zstangshi-ios-4.0.7-tabview-test.ipa` | 未签名，需自行重签安装<br>详见下方「iOS 测试版」 |
 
 最新版永远在 <https://github.com/Chanmingfei/zstangshi/releases/latest>。
 
@@ -117,6 +123,34 @@ sha256sum zstangshi-v4.0.7.apk                   # macOS / Linux
 | --- | --- | --- |
 | `zstangshi-v4.0.7.apk` | 3,771,518 B | `ad155743…46e59ddc6` |
 | `zstangshi-harmony-4.1.2.apk` | 1,768,581 B | `17fd08c6…3093bbcef` |
+| `zstangshi-ios-4.0.7-tabview-test.ipa` | 1,885,558 B | `9e3a3d55…6a107f` |
+
+---
+
+## 🍎 iOS 测试版
+
+iOS 版是安卓主线的**功能对齐移植**，源码在 [`ios-kmp/`](ios-kmp/)：
+SwiftUI 负责界面，协议 / 解析 / 算法 / 状态规则能迁的全部迁到 Kotlin 共享层（KMP），
+Kotlin/Native 编成静态 `Shared.framework` 供 App 链接。
+
+**当前发布的是未签名测试版**（`ios-v4.0.7-test`），因为项目没有 Mac、也没有 Apple 开发者签名：
+- 在 Codemagic 上纯云构建（XcodeGen 生成工程 → xcodebuild 不签名 → 打包 ipa）；
+- ipa **未签名**，无法直接装进 iPhone，需要你用自己的证书重签（或走 TestFlight / 企业分发）；
+- 重签工具任选：`ios-app-signer` / `AltStore` / `Sideloadly`，Bundle ID 为 `com.tstc.zstangshi.app`。
+
+**功能对齐状态**（与安卓标准版逐项核对）：
+
+| 模块 | 说明 |
+| --- | --- |
+| 底部导航 | iOS 原生 `TabView`：首页 / 课表 / 成绩 / 我的，宫格点课表 / 成绩直接切 tab |
+| 教务 | 登录（RSA）、http/https 自动探测无手动开关、首次登录自动同步、之后只在我的页手动同步 |
+| 课表 | 周网格、单双周、编辑（周次 / 8 色）、停课 / 调课、隐藏教务课、回到本周 |
+| 成绩 / 绩点 | 学期筛选、加权平均、绩点汇总 |
+| 校历 / 选课 / 推荐课表 | 月视图教学周、选课窗口提示、四级级联推荐课表 |
+| 实时公交 | 车来了 + 掌上公交双数据源、附近 / 搜索 / 站详 / 线详 / 时刻表 / 收藏 / 乘车码 / 单车跟随 / 呼吸光晕 |
+| 网页 | App 内嵌 `WKWebView`：教务 / 学工 / GitHub / Gitee / 版本发布页，Cookie 双向共享、https→http 降级 |
+
+ Kotlin 共享层有 230 项平台无关断言（近端公交 / 教务解析 / 校历 / 级联），可通过 `bash ios-kmp/run-probe.sh` 本地跑。
 
 ---
 
@@ -138,8 +172,9 @@ sha256sum zstangshi-v4.0.7.apk                   # macOS / Linux
 
 - **问候与教学周**：按时间给问候语，右上角直接标「第 12 周」，不用自己数。
 - **今日课程**：时间轴列出今天的课，正在上的课高亮并带下课倒计时；没课的日子给一句休息提示。
-- **8 格功能宫格**：课表、成绩、学分绩点、校历、选课、推荐课表、实时公交、更多。
+- **8 格功能宫格**：课表、成绩、学分绩点、校历、选课、推荐课表、实时公交、更多功能（直达教务）。
 - **学工系统入口**：奖助贷、请假、综合素质，一条链接进原页面。
+- 安卓与 iOS 均为底部四 tab（首页 / 课表 / 成绩 / 我的），iOS 用原生 `TabView` 实现。
 
 ### 课表
 

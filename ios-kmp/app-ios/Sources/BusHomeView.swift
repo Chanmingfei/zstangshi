@@ -145,6 +145,8 @@ final class BusHomeModel: NSObject, ObservableObject, CLLocationManagerDelegate 
 
 struct BusHomeView: View {
     @StateObject private var model = BusHomeModel()
+    @State private var query = ""
+    @State private var goSearch = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -225,19 +227,17 @@ struct BusHomeView: View {
 
     private var searchCard: some View {
         HStack(spacing: 10) {
-            NavigationLink {
-                BusSearchView()
-            } label: {
-                HStack {
-                    Text("搜索线路、站点").foregroundColor(.secondary)
-                    Spacer()
-                }
+            TextField("搜索线路、站点", text: $query)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .onSubmit { goSearch = !query.isEmpty }
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(Color(UIColor.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-            NavigationLink {
-                BusSearchView()
+
+            Button {
+                goSearch = !query.isEmpty
             } label: {
                 Text("搜索")
                     .font(.subheadline).bold()
@@ -246,9 +246,16 @@ struct BusHomeView: View {
                     .foregroundColor(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
+            if !query.isEmpty {
+                Button("取消") { query = "" }
+                    .font(.subheadline)
+            }
         }
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        .navigationDestination(isPresented: $goSearch) {
+            BusSearchView(keyword: query)
+        }
     }
 
     private var cityRow: some View {

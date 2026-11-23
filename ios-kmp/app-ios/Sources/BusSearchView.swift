@@ -1,51 +1,68 @@
 import SwiftUI
 import Shared
 
-/// 公交搜索页：验证「Kotlin 拼 URL/签名/解密 + Swift 发请求」这条分工能跑。
-///
-/// 这里刻意不引入任何第三方网络库：URLSession 直接带 Referer（车来了缺了就 400），
-/// 拿到的 body 原样交给 Kotlin 的 parseSearchHits 去拆壳解密。
+/// 搜索结果页 —— 按安卓版对齐：站点组（只列最近 3 个 + 提示）+ 线路组（带线路号徽标）。
 struct BusSearchView: View {
-    @State private var keyword: String = "游1"
-    @State private var hits: [BusLineHit] = []
-    @State private var status: String = "输入线路名后点搜索"
-    @State private var loading = false
-    @State private var rawLength: Int = 0
+    let keyword: String
+
+    @State private var result: BusSearchResult?
+    @State private var status = "搜索中…"
 
     var body: some View {
         List {
-            Section {
-                HStack {
-                    TextField("线路名或站点名", text: $keyword)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Button("搜索") { Task { await search() } }
-                        .disabled(loading || keyword.isEmpty)
-                }
-                Text(status)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            Section { Text(status).font(.caption).foregroundColor(.secondary) }
 
-            Section("结果（唐山 056）") {
-                if hits.isEmpty {
-                    Text("暂无结果").foregroundColor(.secondary)
-                } else {
-                    ForEach(hits, id: \.lineId) { hit in
-                        NavigationLink { BusLineView(hit: hit) } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(hit.name).font(.headline)
-                                if !hit.no.isEmpty {
-                                    Text(hit.no).font(.caption).foregroundColor(.secondary)
+            if let r = result {
+                if !r.stations.isEmpty {
+                    Section("站点") {
+                        ForEach(Array(r.stations.prefix(3)), id: \.id) { st in
+                            NavigationLink {
+                                BusStopDetailView(station: st)
+                            } label: {
+                                HStack(spacing: 10) {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.12))
+                                        .frame(width: 34, height: 34)
+                                        .overlay(Image(systemName: "bus.fill")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0)))
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(st.name).font(.headline)
+                                        Text(stationSubtitle(st))
+                                            .font(.caption2).foregroundColor(.secondary)
+                                    }
                                 }
+                                .padding(.vertical, 4)
                             }
-                            Text("\(hit.startSn) → \(hit.endSn)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(hit.lineId).font(.system(size: 10, design: .monospaced))
-                                .foregroundColor(.secondary)
                         }
+                    }
+                    if r.stationCount > r.stations.count {
+                        Text("共 \(r.stationCount) 个站点命中，这里只列最接近的 3 个 · 站名写全一些能找得更准")
+                            .font(.caption2).foregroundColor(.secondary)
+                    }
+                }
+
+                if !r.lines.isEmpty {
+                    Section("线路 · 共 \(r.lineCount) 条") {
+                        ForEach(r.lines, id: \.lineId) { hit in
+                            NavigationLink {
+                                BusLineView(hit: hit)
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Text(badge(hit))
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+                                        .frame(width: 44, height: 30)
+                                        .background(Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.10))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(hit.name).font(.headline)
+                                        Text("\(hit.startSn) → \(hit.endSn)")
+                                            .font(.caption2).foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
                         }
                     }
                 }
@@ -53,40 +70,34 @@ struct BusSearchView: View {
         }
         .navigationTitle("实时公交")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
     }
 
-    private func search() async {
-        loading = true
-        defer { loading = false }
-        let urlText = ChelaileApi.shared.searchUrl(cityId: "056", keyword: keyword)
-        guard let url = URL(string: urlText) else {
-            status = "URL 拼接失败"
+    private func stationSubtitle(_ st: BusStation) -> String {
+        if st.distanceMeters > 0 {
+            return String(format: "公交站点 · 距你 %.1f km", Double(st.distanceMeters) / 1000.0)
+        }
+        return "公交站点"
+    }
+
+    private func badge(_ hit: BusLineHit) -> String {
+        if !hit.no.isEmpty { return hit.no }
+        return hit.name.replacingOccurrences(of: "路", with: "")
+    }
+
+    private func load() async {
+        guard !keyword.isEmpty else {
+            status = "输入线路或站点名再搜"
             return
         }
-
-        var req = URLRequest(url: url)
-        req.timeoutInterval = 15
-        // 两个头都由 Kotlin 侧给出，避免两边各写一份以后漂移
-        req.setValue(ChelaileApi.shared.UA, forHTTPHeaderField: "User-Agent")
-        req.setValue(ChelaileApi.shared.REFERER, forHTTPHeaderField: "Referer")
-        req.setValue("*/*", forHTTPHeaderField: "Accept")
-        req.setValue("zh-CN,zh;q=0.9", forHTTPHeaderField: "Accept-Language")
-
+        let url = ChelaileApi.shared.searchUrl(cityId: BusPrefs.cityId, keyword: keyword)
         do {
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
-            let body = String(data: data, encoding: .utf8) ?? ""
-            rawLength = body.count
-            if code != 200 {
-                status = "HTTP \(code)，\(body.prefix(120))"
-                return
-            }
-            // 顶层函数在 Swift 里挂在 <文件名>Kt 上，不是 object 成员
-            let parsed = BusSearchKt.parseSearchHits(body: body)
-            hits = parsed
-            status = "HTTP 200 · \(body.count) 字节 · 解析出 \(parsed.count) 条"
+            let body = try await BusFetch.text(url)
+            let r = BusSearchKt.parseSearchResult(body: body)
+            result = r
+            status = "线路 \(r.lineCount) 条 · 站点 \(r.stationCount) 个"
         } catch {
-            status = "网络失败：\(error.localizedDescription)"
+            status = "失败：\(error.localizedDescription)"
         }
     }
 }

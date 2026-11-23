@@ -284,14 +284,16 @@ enum HTML {
             if let g = match(html, p), g.count > 1 { inner = g[1]; break }
         }
         guard let body = inner else { return "" }
+        // allMatches 返回的是「每组捕获」，opt 是 [String]（第 0 项才是整段匹配）
         let options = allMatches(body, "<option[^>]*>")
         var firstValue = ""
         for opt in options {
-            guard let g = match(opt, "value=[\"']([^\"']*)[\"']"), g.count > 1 else { continue }
+            guard let tag = opt.first else { continue }
+            guard let g = match(tag, "value=[\"']([^\"']*)[\"']"), g.count > 1 else { continue }
             let v = g[1]
             if v.isEmpty { continue }
             if firstValue.isEmpty { firstValue = v }
-            if opt.lowercased().contains("selected") { return v }
+            if tag.lowercased().contains("selected") { return v }
         }
         return firstValue
     }

@@ -8,6 +8,7 @@ struct RootView: View {
     @State private var todayCells: [GridCell] = []
     @State private var week = 1
     @State private var loading = false
+    @State private var autoState = ""
 
     private let weekNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
@@ -24,7 +25,7 @@ struct RootView: View {
         .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("")
         .navigationBarHidden(true)
-        .task { await refresh() }
+        .task { await bootstrap() }
     }
 
     // MARK: 顶部
@@ -159,7 +160,9 @@ struct RootView: View {
                             .foregroundColor(Color(red: 0.46, green: 0.08, blue: 0.10))
                         VStack(alignment: .leading, spacing: 2) {
                             Text("登录学工系统").font(.subheadline)
-                            Text("课表、成绩、考试安排（需要教务账号）")
+                            Text(autoState.isEmpty
+                                 ? "课表、成绩、考试安排（需要教务账号）"
+                                 : autoState)
                                 .font(.caption2).foregroundColor(.secondary)
                         }
                         Spacer()
@@ -176,21 +179,44 @@ struct RootView: View {
 
     // MARK: 数据
 
-    private func refresh() async {
-        // 记住密码时自动登录
-        if !auth.loggedIn, UserDefaults.standard.bool(forKey: "jw.remember") {
-            let no = Keychain.studentNo
-            let pwd = Keychain.password
-            if !no.isEmpty && !pwd.isEmpty {
-                loading = true
-                _ = await auth.login(no: no, password: pwd)
-                loading = false
-            }
+    /// 启动顺序：先渲染本地缓存（秒开），再后台静默登录并同步。
+    /// 安卓就是这个体验 —— 首页立刻可用，登录/同步在后台跑，绝不挡着点「实时公交」。
+    private func bootstrap() async {
+        if let cached = TimetableStore.load() {
+            apply(cached)
         }
-        guard auth.loggedIn else { return }
+        await autoLoginThenSync()
+    }
+
+    private func autoLoginThenSync() async {
+        if auth.loggedIn {
+            await sync()
+            return
+        }
+        let remember = UserDefaults.standard.bool(forKey: "jw.remember")
+        let no = Keychain.studentNo
+        let pwd = Keychain.password
+        guard remember, !no.isEmpty, !pwd.isEmpty else { return }
+
+        autoState = "正在自动登录…"
+        let ok = await auth.login(no: no, password: pwd)
+        if ok {
+            autoState = ""
+            await sync()
+        } else {
+            autoState = "自动登录失败：\(auth.message)"
+        }
+    }
+
+    private func sync() async {
         loading = true
         defer { loading = false }
         guard let t = await JwAuth.shared.fetchTimetable() else { return }
+        TimetableStore.save(t)
+        apply(t)
+    }
+
+    private func apply(_ t: Timetable) {
         timetable = t
         week = currentWeek(t)
         todayCells = TimetableGrid.shared.cellsOfDay(

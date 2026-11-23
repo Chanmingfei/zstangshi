@@ -104,6 +104,7 @@ struct RootView: View {
                 tile("成绩", "chart.bar.doc.horizontal") { GradesView() }
                 tile("实时公交", "bus.fill") { BusHomeView() }
                 tile("乘车码", "qrcode") { TransitCodeView() }
+                tile("我的", "person.crop.circle") { ProfileView() }
             }
         }
     }
@@ -208,12 +209,22 @@ struct RootView: View {
         }
     }
 
+    /// 首次登录（或换账号）才自动同步；之后只用缓存，刷新交给「我的」页。
     private func sync() async {
+        let synced = UserDefaults.standard.string(forKey: "jw.syncedNo") ?? ""
+        let needFirst = !auth.studentNo.isEmpty && synced != auth.studentNo
+        guard needFirst || timetable == nil else { return }
         loading = true
         defer { loading = false }
-        guard let t = await JwAuth.shared.fetchTimetable() else { return }
-        TimetableStore.save(t)
-        apply(t)
+        guard let fresh = await JwAuth.shared.fetchTimetable() else { return }
+        if let local = timetable {
+            for k in local.hiddenList() {
+                TimetableEdit.shared.hideCourse(t: fresh, key: k)
+            }
+        }
+        TimetableStore.save(fresh)
+        UserDefaults.standard.set(auth.studentNo, forKey: "jw.syncedNo")
+        apply(fresh)
     }
 
     private func apply(_ t: Timetable) {

@@ -26,7 +26,9 @@ object TimetableGrid {
     /** 该周要显示的格子，按天、节次排序。 */
     fun cells(t: Timetable, week: Int): List<GridCell> {
         val out = ArrayList<GridCell>()
+        val hidden = t.hiddenKeys
         for (course in t.courses) {
+            if (hidden.contains(course.key)) continue
             for (s in course.sessions) {
                 if (s.weeks.isNotEmpty() && !s.weeks.contains(week)) continue
                 out.add(
@@ -61,6 +63,9 @@ object TimetableGrid {
         }
         return m
     }
+
+    /** 当前生效的课程数（不算被隐藏的）。 */
+    fun visibleCount(t: Timetable): Int = t.courses.count { !t.hiddenKeys.contains(it.key) }
 
     /** 全学期出现过的最大周次。 */
     fun maxWeek(t: Timetable, def: Int): Int {

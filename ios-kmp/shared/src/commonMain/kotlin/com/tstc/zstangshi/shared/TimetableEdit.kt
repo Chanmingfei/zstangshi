@@ -61,6 +61,11 @@ object TimetableCodec {
             }
             sb.append("]}")
         }
+        sb.append("],\"hidden\":[")
+        for ((i, k) in t.hiddenKeys.withIndex()) {
+            if (i > 0) sb.append(',')
+            sb.append(q(k))
+        }
         sb.append("]}")
         return sb.toString()
     }
@@ -74,6 +79,13 @@ object TimetableCodec {
             t.semester.name = sem.optString("name")
             t.semester.startDate = sem.optString("startDate")
             t.semester.totalWeeks = sem.optInt("totalWeeks", 20)
+        }
+        val hid = root.optArr("hidden")
+        if (hid != null) {
+            for (h in hid.items) {
+                val k = (h as? Js.Str)?.value ?: ""
+                if (k.isNotEmpty()) t.hiddenKeys.add(k)
+            }
         }
         val arr = root.optArr("courses") ?: return t
         for (item in arr.items) {
@@ -170,6 +182,18 @@ object TimetableEdit {
         t.courses.add(c)
         return c
     }
+
+    /** 整门课从课表里隐藏（教务课也能隐藏，同步后依然隐藏）。 */
+    fun hideCourse(t: Timetable, key: String) {
+        if (key.isEmpty() || t.hiddenKeys.contains(key)) return
+        t.hiddenKeys.add(key)
+    }
+
+    fun unhideCourse(t: Timetable, key: String) {
+        t.hiddenKeys.remove(key)
+    }
+
+    fun isHidden(t: Timetable, key: String): Boolean = t.hiddenKeys.contains(key)
 
     /** 改颜色：标记 colorTouched，之后自动配色不会再动它。 */
     fun setColor(c: Course, index: Int) {

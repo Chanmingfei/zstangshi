@@ -13,6 +13,17 @@ class Timetable {
 
     /** Swift 只读视图（ForEach / first 都要它）。 */
     fun courseList(): List<Course> = courses
+
+    /**
+     * 本地隐藏掉的课程 key。
+     *
+     * 用途：教务调课/停课但系统没更新时，用户把整门课从自己的课表里去掉。
+     * 单独存一份而不是删 course，是因为下次同步教务会把这门课又抓回来 ——
+     * 安卓那边对应的是 Adjust(停课/调课) 体系，先覆盖「整门课不再显示」这类最常见诉求。
+     */
+    val hiddenKeys: MutableList<String> = ArrayList()
+
+    fun hiddenList(): List<String> = hiddenKeys
 }
 
 class Semester {

@@ -16,22 +16,42 @@ final class TimetableModel: ObservableObject {
             apply(cached, week: nil)
             status = "本地缓存"
         }
-        await sync()
+        // 只有「这个账号第一次」或「换了账号」才自动同步；
+        // 之后一律用缓存，想刷新由用户在「我的」页点同步（安卓就是这个口径）
+        if JwAuth.shared.loggedIn && needsFirstSync() {
+            await sync()
+        }
     }
 
-    func sync() async {
+    /// 同步教务课表。会保留「本地隐藏列表」——教务调课没更新时用户手动去掉的课，
+    /// 同步回来不能再冒出来（安卓对应的是 Adjust 体系，这里先覆盖整门课隐藏）。
+    @discardableResult
+    func sync() async -> Bool {
         guard JwAuth.shared.loggedIn else {
             if timetable == nil { status = "未登录：点首页登录教务后同步" }
-            return
+            return false
         }
         status = "同步中…"
-        guard let t = await JwAuth.shared.fetchTimetable() else {
+        guard let fresh = await JwAuth.shared.fetchTimetable() else {
             status = JwAuth.shared.message.isEmpty ? "同步失败" : JwAuth.shared.message
-            return
+            return false
         }
-        TimetableStore.save(t)
-        apply(t, week: nil)
-        status = "已同步 · \(t.courses.count) 门课"
+        if let local = timetable {
+            for k in local.hiddenList() {
+                TimetableEdit.shared.hideCourse(t: fresh, key: k)
+            }
+        }
+        TimetableStore.save(fresh)
+        apply(fresh, week: nil)
+        UserDefaults.standard.set(JwAuth.shared.studentNo, forKey: "jw.syncedNo")
+        status = "已同步 · \(TimetableGrid.shared.visibleCount(t: fresh)) 门课"
+        return true
+    }
+
+    /// 是否需要首次自动同步：这个账号还没同步过（或换了账号）。
+    func needsFirstSync() -> Bool {
+        let synced = UserDefaults.standard.string(forKey: "jw.syncedNo") ?? ""
+        return !JwAuth.shared.studentNo.isEmpty && synced != JwAuth.shared.studentNo
     }
 
     func apply(_ t: Timetable, week newWeek: Int?) {
@@ -90,9 +110,26 @@ final class TimetableModel: ObservableObject {
         refresh()
     }
 
+    /// 删除：手动课真删；教务课只能「隐藏」（下次同步否则会回来）。
     func deleteCourse(_ c: Course) {
         guard let t = timetable else { return }
-        _ = TimetableEdit.shared.removeCourse(t: t, key: c.key)
+        if c.source == "custom" {
+            _ = TimetableEdit.shared.removeCourse(t: t, key: c.key)
+        } else {
+            TimetableEdit.shared.hideCourse(t: t, key: c.key)
+        }
+        TimetableStore.save(t)
+        refresh()
+    }
+
+    func hiddenCourses() -> [Course] {
+        guard let t = timetable else { return [] }
+        return t.courseList().filter { t.hiddenList().contains($0.key) }
+    }
+
+    func unhide(_ c: Course) {
+        guard let t = timetable else { return }
+        TimetableEdit.shared.unhideCourse(t: t, key: c.key)
         TimetableStore.save(t)
         refresh()
     }

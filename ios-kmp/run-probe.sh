@@ -24,6 +24,8 @@ KC_DIR="C:/Android/kotlinc19"
 : "${KC_DIR:?未找到 Kotlin 编译器}"
 KC_CP="$(ls "$KC_DIR"/*.jar | tr "\n" ";")"
 KOTLIN_STDLIB="$KC_DIR/kotlin-stdlib-1.9.24.jar"
+# 只有探针用 coroutines（runBlocking 跑挂起的联网冒烟）；共享层本身零依赖
+COROUTINES="$KC_DIR/kotlinx-coroutines-core-jvm-1.7.3.jar"
 [ -f "$KOTLIN_STDLIB" ] || { echo "找不到 $KOTLIN_STDLIB"; exit 1; }
 
 echo "==> JDK: $JDK_HOME"
@@ -51,7 +53,7 @@ echo "==> 编译共享层 + 探针（$(echo $SRC_SHARED | wc -w) 个共享文件
   -no-stdlib -no-reflect \
   -jvm-target 17 \
   -Xmulti-platform \
-  -classpath "$KOTLIN_STDLIB" \
+  -classpath "$KOTLIN_STDLIB;$COROUTINES" \
   -d "$OUT/classes" \
   -nowarn \
   $SRC_SHARED $SRC_JVM $SRC_PROBE
@@ -61,6 +63,6 @@ cd "$ROOT"
 # Windows 上 classpath 必须用 ';' 拼接的 Windows 路径，且关掉 MSYS 的路径改写，
 # 否则 java.exe 收到的是 POSIX 形式，会报 ClassNotFoundException。
 export MSYS_NO_PATHCONV=1
-CP="$(cygpath -m "$OUT/classes");$(cygpath -m "$KOTLIN_STDLIB")"
+CP="$(cygpath -m "$OUT/classes");$(cygpath -m "$KOTLIN_STDLIB");$(cygpath -m "$COROUTINES")"
 "$JDK_HOME/bin/java" -Dfile.encoding=UTF-8 -cp "$CP" ProbeMainKt \
-  "docs/diagnostics/bjkbdy-kb-sample.json"
+  "docs/diagnostics/bjkbdy-kb-sample.json" "$@"

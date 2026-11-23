@@ -4,10 +4,12 @@ import com.tstc.zstangshi.shared.KbParser
 import com.tstc.zstangshi.shared.Timetable
 import com.tstc.zstangshi.shared.WeekMath
 import com.tstc.zstangshi.shared.WeekRange
+import com.tstc.zstangshi.shared.bus.ChelaileApi
 import com.tstc.zstangshi.shared.bus.ChelaileCrypto
 import com.tstc.zstangshi.shared.crypto.base64Decode
 import com.tstc.zstangshi.shared.crypto.md5Hex
 import java.io.File
+import kotlinx.coroutines.runBlocking
 import java.time.LocalDate
 
 /**
@@ -233,6 +235,41 @@ fun main(args: Array<String>) {
     // base64 解码基础行为
     eq(base64Decode("aGVsbG8=").decodeToString(), "hello", "base64 基本解码")
     eq(base64Decode("aGVs bG8").decodeToString(), "hello", "base64 忽略空格、允许缺填充")
+
+
+    // ---------- 10. 请求 URL 组装（离线可验） ----------
+    val p = ChelaileApi.baseParams()
+    p["cityId"] = "056"
+    p["key"] = "游1"
+    val url = ChelaileApi.signedUrl("/bus/query!nSearch.action", p)
+    check(url.startsWith("https://web.chelaile.net.cn/api/bus/query!nSearch.action?"), "接口地址前缀正确")
+    check(url.contains("s=h5&wxs=wx_app&sign=1"), "公共参数保持插入顺序")
+    check(url.contains("key=%E6%B8%B81"), "中文线路名按 UTF-8 百分号编码")
+    check(Regex("cryptoSign=[0-9a-f]{32}").containsMatchIn(url), "带 32 位小写 cryptoSign")
+    // 签名是对「未编码的原文」算的：拿原参数再算一次应当与 URL 里的一致
+    val signInUrl = Regex("cryptoSign=([0-9a-f]{32})").find(url)?.groupValues?.get(1)
+    eq(signInUrl, ChelaileCrypto.sign(p), "URL 里的签名与离线计算一致")
+
+    // ---------- 11. 联网冒烟（可选，--net 才跑） ----------
+    if (args.contains("--net")) {
+        println("—— 联网冒烟：车来了线路搜索 ——")
+        try {
+            val result = runBlocking { ChelaileApi.search("056", "游1") }  // 056 = 唐山
+            if (result == null) {
+                failures.add("联网冒烟：接口返回 null（可能签名/参数不被接受）")
+            } else {
+                val lines = result.optArr("lines") ?: result.optArr("lineList")
+                val first = (lines?.items?.firstOrNull() as? com.tstc.zstangshi.shared.Js.Obj)
+                val name = first?.optString("name") ?: first?.optString("lineNo") ?: ""
+                println("   搜索到 ${lines?.size ?: 0} 条线路，首条：$name")
+                check((lines?.size ?: 0) > 0, "联网冒烟：至少返回一条线路", lines?.size, ">0")
+            }
+        } catch (e: Throwable) {
+            failures.add("联网冒烟失败：" + (e.message ?: e.toString()))
+        }
+    } else {
+        println("（跳过联网冒烟，加 --net 才跑）")
+    }
 
     // ---------- 8. 平台无关性证据 ----------
     // Kotlin 的 String.hashCode 在 JVM 与 Native 上算法相同，这里把 JVM 实测值钉住，

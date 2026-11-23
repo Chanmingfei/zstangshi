@@ -78,8 +78,28 @@ final class NearbyModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 struct BusNearbyView: View {
     @StateObject private var model = NearbyModel()
 
+    @State private var favTick = false
+
     var body: some View {
         List {
+            if !BusPrefs.favorites.isEmpty {
+                Section("收藏线路") {
+                    ForEach(BusPrefs.favorites, id: \.id) { fav in
+                        NavigationLink {
+                            BusLineView(hit: BusLineHit(lineId: fav.id, name: fav.name,
+                                                         no: "", startSn: "", endSn: ""))
+                        } label: {
+                            HStack {
+                                Image(systemName: "star.fill")
+                                    .font(.caption).foregroundColor(.orange)
+                                Text(fav.name)
+                            }
+                        }
+                    }
+                }
+                .id(favTick)
+            }
+
             Section {
                 HStack {
                     Text(model.status).font(.caption).foregroundColor(.secondary)

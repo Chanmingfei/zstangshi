@@ -11,6 +11,7 @@ import com.tstc.zstangshi.shared.bus.parseLineDetail
 import com.tstc.zstangshi.shared.bus.parseNearby
 import com.tstc.zstangshi.shared.bus.parseStopDetail
 import com.tstc.zstangshi.shared.bus.parseTimetable
+import com.tstc.zstangshi.shared.bus.Mygolbs
 import com.tstc.zstangshi.shared.crypto.base64Decode
 import com.tstc.zstangshi.shared.crypto.md5Hex
 import java.io.File
@@ -348,6 +349,40 @@ fun main(args: Array<String>) {
         val emptyToday = """{"timetable":{"timetable":[{"fTime":"06:00","eTime":"07:00","schedules":[]}]}}"""
         val emptyParsed = parseTimetable(emptyToday)
         eq(emptyParsed.today.size, 0, "空分段不算有班次")
+        // ---------- 14. 掌上公交（第二数据源） ----------
+        val mg106 = File(fixtures, "mg106.txt").readText(Charsets.UTF_8)
+        val mgStops = Mygolbs.parseStops(mg106, "唐山市", 39.63, 118.18, 20)
+        eq(mgStops.size, 16, "106 返回 16 个站")
+        eq(mgStops.first().name, "工人医院站", "首站名")
+        check(mgStops.first().distanceMeters in 1..5000, "首站距离合理", mgStops.first().distanceMeters, "1..5000")
+        check(mgStops.first().id.startsWith("mg|唐山市|"), "站点 id 用 mg| 编码")
+
+        val mg105 = File(fixtures, "mg105.txt").readText(Charsets.UTF_8)
+        val mgStation = Mygolbs.parseStopLines(mg105, "唐山市", "工人医院站")
+        eq(mgStation.arrivals.size, 9, "105 解析出 9 条线路")
+        val firstMg = mgStation.arrivals.first()
+        eq(firstMg.lineName, "71路", "首条线路名")
+        eq(firstMg.direction, 0, "upperOrDown=1 → 上行")
+        eq(firstMg.startName, "凤凰新城首末站", "起点站名")
+        eq(firstMg.arrived, false, "「即将到站」不算已到站（只有已到站/正在进站才算）")
+        eq(firstMg.minutes, 0, "「即将到站」分钟归零")
+        check(mgStation.arrivals.none { it.lineName.contains("地铁") }, "地铁线路已跳过")
+
+        // 文本 → 站数/分钟的换算（这些是最容易算错的地方）
+        eq(Mygolbs.stopsOf("7站"), 7, "「7站」→7")
+        eq(Mygolbs.stopsOf("即将到站"), 0, "「即将到站」→0")
+        eq(Mygolbs.minutesOfText("23分钟"), 23, "「23分钟」→23")
+        eq(Mygolbs.minutesOfText("小于1分钟"), 0, "「小于1分钟」→0")
+        eq(Mygolbs.minutesOfText("1小时44分钟"), 104, "「1小时44分钟」→104（不能读成 44）")
+        eq(Mygolbs.minutesOfText("14:05 到达"), -1, "绝对时间不猜分钟")
+        eq(Mygolbs.cleanNearText("7站 [开往 益民小区]"), "7站", "去掉括号后缀")
+
+        // 坐标纠偏：GCJ 与 WGS 往返误差应在米级
+        val gcj = Mygolbs.wgs2gcj(39.63, 118.18)
+        check(gcj[0] > 39.63 && gcj[1] > 118.18, "唐山在偏移区，GCJ 应偏大")
+        val back = Mygolbs.gcj2wgs(gcj[0], gcj[1])
+        check(kotlin.math.abs(back[0] - 39.63) < 0.00002 && kotlin.math.abs(back[1] - 118.18) < 0.00002,
+            "WGS→GCJ→WGS 往返误差 <2m", "${back[0]},${back[1]}", "39.63,118.18")
     }
 
     // ---------- 8. 平台无关性证据 ----------

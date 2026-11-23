@@ -77,6 +77,28 @@ struct BusStopDetailView: View {
     }
 
     private func load() async {
+        // 掌上公交的站点 id 带 `mg|` 前缀，且只有 105 一个接口（站点名即主键）
+        if station.id.hasPrefix("mg|") {
+            let city = Mygolbs.shared.cityName(cityId: BusPrefs.cityId)
+            do {
+                let body = try await BusFetch.postForm(
+                    Mygolbs.shared.API,
+                    form: Mygolbs.shared.stopLinesForm(cityName: city, stationName: station.name),
+                    headers: ["User-Agent": Mygolbs.shared.UA,
+                              "Origin": Mygolbs.shared.ORIGIN,
+                              "Referer": Mygolbs.shared.REFERER])
+                let st = Mygolbs.shared.parseStopLines(body: body, cityName: city, stationName: station.name)
+                platforms = [st]
+                if index >= platforms.count { index = 0 }
+                let f = DateFormatter()
+                f.dateFormat = "HH:mm:ss"
+                status = "\(st.arrivals.count) 条线路 · 更新于 \(f.string(from: Date()))"
+            } catch {
+                status = "刷新失败：\(error.localizedDescription)"
+            }
+            return
+        }
+
         let url = ChelaileApi.shared.stopDetailUrl(
             cityId: BusPrefs.cityId,
             physicalId: station.physicalId,

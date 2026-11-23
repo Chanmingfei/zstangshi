@@ -3,6 +3,7 @@ import Shared
 
 /// 首页 —— 对齐安卓：问候 + 日期周次 + 今日课程 + 常用功能宫格 + 登录卡。
 struct RootView: View {
+    @EnvironmentObject private var router: TabRouter
     @ObservedObject private var auth = JwAuth.shared
     @State private var timetable: Timetable?
     @State private var todayCells: [GridCell] = []
@@ -101,8 +102,9 @@ struct RootView: View {
             Text("常用功能").font(.footnote).foregroundColor(.secondary)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-                tile("我的课表", "calendar") { TimetableView() }
-                tile("成绩", "chart.bar.doc.horizontal") { GradesView() }
+                // 安卓首页宫格点「我的课表 / 成绩」是切到对应底栏 tab，不是 push 新页。
+                tabTile("我的课表", "calendar", tab: 1)
+                tabTile("成绩", "chart.bar.doc.horizontal", tab: 2)
                 tile("学分绩点", "graduationcap") { GpaView() }
                 tile("校历", "calendar.badge.clock") { CalendarView() }
                 tile("选课", "checkmark.rectangle.stack") { SelectionView() }
@@ -133,6 +135,23 @@ struct RootView: View {
                 Image(systemName: "chevron.right").font(.caption2).foregroundColor(.secondary)
             }
             .padding(14)
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 切底栏 tab 的宫格（对齐安卓首页点课表/成绩直接切页）。
+    private func tabTile(_ title: String, _ icon: String, tab: Int) -> some View {
+        Button { router.selection = tab } label: {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(Color(red: 0.46, green: 0.08, blue: 0.10))
+                Text(title).font(.system(size: 11)).foregroundColor(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
             .background(Color(UIColor.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
@@ -192,7 +211,7 @@ struct RootView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("登录学工系统").font(.subheadline)
                             Text(autoState.isEmpty
-                                 ? "课表、成绩、考试安排（需要教务账号）"
+                                 ? "课表、成绩、绩点、校历（需要教务账号）"
                                  : autoState)
                                 .font(.caption2).foregroundColor(.secondary)
                         }
@@ -254,6 +273,7 @@ struct RootView: View {
         }
         TimetableStore.save(fresh)
         UserDefaults.standard.set(auth.studentNo, forKey: "jw.syncedNo")
+        NotificationCenter.default.post(name: .timetableChanged, object: nil)
         apply(fresh)
     }
 

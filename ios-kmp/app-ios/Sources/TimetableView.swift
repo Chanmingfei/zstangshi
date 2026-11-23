@@ -44,6 +44,7 @@ final class TimetableModel: ObservableObject {
         TimetableStore.save(fresh)
         apply(fresh, week: nil)
         UserDefaults.standard.set(JwAuth.shared.studentNo, forKey: "jw.syncedNo")
+        NotificationCenter.default.post(name: .timetableChanged, object: nil)
         status = "已同步 · \(TimetableGrid.shared.visibleCount(t: fresh)) 门课"
         return true
     }
@@ -52,6 +53,13 @@ final class TimetableModel: ObservableObject {
     func needsFirstSync() -> Bool {
         let synced = UserDefaults.standard.string(forKey: "jw.syncedNo") ?? ""
         return !JwAuth.shared.studentNo.isEmpty && synced != JwAuth.shared.studentNo
+    }
+
+    /// 别的页面（我的页同步 / 首页）改了课表后，只重读本地缓存，不重新打教务接口。
+    func reloadFromCache() {
+        guard let t = TimetableStore.load() else { return }
+        apply(t, week: nil)
+        status = "本地缓存"
     }
 
     func apply(_ t: Timetable, week newWeek: Int?) {
@@ -220,6 +228,10 @@ struct TimetableView: View {
             model.week = model.currentWeek()
             await model.bootstrap()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .timetableChanged)) { _ in
+            model.reloadFromCache()
+            model.week = model.currentWeek()
+        }
         .sheet(isPresented: Binding(
             get: { editingCourse != nil },
             set: { if !$0 { editingCourse = nil; editingKey = nil } }
@@ -262,6 +274,14 @@ struct TimetableView: View {
                 if model.week < model.maxWeek { model.week += 1; model.refresh() }
             } label: { Image(systemName: "chevron.right") }
                 .disabled(model.week >= model.maxWeek)
+
+            // 安卓 TimetablePage 的「回到本周」：一键跳回当前教学周。
+            Button {
+                model.week = model.currentWeek()
+                model.refresh()
+            } label: {
+                Image(systemName: "arrow.uturn.left.circle")
+            }
 
             Button {
                 addDay = 1

@@ -77,8 +77,22 @@ struct WeekGridView: View {
             Button { if week < maxWeek { week += 1 } } label: {
                 Image(systemName: "chevron.right")
             }.disabled(week >= maxWeek)
+            // 安卓推荐课表也有「回到本周」。
+            Button { week = currentWeek() } label: {
+                Image(systemName: "arrow.uturn.left.circle")
+            }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
+    }
+
+    private func currentWeek() -> Int {
+        let s = timetable.semester
+        guard !s.startDate.isEmpty else { return 1 }
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        let today = Dates.shared.daysFromCivil(
+            y0: Int32(c.year ?? 2026), m: Int32(c.month ?? 1), d: Int32(c.day ?? 1))
+        return Int(WeekMath.shared.currentWeek(
+            startDate: s.startDate, totalWeeks: Int32(max(1, s.totalWeeks)), today: today))
     }
 
     private var grid: some View {

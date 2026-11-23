@@ -196,6 +196,7 @@ struct ProfileView: View {
         }
         TimetableStore.save(fresh)
         UserDefaults.standard.set(JwAuth.shared.studentNo, forKey: "jw.syncedNo")
+        NotificationCenter.default.post(name: .timetableChanged, object: nil)
         message = "已同步 · \(TimetableGrid.shared.visibleCount(t: fresh)) 门课"
         reloadHidden()
     }

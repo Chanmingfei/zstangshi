@@ -191,7 +191,7 @@ struct CourseEditSheet: View {
         Color(red: 0.20, green: 0.48, blue: 0.92), Color(red: 0.93, green: 0.45, blue: 0.30),
         Color(red: 0.30, green: 0.68, blue: 0.45), Color(red: 0.72, green: 0.52, blue: 0.95),
         Color(red: 0.90, green: 0.70, blue: 0.18), Color(red: 0.35, green: 0.70, blue: 0.78),
-        Color(red: 0.88, green: 0.40, blue: 0.55),
+        Color(red: 0.88, green: 0.40, blue: 0.55), Color(red: 0.43, green: 0.50, blue: 0.66),
     ]
 
     private var colorRow: some View {

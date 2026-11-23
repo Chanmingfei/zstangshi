@@ -1,0 +1,50 @@
+name: 同步仓库简介到 Gitee
+
+# Gitee 仓库镜像只同步代码（分支 / tag / commit），不同步「仓库简介」（description）。
+# 这里用 GITEE_TOKEN 调 Gitee OpenAPI，把简介覆写成含 iOS 的版本，保证两边「关于」一致。
+# 注：Gitee 的 PATCH /repos 接口不支持 topics，且 description 有长度上限，故用精简版文案。
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - README.en.md
+
+concurrency:
+  group: gitee-about-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-about:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 更新 Gitee 仓库简介
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          # 与 GitHub 描述同义；Gitee description 有长度上限，用精简版。
+          GITEE_DESC: "掌上唐师 · 唐山师范学院校园助手（非官方）：Android 标准版 + 鸿蒙专版 + iOS 测试版（SwiftUI/Kotlin 多平台共享），课表·成绩·绩点·校历·选课·推荐课表·实时公交，正方教务直连，App 内嵌 WebView"
+        run: |
+          set -e
+          if [ -z "$GITEE_TOKEN" ]; then
+            echo "::error::缺少 GITEE_TOKEN。"
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, os, sys, urllib.request, urllib.parse, urllib.error
+          desc = os.environ["GITEE_DESC"]
+          token = os.environ["GITEE_TOKEN"]
+          url = "https://gitee.com/api/v5/repos/mingfei123/zstangshi"
+          data = urllib.parse.urlencode({"access_token": token, "description": desc}).encode()
+          req = urllib.request.Request(url, data=data, method="PATCH")
+          req.add_header("Content-Type", "application/x-www-form-urlencoded")
+          try:
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  body = json.load(r)
+              print("Gitee 简介更新成功：", body.get("full_name"), "|", body.get("description"))
+          except urllib.error.HTTPError as e:
+              print("::error::Gitee 更新失败 HTTP", e.code, e.read().decode()[:500])
+              sys.exit(1)
+          PY

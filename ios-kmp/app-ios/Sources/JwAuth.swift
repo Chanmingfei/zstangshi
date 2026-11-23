@@ -157,7 +157,7 @@ final class JwAuth: ObservableObject {
             message = "成绩接口没有响应"
             return nil
         }
-        let r = JwParserKt.parseGrades(json: body)
+        let r = GradeParserKt.parseGrades(json: body)
         if !r.ok { message = r.message }
         return r
     }

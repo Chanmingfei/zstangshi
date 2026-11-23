@@ -162,6 +162,26 @@ final class JwAuth: ObservableObject {
         return r
     }
 
+    // MARK: - 选课 / 推荐课表（供 Swift 页面复用会话，沿用 http 自动降级）
+
+    /// 选课/推荐页的通用请求。Kotlin 那层只做解析，网络统一走这里（带 Cookie + 协议降级）。
+    func request(_ method: String, _ path: String,
+                 _ fields: [FormField]? = nil) async -> String? {
+        var form: [String: String]? = nil
+        if let fields = fields {
+            var d: [String: String] = [:]
+            for f in fields { d[f.key] = f.value }
+            form = d
+        }
+        do {
+            let (_, body) = try await sendWithFallback(method, path, form)
+            return body
+        } catch {
+            message = "网络失败：\(error.localizedDescription)"
+            return nil
+        }
+    }
+
     // MARK: - HTTP
 
     /// 和安卓 `jwxtOrigin.js` 同款：3 秒内拿不到 https 的 favicon 就认定 443 不通。

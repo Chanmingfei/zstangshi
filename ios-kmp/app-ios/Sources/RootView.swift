@@ -102,9 +102,11 @@ struct RootView: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
                 tile("我的课表", "calendar") { TimetableView() }
                 tile("成绩", "chart.bar.doc.horizontal") { GradesView() }
+                tile("学分绩点", "graduationcap") { GpaView() }
+                tile("校历", "calendar.badge.clock") { CalendarView() }
+                tile("选课", "checkmark.rectangle.stack") { SelectionView() }
+                tile("推荐课表", "book.closed") { RecommendView() }
                 tile("实时公交", "bus.fill") { BusHomeView() }
-                tile("乘车码", "qrcode") { TransitCodeView() }
-                tile("我的", "person.crop.circle") { ProfileView() }
                 tile("更多", "square.grid.2x2") { MoreView() }
             }
         }

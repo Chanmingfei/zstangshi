@@ -92,6 +92,58 @@ sealed class Js {
     }
 }
 
+/** 把 [Js] 完整序列化回 JSON 串（保留嵌套对象/数组），用于「补字段后回写」场景。 */
+fun Js.toJsonString(): String = buildString { appendJson(this@toJsonString) }
+
+private fun StringBuilder.appendJson(v: Js) {
+    when (v) {
+        is Js.Null -> append("null")
+        is Js.Bool -> append(if (v.value) "true" else "false")
+        is Js.Num -> append(v.raw)
+        is Js.Str -> appendQuoted(v.value)
+        is Js.Arr -> {
+            append('[')
+            var first = true
+            for (it in v.items) {
+                if (!first) append(',')
+                first = false
+                appendJson(it)
+            }
+            append(']')
+        }
+        is Js.Obj -> {
+            append('{')
+            var first = true
+            for ((k, value) in v.map) {
+                if (!first) append(',')
+                first = false
+                appendQuoted(k)
+                append(':')
+                appendJson(value)
+            }
+            append('}')
+        }
+    }
+}
+
+private fun StringBuilder.appendQuoted(s: String) {
+    append('"')
+    for (c in s) when (c) {
+        '"' -> append("\\\"")
+        '\\' -> append("\\\\")
+        '\n' -> append("\\n")
+        '\r' -> append("\\r")
+        '\t' -> append("\\t")
+        '\u0008' -> append("\\b")
+        '\u000C' -> append("\\f")
+        else -> if (c < ' ') {
+            append("\\u")
+            append(c.code.toString(16).padStart(4, '0'))
+        } else append(c)
+    }
+    append('"')
+}
+
 private class JsParser(private val s: String) {
 
     private var i = 0

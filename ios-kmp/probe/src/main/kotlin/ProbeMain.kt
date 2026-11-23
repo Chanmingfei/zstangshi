@@ -1,4 +1,22 @@
+import com.tstc.zstangshi.shared.AcademicCalendar
 import com.tstc.zstangshi.shared.CourseColorAssigner
+import com.tstc.zstangshi.shared.Js
+import com.tstc.zstangshi.shared.jw.cascadeOptions
+import com.tstc.zstangshi.shared.jw.filterClassRows
+import com.tstc.zstangshi.shared.jw.classListForm
+import com.tstc.zstangshi.shared.jw.className
+import com.tstc.zstangshi.shared.jw.classSize
+import com.tstc.zstangshi.shared.jw.classSubtitle
+import com.tstc.zstangshi.shared.jw.hiddenInputs
+import com.tstc.zstangshi.shared.jw.parseClassList
+import com.tstc.zstangshi.shared.jw.parseSelectionPool
+import com.tstc.zstangshi.shared.jw.recommendCascade
+import com.tstc.zstangshi.shared.jw.recommendPreviewForm
+import com.tstc.zstangshi.shared.jw.repairKbJson
+import com.tstc.zstangshi.shared.jw.selectOptions
+import com.tstc.zstangshi.shared.jw.selectionContext
+import com.tstc.zstangshi.shared.jw.selectionDisplayForm
+import com.tstc.zstangshi.shared.jw.selectionPartForm
 import com.tstc.zstangshi.shared.Dates
 import com.tstc.zstangshi.shared.KbParser
 import com.tstc.zstangshi.shared.Timetable
@@ -99,6 +117,57 @@ fun main(args: Array<String>) {
         if (WeekMath.weekOfDate("2026-09-07", Dates.formatYmd(monday + 6)) != w) monoOk = false
     }
     check(monoOk, "20 周内周一/周日都落在同一周且与周次一致")
+
+    // ---------- 3b. 校历（ AcademicCalendar，从安卓内置校历移植） ----------
+    val cal = AcademicCalendar
+    eq(cal.terms.size, 2, "内置两个学期")
+    eq(cal.termById("2026-2027-1")?.classStart, "2026-08-31", "一学期开学日")
+    eq(cal.termById("2027-2027-1"), null, "不存在的学期 id 返回 null")
+    eq(cal.termById(null), null, "null id 返回 null")
+    // 2026-11-23 落在一学期；寒假内仍算一学期；暑假内算二学期
+    eq(cal.termFor("2026-11-23")?.id, "2026-2027-1", "11 月属一学期")
+    eq(cal.termFor("2027-01-20")?.id, "2026-2027-1", "寒假内仍算一学期")
+    eq(cal.termFor("2027-07-20")?.id, "2026-2027-2", "暑假内算二学期")
+    eq(cal.termFor("2030-01-01"), null, "校历未覆盖的年份返回 null")
+    // 教学周：classStart 是 2026-08-31 周一，11-23 是第 13 周（与手机截图一致）
+    eq(cal.weekOf("2026-08-31", "2026-08-31"), 1, "开学日第 1 周")
+    eq(cal.weekOf("2026-08-31", "2026-11-23"), 13, "11-23 第 13 周（对齐截图）")
+    eq(cal.weekOf("2026-08-31", "2026-08-30"), 0, "开学前一天第 0 周")
+    eq(cal.weekOf(null, "2026-11-23"), -1, "无开学日返回 -1")
+    eq(cal.daysBetween("2026-11-23", "2026-12-28"), 35, "距期末 35 天")
+    eq(cal.daysBetween("2026-12-28", "2026-11-23"), -35, "天差可为负")
+    eq(cal.daysBetween(null, "2026-11-23"), 0, "空日期天差 0")
+    eq(cal.shortDate("2026-11-23"), "11.23", "短日期 MM.dd")
+    eq(cal.shortDate(null), "", "空日期短串")
+    // 事件：11-23 无事件；国庆命中；假期 hit
+    check(cal.eventsOn("2026-11-23").isEmpty(), "11-23 无关键节点")
+    eq(cal.eventsOn("2026-10-03")[0].label, "国庆节", "国庆节点")
+    eq(cal.eventsOn("2026-10-03")[0].holiday, true, "国庆是节假日")
+    eq(cal.eventsOn("2026-09-23")[0].label, "秋季运动会", "运动会是校内安排")
+    eq(cal.eventsOn("2026-09-23")[0].holiday, false, "运动会非节假日")
+    val up = cal.upcoming("2026-11-23", 3)
+    eq(up.size, 3, "从 11-23 起取 3 个节点")
+    eq(up[0].label, "元旦", "11-23 后首个节点是元旦")
+    check(cal.statusLine("2026-11-23").contains("第 13 周"), "状态句含第 13 周")
+    check(cal.statusLine("2026-11-23").contains("距寒假"), "状态句含距寒假")
+    check(cal.statusLine("2027-01-20").contains("寒假中"), "假期状态句")
+    check(cal.statusLine("2030-01-01").contains("暂未更新"), "未覆盖年份状态句")
+    // 月历网格：11 月 1 日是周日 → 周一偏移 6；30 天；6 行；首格 11/1 末格 11/30
+    eq(cal.monthOffset(2026, 11), 6, "2026-11-01 周日 → 偏移 6")
+    eq(cal.monthDays(2026, 11), 30, "11 月 30 天")
+    eq(cal.monthRows(2026, 11), 6, "11 月占 6 行")
+    val novCells = cal.monthCells(2026, 11, "2026-08-31", 19,
+        Dates.daysFromCivil(2026, 11, 23), "2026-11-23")
+    eq(novCells.size, 30, "11 月 30 个格子")
+    eq(novCells[0].ymd, "2026-11-01", "首格 11-01")
+    eq(novCells[29].ymd, "2026-11-30", "末格 11-30")
+    eq(novCells[22].week, 13, "11-23 第 13 周")
+    check(novCells[22].isToday && novCells[22].isSelected, "11-23 今日且选中")
+    check(novCells[0].inTeachingWeek, "11-01 在教学周内")
+    check(cal.dayInfo("2026-11-23", "2026-08-31", 19).contains("第 13 周"), "选中日说明含第 13 周")
+    check(cal.dayInfo("2026-08-20", "2026-08-31", 19).contains("开学前"), "开学前说明")
+    check(cal.dayInfo("2027-03-01", "2026-08-31", 19).contains("已经结束"), "超学期说明")
+    eq(cal.dayInfo("bad", "2026-08-31", 19), "选一天看看是第几周", "非法日期说明")
 
     // ---------- 4. 周次表达式 ----------
     fun weeks(expr: String): List<Int> = WeekRange.parse(expr).weeks
@@ -384,6 +453,72 @@ fun main(args: Array<String>) {
         check(kotlin.math.abs(back[0] - 39.63) < 0.00002 && kotlin.math.abs(back[1] - 118.18) < 0.00002,
             "WGS→GCJ→WGS 往返误差 <2m", "${back[0]},${back[1]}", "39.63,118.18")
     }
+
+    // ---------- 7b. 选课 / 推荐课表解析（真实样本） ----------
+    val xsxk = File("docs/diagnostics/xsxk-index-sample.txt").readText()
+    val sctx = selectionContext(xsxk)
+    eq(sctx.gate, "0", "选课样本 iskxk=0（不在窗口）")
+    val disp = selectionDisplayForm(sctx)
+    check(disp.any { it.key == "kspage" && it.value == "0" }, "display 表单带 kspage=0")
+    val part = selectionPartForm(listOf(com.tstc.zstangshi.shared.jw.FormField("xkkz_id", "X1")))
+    check(part.any { it.key == "kspage" && it.value == "1" }
+          && part.any { it.key == "jspage" && it.value == "15" }, "part 表单分页 1~15")
+    check(part.any { it.key == "xkkz_id" && it.value == "X1" }, "part 表单保留原 hidden")
+    // 隐藏域抽取：样本里 firstXkkzId 之类能取到就算对（不强求具体值）
+    val hid = hiddenInputs(xsxk)
+    check(hid.any { it.key == "iskxk" && it.value == "0" }, "hiddenInputs 抓到 iskxk")
+    // 选课页下拉字典（如果有年级/院系 select）
+    val optG = selectOptions(xsxk, "njdm_id")
+    check(optG.size >= 1, "selectOptions 至少含「全部」项")
+
+    // 班级清单 JSON：467 总行 / 首页 10 行 / 级联去重
+    val listJson = File("docs/diagnostics/bjkbdy-list-sample.json").readText()
+    val cls = parseClassList(listJson)
+    eq(cls.total, 467, "班级清单总数 467")
+    eq(cls.rows.size, 10, "首页 10 行")
+    eq(className(cls.rows[0]), "2024级电子商务本科1班", "首行班级名")
+    eq(classSize(cls.rows[0]), "42", "首行人数")
+    check(classSubtitle(cls.rows[0]).contains("电子商务"), "首行副标题含专业")
+    check(classSubtitle(cls.rows[0]).contains("海洋学院"), "首行副标题含学院")
+    val majors = cascadeOptions(cls.rows, 2)
+    check(majors.names.contains("电子商务") && majors.names.contains("海洋科学"),
+        "专业级联抽到电子商务/海洋科学")
+    val grades = cascadeOptions(cls.rows, 0)
+    eq(grades.names, listOf("全部", "2024"), "年级级联去重后仅 2024")
+    val cascMajors = recommendCascade(cls.rows, "2024", "", "", 2)
+    check(cascMajors.names.contains("电子商务"), "级联按年级过滤出专业")
+    val cascClasses = recommendCascade(cls.rows, "2024", "", "E2076FAFA15C8BCEE055000000000001", 3)
+    check(cascClasses.names.contains("2024级电子商务本科1班"), "级联按专业 UUID 过滤出班级")
+    val filteredRows = filterClassRows(cls.rows, "2024", "313", "E2076FAFA15C8BCEE055000000000001")
+    check(!filteredRows.isEmpty() && filteredRows.all { className(it).contains("电子商务本科") },
+        "筛选行按年级+院系+专业收敛到电子商务班")
+    val form = classListForm("2026", "1", 2, emptyList())
+    check(form.any { it.key == "page" && it.value == "2" }, "班级清单请求 page=2")
+    check(form.any { it.key == "rows" && it.value == "10" }, "班级清单每页 10")
+    val preview = recommendPreviewForm(cls.rows[0])
+    check(preview.any { it.key == "bh_id" && it.value == "24231641" }, "预览表单带 bh_id")
+    check(preview.any { it.key == "kzlx" && it.value == "ck" }, "预览表单 kzlx=ck")
+
+    // 推荐课表 kbList 修补：jxbrs→rs、xkrs→yxrs，且保留嵌套对象
+    val kbJson = File("docs/diagnostics/bjkbdy-kb-sample.json").readText()
+    val repaired = repairKbJson(kbJson)
+    val rRoot = Js.parse(repaired) as Js.Obj
+    val rList = rRoot.optArr("kbList")!!
+    eq(rList.size, 14, "修补后 kbList 仍 14 行")
+    check(rRoot.optArr("sjkList") != null, "修补保留嵌套 sjkList（序列化不丢结构）")
+    val firstKb = rList.items[0] as Js.Obj
+    check(firstKb.optString("rs").isNotEmpty() || firstKb.optString("jxbrs").isNotEmpty(),
+        "首行人数有值（rs 或 jxbrs）")
+
+    // 课池 JSON：{items:[...]} 封套 + 大小写字段
+    val poolJson = "{\"items\":[{\"kcmc\":\"大学语文\",\"jsxm\":\"张老师\",\"sksj\":\"周一1-2\",\"jxbrl\":\"60\",\"yxzrs\":\"45\"},{\"KCMC\":\"高等数学\",\"jsm\":\"李老师\",\"jsxx\":\"周三3-4\",\"rsyxz\":\"50\",\"rsz\":\"50\"}]}"
+    val pool = parseSelectionPool(poolJson)
+    check(pool.ok, "课池解析成功")
+    eq(pool.courses.size, 2, "课池 2 门")
+    eq(pool.courses[0].name, "大学语文", "课池首门课名")
+    eq(pool.courses[0].value, "45/60", "课池余量 45/60")
+    eq(pool.courses[1].name, "高等数学", "大小写字段 KCMC 也认")
+    eq(pool.courses[1].value, "50/50", "课池第二门满额")
 
     // ---------- 8. 平台无关性证据 ----------
     // Kotlin 的 String.hashCode 在 JVM 与 Native 上算法相同，这里把 JVM 实测值钉住，

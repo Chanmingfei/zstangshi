@@ -122,6 +122,45 @@ final class TimetableModel: ObservableObject {
         refresh()
     }
 
+    func isCancelled(_ c: Course, week: Int) -> Bool {
+        guard let t = timetable, let se = c.sessionList().first else { return false }
+        return TimetableAdjust.shared.isCancelled(
+            t: t, name: c.name, week: Int32(week),
+            day: se.dayOfWeek, start: se.startSection, end: se.endSection)
+    }
+
+    /// 本周这次课停掉（只影响这一周，不动整门课）
+    func cancelThisWeek(_ c: Course) {
+        guard let t = timetable, let se = c.sessionList().first else { return }
+        _ = TimetableAdjust.shared.cancel(
+            t: t, name: c.name, week: Int32(week),
+            day: se.dayOfWeek, start: se.startSection, end: se.endSection)
+        TimetableStore.save(t)
+        refresh()
+    }
+
+    func uncancelThisWeek(_ c: Course) {
+        guard let t = timetable, let se = c.sessionList().first else { return }
+        let targets = t.adjustList().filter {
+            $0.type == "cancel" && $0.week == Int32(week) && $0.day == se.dayOfWeek
+                && $0.start == se.startSection && ($0.name.isEmpty || $0.name == c.name)
+        }
+        for a in targets { TimetableAdjust.shared.remove(t: t, id: a.id) }
+        TimetableStore.save(t)
+        refresh()
+    }
+
+    func adjustments() -> [Adjust] {
+        timetable?.adjustList() ?? []
+    }
+
+    func removeAdjust(_ a: Adjust) {
+        guard let t = timetable else { return }
+        TimetableAdjust.shared.remove(t: t, id: a.id)
+        TimetableStore.save(t)
+        refresh()
+    }
+
     func hiddenCourses() -> [Course] {
         guard let t = timetable else { return [] }
         return t.courseList().filter { t.hiddenList().contains($0.key) }
@@ -346,7 +385,11 @@ struct TimetableView: View {
 
     private func editSheet(for c: Course) -> some View {
         CourseEditSheet(existing: c, defaultDay: 1, defaultSection: 1,
-                        maxWeek: max(model.maxWeek, 20)) { name, teacher, room, campus, day, s, e, weeks, color in
+                        maxWeek: max(model.maxWeek, 20),
+                        week: model.week,
+                        cancelledThisWeek: model.isCancelled(c, week: model.week),
+                        onCancelWeek: { model.cancelThisWeek(c) },
+                        onResumeWeek: { model.uncancelThisWeek(c) }) { name, teacher, room, campus, day, s, e, weeks, color in
             model.updateCourse(c, name: name, teacher: teacher, room: room, campus: campus,
                                day: day, start: s, end: e, weeks: weeks, color: color)
         } onDelete: {

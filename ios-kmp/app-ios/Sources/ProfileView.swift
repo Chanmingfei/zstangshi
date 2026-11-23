@@ -12,6 +12,7 @@ struct ProfileView: View {
     @State private var syncing = false
     @State private var message = ""
     @State private var hidden: [Course] = []
+    @State private var adjusts: [Adjust] = []
 
     var body: some View {
         List {
@@ -48,6 +49,25 @@ struct ProfileView: View {
             } footer: {
                 Text("教务是权威数据：同步会用教务的最新课表覆盖本地，只保留你手动添加的课程和隐藏设置。"
                      + "首次登录会自动同步一次，之后需要手动点这里。")
+            }
+
+            if !adjusts.isEmpty {
+                Section("停课 / 调课记录") {
+                    ForEach(Array(adjusts.enumerated()), id: \.offset) { pair in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(pair.element.label() + " · " + pair.element.name)
+                                    .font(.subheadline)
+                                Text(describe(pair.element))
+                                    .font(.caption2).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Button("删除") { removeAdjust(pair.element) }
+                                .font(.footnote)
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
             }
 
             if !hidden.isEmpty {
@@ -99,9 +119,33 @@ struct ProfileView: View {
 
     private func reloadHidden() {
         let t = TimetableStore.load()
-        guard let t = t else { hidden = []; return }
+        guard let t = t else { hidden = []; adjusts = []; return }
         let keys = t.hiddenList()
         hidden = t.courseList().filter { keys.contains($0.key) }
+        adjusts = t.adjustList()
+    }
+
+    private func describe(_ a: Adjust) -> String {
+        var bits: [String] = []
+        if a.week > 0 { bits.append("第 \(a.week) 周") }
+        let dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+        if a.day >= 1 && a.day <= 7 { bits.append(dayNames[Int(a.day) - 1]) }
+        if a.start > 0 {
+            bits.append(a.end > a.start ? "第 \(a.start)-\(a.end) 节" : "第 \(a.start) 节")
+        }
+        if a.type == "move", a.toWeek > 0 {
+            bits.append("调到第 \(a.toWeek) 周")
+        }
+        if !a.toLocation.isEmpty { bits.append(a.toLocation) }
+        if !a.date.isEmpty { bits.append(a.date) }
+        return bits.joined(separator: " · ")
+    }
+
+    private func removeAdjust(_ a: Adjust) {
+        guard let t = TimetableStore.load() else { return }
+        TimetableAdjust.shared.remove(t: t, id: a.id)
+        TimetableStore.save(t)
+        reloadHidden()
     }
 
     private func restore(_ c: Course) {

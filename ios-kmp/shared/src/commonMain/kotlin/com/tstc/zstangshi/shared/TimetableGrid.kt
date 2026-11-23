@@ -31,6 +31,9 @@ object TimetableGrid {
             if (hidden.contains(course.key)) continue
             for (s in course.sessions) {
                 if (s.weeks.isNotEmpty() && !s.weeks.contains(week)) continue
+                // 停课 / 整天放假：这一格不画
+                if (TimetableAdjust.isCancelled(t, course.name, week, s.dayOfWeek, s.startSection, s.endSection)) continue
+                if (TimetableAdjust.isDayOff(t, week, s.dayOfWeek)) continue
                 out.add(
                     GridCell(
                         day = s.dayOfWeek,
@@ -44,6 +47,21 @@ object TimetableGrid {
                     )
                 )
             }
+        }
+        // 调课：把「调到本周的那次」额外画出来
+        for (a in TimetableAdjust.movedOf(t, week)) {
+            out.add(
+                GridCell(
+                    day = a.toDay,
+                    startSection = a.toStart,
+                    endSection = if (a.toEnd > 0) a.toEnd else a.toStart,
+                    name = a.name,
+                    room = a.toLocation,
+                    teacher = "",
+                    colorIndex = 0,
+                    courseKey = "moved-" + a.id
+                )
+            )
         }
         out.sortWith(compareBy({ it.day }, { it.startSection }))
         return out

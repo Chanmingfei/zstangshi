@@ -61,6 +61,26 @@ object TimetableCodec {
             }
             sb.append("]}")
         }
+        sb.append("],\"adjusts\":[")
+        for ((i, a) in t.adjusts.withIndex()) {
+            if (i > 0) sb.append(',')
+            sb.append("{\"id\":").append(q(a.id))
+            sb.append(",\"type\":").append(q(a.type))
+            sb.append(",\"name\":").append(q(a.name))
+            sb.append(",\"week\":").append(a.week)
+            sb.append(",\"day\":").append(a.day)
+            sb.append(",\"start\":").append(a.start)
+            sb.append(",\"end\":").append(a.end)
+            sb.append(",\"toWeek\":").append(a.toWeek)
+            sb.append(",\"toDay\":").append(a.toDay)
+            sb.append(",\"toStart\":").append(a.toStart)
+            sb.append(",\"toEnd\":").append(a.toEnd)
+            sb.append(",\"toLocation\":").append(q(a.toLocation))
+            sb.append(",\"date\":").append(q(a.date))
+            sb.append(",\"fromDate\":").append(q(a.fromDate))
+            sb.append(",\"note\":").append(q(a.note))
+            sb.append('}')
+        }
         sb.append("],\"hidden\":[")
         for ((i, k) in t.hiddenKeys.withIndex()) {
             if (i > 0) sb.append(',')
@@ -79,6 +99,29 @@ object TimetableCodec {
             t.semester.name = sem.optString("name")
             t.semester.startDate = sem.optString("startDate")
             t.semester.totalWeeks = sem.optInt("totalWeeks", 20)
+        }
+        val adjs = root.optArr("adjusts")
+        if (adjs != null) {
+            for (item in adjs.items) {
+                val o = item as? Js.Obj ?: continue
+                val a = Adjust()
+                a.id = o.optString("id")
+                a.type = o.optString("type").ifEmpty { ADJ_CANCEL }
+                a.name = o.optString("name")
+                a.week = o.optInt("week", 0)
+                a.day = o.optInt("day", 0)
+                a.start = o.optInt("start", 0)
+                a.end = o.optInt("end", 0)
+                a.toWeek = o.optInt("toWeek", 0)
+                a.toDay = o.optInt("toDay", 0)
+                a.toStart = o.optInt("toStart", 0)
+                a.toEnd = o.optInt("toEnd", 0)
+                a.toLocation = o.optString("toLocation")
+                a.date = o.optString("date")
+                a.fromDate = o.optString("fromDate")
+                a.note = o.optString("note")
+                t.adjusts.add(a)
+            }
         }
         val hid = root.optArr("hidden")
         if (hid != null) {

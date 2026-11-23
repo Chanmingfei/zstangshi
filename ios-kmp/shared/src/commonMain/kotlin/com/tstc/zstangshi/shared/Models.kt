@@ -24,6 +24,11 @@ class Timetable {
     val hiddenKeys: MutableList<String> = ArrayList()
 
     fun hiddenList(): List<String> = hiddenKeys
+
+    /** 手动调整（停课/调课/放假/补课），纯本地数据，同步时保留。 */
+    val adjusts: MutableList<Adjust> = ArrayList()
+
+    fun adjustList(): List<Adjust> = adjusts
 }
 
 class Semester {

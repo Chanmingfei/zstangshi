@@ -10,6 +10,10 @@ struct CourseEditSheet: View {
     let defaultDay: Int
     let defaultSection: Int
     let maxWeek: Int
+    var week: Int = 0
+    var cancelledThisWeek: Bool = false
+    var onCancelWeek: (() -> Void)?
+    var onResumeWeek: (() -> Void)?
     let onSave: (_ name: String, _ teacher: String, _ room: String, _ campus: String,
                  _ day: Int, _ start: Int, _ end: Int, _ weeks: [Int], _ colorIndex: Int) -> Void
     let onDelete: (() -> Void)?
@@ -29,6 +33,10 @@ struct CourseEditSheet: View {
 
     init(existing: Course?, defaultDay: Int, defaultSection: Int, maxWeek: Int,
          initialColor: Int = 0,
+         week: Int = 0,
+         cancelledThisWeek: Bool = false,
+         onCancelWeek: (() -> Void)? = nil,
+         onResumeWeek: (() -> Void)? = nil,
          onSave: @escaping (String, String, String, String, Int, Int, Int, [Int], Int) -> Void,
          onDelete: (() -> Void)? = nil) {
         self.existing = existing
@@ -37,6 +45,10 @@ struct CourseEditSheet: View {
         self.maxWeek = maxWeek
         self.onSave = onSave
         self.onDelete = onDelete
+        self.week = week
+        self.cancelledThisWeek = cancelledThisWeek
+        self.onCancelWeek = onCancelWeek
+        self.onResumeWeek = onResumeWeek
 
         if let c = existing, let s = c.sessionList().first {
             _name = State(initialValue: c.name)
@@ -113,6 +125,24 @@ struct CourseEditSheet: View {
                     colorRow
                 } header: {
                     Text("颜色")
+                }
+
+                if existing != nil, week > 0 {
+                    Section {
+                        if cancelledThisWeek {
+                            Button("恢复第 \(week) 周的课") {
+                                onResumeWeek?()
+                                dismiss()
+                            }
+                        } else {
+                            Button("第 \(week) 周停课") {
+                                onCancelWeek?()
+                                dismiss()
+                            }
+                        }
+                    } footer: {
+                        Text("只影响第 \(week) 周这一次，不动整门课；同步教务时这条记录会保留。")
+                    }
                 }
 
                 if existing != nil, let del = onDelete {

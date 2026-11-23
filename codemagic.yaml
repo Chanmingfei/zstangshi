@@ -91,17 +91,22 @@ workflows:
           fi
           /tmp/gradle-$GRADLE_VER/bin/gradle --version | sed -n '1,8p'
 
-      - name: 编译 XCFramework
+      - name: 编译 iOS framework（arm64 真机 + 模拟器）
         script: |
           set -e
           cd "$KMP_DIR"
-          /tmp/gradle-$GRADLE_VER/bin/gradle --no-daemon --stacktrace :shared:assembleXCFramework
+          # 用 link*Framework 而不是 assembleXCFramework：后者要先在构建脚本里
+          # 显式声明 XCFramework("Shared") 才会注册任务。当前诉求只是「证明
+          # Kotlin/Native 能把 commonMain 编过」，link 任务足够且更直接。
+          /tmp/gradle-$GRADLE_VER/bin/gradle --no-daemon --stacktrace \
+            :shared:linkDebugFrameworkIosArm64 \
+            :shared:linkDebugFrameworkIosSimulatorArm64
 
       - name: 列出产物
         script: |
           set -e
-          find "$KMP_DIR/shared/build/XCFrameworks" -maxdepth 3 | head -30
-          du -sh "$KMP_DIR/shared/build/XCFrameworks"/* 2>/dev/null || true
+          find "$KMP_DIR/shared/build/bin" -maxdepth 4 -name "*.framework" -o -maxdepth 4 -name "Shared" -type f | head -20
+          du -sh "$KMP_DIR/shared/build/bin"/*/* 2>/dev/null | head -10
 
     artifacts:
-      - ios-kmp/shared/build/XCFrameworks/**/*.xcframework
+      - ios-kmp/shared/build/bin/**/*.framework

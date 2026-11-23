@@ -79,7 +79,8 @@ struct BusSearchView: View {
                 status = "HTTP \(code)，\(body.prefix(120))"
                 return
             }
-            let parsed = ChelaileApi.shared.parseSearchHits(body: body)
+            // 顶层函数在 Swift 里挂在 <文件名>Kt 上，不是 object 成员
+            let parsed = BusSearchKt.parseSearchHits(body: body)
             hits = parsed
             status = "HTTP 200 · \(body.count) 字节 · 解析出 \(parsed.count) 条"
         } catch {

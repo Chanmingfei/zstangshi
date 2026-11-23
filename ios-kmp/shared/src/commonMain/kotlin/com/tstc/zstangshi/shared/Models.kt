@@ -1,0 +1,56 @@
+package com.tstc.zstangshi.shared
+
+/**
+ * 课表模型（探针用的最小集）。
+ *
+ * 完整模型在 Android `data/Timetable.kt`（458 行），其中约一半是 toJson/fromJson 的
+ * 持久化代码。探针阶段只需要「解析器要往里填的字段」，所以这里只保留这些；
+ * 等 P1 落地时再把持久化部分补齐（JSON 兼容层已经就位，补的时候不用改调用方）。
+ */
+class Timetable {
+    val semester: Semester = Semester()
+    val courses: MutableList<Course> = ArrayList()
+}
+
+class Semester {
+    var id: String = ""
+    var name: String = ""
+    var startDate: String = ""
+    var totalWeeks: Int = 20
+}
+
+class Course {
+    var key: String = ""
+    var name: String = ""
+    var teacher: String = ""
+    var credit: Double = 0.0
+    var category: String = ""
+    var examType: String = ""
+
+    /** 来源：教务同步 / 用户手动。手动课程在任何同步中都不会被删。 */
+    var source: String = SOURCE_JWGLXT
+
+    /** 色板索引；手动或用户改过色时不参与自动分配。 */
+    var colorIndex: Int = 0
+    var colorTouched: Boolean = false
+
+    val sessions: MutableList<Session> = ArrayList()
+}
+
+class Session {
+    var dayOfWeek: Int = 1        // 1=周一 … 7=周日
+    var startSection: Int = 1
+    var endSection: Int = 1
+    val weeks: MutableList<Int> = ArrayList()
+    var weeksRaw: String = ""
+    var location: String = ""
+    var campus: String = ""
+    var roomType: String = ""
+    var teacher: String = ""
+
+    /** 按周换老师（如形势与政策每周一个主讲）：周次 → 教师。 */
+    val weekTeachers: MutableMap<Int, String> = LinkedHashMap()
+}
+
+const val SOURCE_JWGLXT = "jwglxt"
+const val SOURCE_CUSTOM = "custom"

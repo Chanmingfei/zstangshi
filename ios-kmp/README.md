@@ -13,6 +13,30 @@ iOS 版没有 Mac 可用，只能靠云构建出包，一轮 10–20 分钟。
 所以原则是：**能放进共享层的逻辑一律不放 Swift**。
 Swift 那边只留界面、系统能力（通知/定位/Keychain）和会话注入。
 
+## 构建方式（已切到官方 KMP 插件）
+
+不再是「手写脚本编 framework」，而是标准 Gradle 结构：
+
+```
+ios-kmp/
+├── settings.gradle.kts      # 只 include :shared
+├── build.gradle.kts         # Kotlin 2.4.21（apply false）
+├── gradle.properties
+└── shared/build.gradle.kts  # jvm + iosArm64 + iosSimulatorArm64，静态 framework "Shared"
+```
+
+版本按官方兼容表锁定，不用 latest：**Kotlin 2.4.21 ↔ Gradle 8.14.4 ↔ Xcode 26.4**。
+
+云构建（`codemagic.yaml` 的 `ios-framework` 工作流）实测：
+
+```
+BUILD SUCCESSFUL in 49s
+shared/build/bin/iosArm64/debugFramework/Shared.framework            20M
+shared/build/bin/iosSimulatorArm64/debugFramework/Shared.framework   20M
+```
+
+这一条的意义：**commonMain 能被 Kotlin/Native 编过**，这是 Windows 上永远验不了的事。
+
 ## 目录
 
 ```

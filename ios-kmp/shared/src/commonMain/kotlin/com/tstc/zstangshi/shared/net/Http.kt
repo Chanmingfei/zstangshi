@@ -1,34 +1,19 @@
 package com.tstc.zstangshi.shared.net
 
 /**
- * 最小 HTTP GET。
+ * URL / 查询串工具（纯计算，无平台依赖）。
  *
- * 为什么不引 Ktor（追客用的是 Ktor + OkHttp/Darwin 引擎）：
- *   Ktor 会给共享层带回一堆 Maven 依赖，而 Android 主线是 aapt2 + kotlinc + d8 手写链，
- *   解析不了 Maven 依赖。共享层目前要同时喂给「Windows 上的 kotlinc 断言」和
- *   「Codemagic 上的 Kotlin/Native」，零依赖是最省事的边界。
- *   代价：iOS 侧要自己写 NSURLSession 的协程桥接（见 Http.ios.kt，约 40 行）。
+ * 这里**故意不含 HTTP 调用本身**。原因：
+ *   车来了要求必须带 `Referer`（缺了直接 400），而 Kotlin/Native 的 Foundation 绑定
+ *   没暴露 `NSMutableURLRequest.setValue:forHTTPHeaderField:` 与带 completionHandler 的
+ *   `dataTaskWithRequest`（两个都在编译期报 unresolved），想设请求头就得绕一大圈。
+ *   而 Swift 侧的 URLSession 又成熟又好写 —— 所以分工是：
+ *     Kotlin：拼 URL、签名、解密、解析（全部是纯函数，可以在 Windows 上跑断言）
+ *     Swift：发请求（带请求头、超时、错误映射）
+ *   代价是每个接口多几行 Swift 胶水；收益是共享层保持零平台依赖、零网络状态。
  */
-data class HttpResult(
-    val code: Int,
-    val body: String,
-    val error: String? = null
-) {
-    val ok: Boolean get() = code in 200..299
-}
 
-/**
- * 发起 GET。失败不抛异常，把原因放进 [HttpResult.error] ——
- * 公交这边「没网」是常态，上层要能区分「网络失败」和「服务端返回错误」。
- */
-expect suspend fun httpGetText(url: String, headers: Map<String, String> = emptyMap()): HttpResult
-
-/**
- * 表单/查询串编码：只保留 RFC 3986 unreserved，其余按 UTF-8 百分号编码。
- *
- * 不用平台自带 API（`URLEncoder` 是 JVM 专属），因为教务把中文站名、线路名
- * 直接塞进查询串，编码规则必须两端一致，否则签名对得上、服务端却解析歪。
- */
+/** 表单/查询串编码：只保留 RFC 3986 unreserved，其余按 UTF-8 百分号编码。 */
 fun percentEncode(value: String): String {
     val hex = "0123456789ABCDEF"
     val sb = StringBuilder(value.length * 3)

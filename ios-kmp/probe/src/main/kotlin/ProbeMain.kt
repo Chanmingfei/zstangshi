@@ -9,7 +9,8 @@ import com.tstc.zstangshi.shared.bus.ChelaileCrypto
 import com.tstc.zstangshi.shared.crypto.base64Decode
 import com.tstc.zstangshi.shared.crypto.md5Hex
 import java.io.File
-import kotlinx.coroutines.runBlocking
+import java.net.HttpURLConnection
+import java.net.URL
 import java.time.LocalDate
 
 /**
@@ -253,17 +254,19 @@ fun main(args: Array<String>) {
     // ---------- 11. 联网冒烟（可选，--net 才跑） ----------
     if (args.contains("--net")) {
         println("—— 联网冒烟：车来了线路搜索 ——")
+        // 这里用 JDK 的 HttpURLConnection 代替 Swift 的 URLSession：
+        // 两者职责相同（带 Referer 发 GET），这条断言验的是「签名能被服务端接受」，
+        // 与用谁发请求无关。
         try {
-            val result = runBlocking { ChelaileApi.search("056", "游1") }  // 056 = 唐山
-            if (result == null) {
-                failures.add("联网冒烟：接口返回 null（可能签名/参数不被接受）")
-            } else {
-                val lines = result.optArr("lines") ?: result.optArr("lineList")
-                val first = (lines?.items?.firstOrNull() as? com.tstc.zstangshi.shared.Js.Obj)
-                val name = first?.optString("name") ?: first?.optString("lineNo") ?: ""
-                println("   搜索到 ${lines?.size ?: 0} 条线路，首条：$name")
-                check((lines?.size ?: 0) > 0, "联网冒烟：至少返回一条线路", lines?.size, ">0")
-            }
+            val url = ChelaileApi.searchUrl("056", "游1")   // 056 = 唐山
+            val body = httpGetWithHeaders(url, ChelaileApi.headers())
+            val result = ChelaileApi.parseResponse(body)?.optObj("result")
+            val lines = result?.optArr("lines")
+            val first = (lines?.items?.firstOrNull() as? com.tstc.zstangshi.shared.Js.Obj)
+            val name = first?.optString("name") ?: first?.optString("lineNo") ?: ""
+            println("   搜索到 ${lines?.size ?: 0} 条线路，首条：$name")
+            check((lines?.size ?: 0) > 0, "联网冒烟：至少返回一条线路", lines?.size, ">0")
+            eq(name, "游1", "联网冒烟：首条线路名")
         } catch (e: Throwable) {
             failures.add("联网冒烟失败：" + (e.message ?: e.toString()))
         }
@@ -286,4 +289,22 @@ fun main(args: Array<String>) {
         kotlin.system.exitProcess(1)
     }
     println("ALL PASSED")
+}
+
+/** 探针专用：带请求头发 GET（车来了缺 Referer 会直接 400）。 */
+private fun httpGetWithHeaders(url: String, headers: Map<String, String>): String {
+    val conn = URL(url).openConnection() as HttpURLConnection
+    return try {
+        conn.requestMethod = "GET"
+        conn.connectTimeout = 12000
+        conn.readTimeout = 15000
+        for ((k, v) in headers) conn.setRequestProperty(k, v)
+        val code = conn.responseCode
+        val stream = if (code >= 400) conn.errorStream else conn.inputStream
+        val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+        if (code >= 400) throw IllegalStateException("HTTP $code：${text.take(200)}")
+        text
+    } finally {
+        conn.disconnect()
+    }
 }

@@ -37,3 +37,18 @@ fun buildQuery(params: Map<String, String>): String {
     }
     return sb.toString()
 }
+
+/**
+ * 坐标固定 6 位小数（对齐 Android 的 `String.format(Locale.US, "%.6f")`）。
+ * 不能用 String.format —— 那是 JVM 专属；而且某些 Locale 会输出逗号小数点，
+ * 直接把查询串搞坏。
+ */
+fun formatCoord(v: Double): String {
+    if (v.isNaN() || v.isInfinite()) return "0.000000"
+    val neg = v < 0
+    val abs = if (neg) -v else v
+    val scaled = (abs * 1_000_000.0 + 0.5).toLong()
+    val intPart = scaled / 1_000_000
+    val frac = (scaled % 1_000_000).toString().padStart(6, '0')
+    return (if (neg) "-" else "") + intPart + "." + frac
+}

@@ -32,6 +32,7 @@ struct BusSearchView: View {
                     Text("暂无结果").foregroundColor(.secondary)
                 } else {
                     ForEach(hits, id: \.lineId) { hit in
+                        NavigationLink { BusLineView(hit: hit) } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(hit.name).font(.headline)
@@ -44,6 +45,7 @@ struct BusSearchView: View {
                                 .foregroundColor(.secondary)
                             Text(hit.lineId).font(.system(size: 10, design: .monospaced))
                                 .foregroundColor(.secondary)
+                        }
                         }
                     }
                 }

@@ -39,7 +39,10 @@ struct RootView: View {
             .navigationTitle("共享层联通测试")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink("公交") { BusSearchView() }
+                    HStack(spacing: 12) {
+                        NavigationLink("附近") { BusNearbyView() }
+                        NavigationLink("搜索") { BusSearchView() }
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)

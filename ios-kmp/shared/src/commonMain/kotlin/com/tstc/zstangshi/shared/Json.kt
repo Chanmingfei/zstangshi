@@ -57,6 +57,15 @@ sealed class Js {
             }
         }
 
+        fun optDouble(key: String, def: Double = 0.0): Double {
+            return when (val v = map[key]) {
+                is Num -> v.toDoubleOrNull() ?: def
+                is Str -> v.value.trim().toDoubleOrNull() ?: def
+                is Bool -> if (v.value) 1.0 else 0.0
+                else -> def
+            }
+        }
+
         fun optBoolean(key: String, def: Boolean = false): Boolean {
             return when (val v = map[key]) {
                 is Bool -> v.value

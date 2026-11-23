@@ -6,6 +6,9 @@ import com.tstc.zstangshi.shared.WeekMath
 import com.tstc.zstangshi.shared.WeekRange
 import com.tstc.zstangshi.shared.bus.ChelaileApi
 import com.tstc.zstangshi.shared.bus.ChelaileCrypto
+import com.tstc.zstangshi.shared.bus.BusText
+import com.tstc.zstangshi.shared.bus.parseLineDetail
+import com.tstc.zstangshi.shared.bus.parseNearby
 import com.tstc.zstangshi.shared.crypto.base64Decode
 import com.tstc.zstangshi.shared.crypto.md5Hex
 import java.io.File
@@ -274,6 +277,53 @@ fun main(args: Array<String>) {
         println("（跳过联网冒烟，加 --net 才跑）")
     }
 
+
+    // ---------- 12. 公交列表与详情解析（用真实响应样本） ----------
+    // 样本来自现场抓取：fixtures/nearby.txt（加密原始响应）与 fixtures/linedetail.txt。
+    // 这两个文件保留加密原样，正是因为要同时验证「拆壳 + 解密 + 字段映射」整条链路。
+    val fixtures = File("ios-kmp/fixtures")
+    if (!fixtures.isDirectory) {
+        failures.add("找不到 ios-kmp/fixtures（在仓库根目录跑）")
+    } else {
+        val nearbyBody = File(fixtures, "nearby.txt").readText(Charsets.UTF_8)
+        val stations = parseNearby(nearbyBody, 50, 39.63, 118.18)
+        check(stations.isNotEmpty(), "附近站点解析非空", stations.size, ">0")
+        eq(stations.first().name, "工人医院", "最近一站是工人医院")
+        check(stations.first().distanceMeters in 1..3000, "首站距离合理", stations.first().distanceMeters, "1..3000")
+        check(stations.none { Geo_isSubwayName(it.name) }, "地铁站已被过滤掉")
+        val withRealtime = stations.count { st -> st.arrivals.any { it.realtime } }
+        check(withRealtime > 0, "至少一站带实时到站")
+        val firstArrival = stations.first().arrivals.firstOrNull()
+        check(firstArrival != null, "首站有线路")
+        if (firstArrival != null) {
+            check(firstArrival.lineName.isNotEmpty(), "线路名非空")
+            check(firstArrival.lineId.isNotEmpty(), "lineId 非空")
+        }
+
+        val detailBody = File(fixtures, "linedetail.txt").readText(Charsets.UTF_8)
+        val detail = parseLineDetail(detailBody, "315282310627")
+        eq(detail.line.name, "游1", "线路名")
+        eq(detail.stops.size, 28, "站表 28 站")
+        eq(detail.stops.first().order, 1, "首站站序为 1（取数组位置）")
+        eq(detail.stops.last().order, 28, "末站站序等于站数")
+        check(detail.vehicles.isNotEmpty(), "有在途车辆", detail.vehicles.size, ">0")
+        check(detail.vehicles.first().order >= 1, "车辆 order 有效")
+        check(detail.line.startName.isNotEmpty() && detail.line.endName.isNotEmpty(), "首末站名齐全")
+
+        // 文案口径（和 Android 完全一致的那几条硬规则）
+        eq(BusText.minutesOfSecs(-1), -1, "无数据 → -1")
+        eq(BusText.minutesOfSecs(0), 0, "0 秒 → 0（即将到站）")
+        eq(BusText.minutesOfSecs(59), 0, "不足 1 分钟 → 0")
+        eq(BusText.minutesOfSecs(60), 1, "整 1 分钟 → 1")
+        eq(BusText.minutesOfSecs(61), 2, "61 秒向上取整 → 2")
+        eq(BusText.rowEtaText(0, 3, false, "", true, false), "即将到站", "0 分钟不能说「到站了」")
+        eq(BusText.rowEtaText(0, 0, true, "", true, false), "到站了", "到站文案")
+        eq(BusText.rowEtaText(-1, 4, false, "", true, false), "4 站", "无分钟时退到站数")
+        eq(BusText.rowEtaText(-1, 0, false, "不在运营时间", false, false), "不在运营时间", "退到上游状态")
+        eq(BusText.rowPrimaryText(12, 7, false, "", true, false), "12分钟 · 7站", "大字合并分钟与站数")
+        eq(BusText.rowDetailText(2, -1, false, 12, 0), "还有 2 站 · 下一辆 12 分钟", "小字")
+    }
+
     // ---------- 8. 平台无关性证据 ----------
     // Kotlin 的 String.hashCode 在 JVM 与 Native 上算法相同，这里把 JVM 实测值钉住，
     // 将来在 iOS 上重跑同一个断言即可确认配色初值一致。
@@ -308,3 +358,6 @@ private fun httpGetWithHeaders(url: String, headers: Map<String, String>): Strin
         conn.disconnect()
     }
 }
+
+private fun Geo_isSubwayName(name: String): Boolean =
+    com.tstc.zstangshi.shared.bus.Geo.isSubwayStationName(name)

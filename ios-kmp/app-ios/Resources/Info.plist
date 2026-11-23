@@ -39,6 +39,8 @@
             </dict>
         </dict>
     </dict>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>用于查找你附近的公交站点并展示实时到站信息</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

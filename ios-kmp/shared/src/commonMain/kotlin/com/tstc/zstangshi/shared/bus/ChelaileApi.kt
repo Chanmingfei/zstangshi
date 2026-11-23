@@ -2,6 +2,7 @@ package com.tstc.zstangshi.shared.bus
 
 import com.tstc.zstangshi.shared.Js
 import com.tstc.zstangshi.shared.net.buildQuery
+import com.tstc.zstangshi.shared.net.formatCoord
 
 /**
  * 车来了 HTTP 层：签名 → 拼查询串 → GET → 拆壳解密。
@@ -74,4 +75,39 @@ object ChelaileApi {
     /** 线路搜索的完整 URL（Swift 直接拿去 fetch）。 */
     fun searchUrl(cityId: String, keyword: String): String =
         signedUrl("/bus/query!nSearch.action", searchParams(cityId, keyword))
+
+    /** 附近站点参数。`localCityId` 传 "undefined" 是上游的约定，别改成城市码。 */
+    fun nearbyParams(cityId: String, lat: Double, lng: Double): MutableMap<String, String> {
+        val p = baseParams()
+        p["cityId"] = cityId
+        p["localCityId"] = "undefined"
+        p["lat"] = formatCoord(lat)
+        p["lng"] = formatCoord(lng)
+        p["geo_lat"] = formatCoord(lat)
+        p["geo_lng"] = formatCoord(lng)
+        p["type"] = "5"
+        p["permission"] = "0"
+        return p
+    }
+
+    fun nearbyUrl(cityId: String, lat: Double, lng: Double): String =
+        signedUrl("/bus/stop!encryptedHomePage.action", nearbyParams(cityId, lat, lng))
+
+    /** 线路详情参数。targetOrder 传 0 也能出站表，只是少了「车在哪站」的标注。 */
+    fun lineDetailParams(cityId: String, lineId: String, lat: Double, lng: Double): MutableMap<String, String> {
+        val p = baseParams()
+        p["cityId"] = cityId
+        p["localCityId"] = cityId
+        p["lineId"] = lineId
+        val la = if (lat > 0) formatCoord(lat) else ""
+        val ln = if (lng > 0) formatCoord(lng) else ""
+        p["lat"] = la
+        p["lng"] = ln
+        p["geo_lat"] = la
+        p["geo_lng"] = ln
+        return p
+    }
+
+    fun lineDetailUrl(cityId: String, lineId: String, lat: Double, lng: Double): String =
+        signedUrl("/bus/line!encryptedLineDetail.action", lineDetailParams(cityId, lineId, lat, lng))
 }

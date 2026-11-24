@@ -41,6 +41,7 @@ final class JwAuth: ObservableObject {
     // MARK: - 登录
 
     func login(no: String, password: String) async -> Bool {
+        Diag.log("jw", "login start no=\(no)")
         message = "正在登录…"
         let n = no.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !n.isEmpty, !password.isEmpty else {
@@ -246,9 +247,11 @@ final class JwAuth: ObservableObject {
         if method == "POST", let form = form {
             req.httpBody = Data(formString(form).utf8)
         }
+        Diag.log("jw", "\(method) \(base + path) bytes=\(req.httpBody?.count ?? 0)")
         let (data, resp) = try await session.data(for: req)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
         let text = String(data: data, encoding: .utf8) ?? gb18030(data)
+        Diag.log("jw", "resp code=\(code) bytes=\(data.count) origin=\(origin)")
         return (code, text)
     }
 

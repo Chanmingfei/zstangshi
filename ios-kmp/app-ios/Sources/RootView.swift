@@ -143,7 +143,7 @@ struct RootView: View {
 
     /// 切底栏 tab 的宫格（对齐安卓首页点课表/成绩直接切页）。
     private func tabTile(_ title: String, _ icon: String, tab: Int) -> some View {
-        Button { router.selection = tab } label: {
+        Button { Diag.log("nav", "switch tab=\(tab)"); router.selection = tab } label: {
             VStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 20))
@@ -232,10 +232,15 @@ struct RootView: View {
     /// 启动顺序：先渲染本地缓存（秒开），再后台静默登录并同步。
     /// 安卓就是这个体验 —— 首页立刻可用，登录/同步在后台跑，绝不挡着点「实时公交」。
     private func bootstrap() async {
+        Diag.log("root", "bootstrap start")
         if let cached = TimetableStore.load() {
+            Diag.log("root", "cached timetable courses=\(cached.courseList().count)")
             apply(cached)
+        } else {
+            Diag.log("root", "no cached timetable")
         }
         await autoLoginThenSync()
+        Diag.log("root", "bootstrap done loggedIn=\(auth.loggedIn) msg=\(auth.message)")
     }
 
     private func autoLoginThenSync() async {

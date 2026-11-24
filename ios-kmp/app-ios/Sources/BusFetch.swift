@@ -26,9 +26,11 @@ enum BusFetch {
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         req.httpBody = Data(form.utf8)
+        Diag.log("bus", "POST \(urlText) bytes=\(req.httpBody?.count ?? 0)")
         let (data, resp) = try await URLSession.shared.data(for: req)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
         let body = String(data: data, encoding: .utf8) ?? ""
+        Diag.log("bus", "POST code=\(code) bytes=\(data.count)")
         guard code == 200 else { throw Failure(code: code, body: body) }
         return body
     }
@@ -45,9 +47,11 @@ enum BusFetch {
         req.setValue("*/*", forHTTPHeaderField: "Accept")
         req.setValue("zh-CN,zh;q=0.9", forHTTPHeaderField: "Accept-Language")
 
+        Diag.log("bus", "GET \(urlText)")
         let (data, resp) = try await URLSession.shared.data(for: req)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
         let body = String(data: data, encoding: .utf8) ?? ""
+        Diag.log("bus", "GET code=\(code) bytes=\(data.count)")
         guard code == 200 else { throw Failure(code: code, body: body) }
         return body
     }

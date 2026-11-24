@@ -16,6 +16,10 @@ final class TabRouter: ObservableObject {
 struct ZSTSApp: App {
     @StateObject private var router = TabRouter()
 
+    init() {
+        Diag.log("app", "launch ios=\(UIDevice.current.systemVersion) bundle=\(Bundle.main.bundleIdentifier ?? "?")")
+    }
+
     var body: some Scene {
         WindowGroup {
             TabView(selection: $router.selection) {

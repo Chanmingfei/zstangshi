@@ -38,3 +38,6 @@ targets:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         # 静态 framework 里带的是 arm64 真机切片，模拟器切片不参与本次构建
         ONLY_ACTIVE_ARCH: NO
+        # Kotlin/Native 静态 framework 靠 ObjC category 注册类，必须 -ObjC 全量链接，
+        # 否则 App 能启动但一调 Kotlin 解析就 unrecognized selector / 静默失效。
+        OTHER_LDFLAGS: "$(inherited) -ObjC"

@@ -13,6 +13,7 @@ struct ProfileView: View {
     @State private var message = ""
     @State private var hidden: [Course] = []
     @State private var adjusts: [Adjust] = []
+    @State private var diagText = ""
 
     var body: some View {
         List {
@@ -136,10 +137,17 @@ struct ProfileView: View {
                         .foregroundColor(.secondary)
                 }
             }
+
+            Section("诊断日志（排查用）") {
+                Text(diagText.isEmpty ? "暂无日志" : diagText)
+                    .font(.caption2)
+                    .textSelection(.enabled)
+                Button("刷新日志") { diagText = Diag.recent() }
+            }
         }
         .navigationTitle("我的")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { reloadHidden() }
+        .onAppear { reloadHidden(); diagText = Diag.recent() }
     }
 
     private func reloadHidden() {

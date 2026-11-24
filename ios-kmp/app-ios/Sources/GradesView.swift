@@ -61,6 +61,7 @@ struct GradesView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(g.name).font(.subheadline)
                                 Text(sub(g)).font(.caption2).foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer()
                             Text(g.score.isEmpty ? "—" : g.score)
@@ -92,6 +93,11 @@ struct GradesView: View {
         if !g.term.isEmpty { bits.append(g.term) }
         if !g.credit.isEmpty { bits.append("\(g.credit) 学分") }
         if !g.kind.isEmpty { bits.append(g.kind) }
+        // 安卓在副标题末尾换行追加「平时 x · 期末 y」分项，这里一致处理。
+        let detail = g.detail
+        if !detail.isEmpty {
+            return bits.joined(separator: " · ") + "\n" + detail
+        }
         return bits.joined(separator: " · ")
     }
 

@@ -158,7 +158,22 @@ final class JwAuth: ObservableObject {
             message = "成绩接口没有响应"
             return nil
         }
-        let r = GradeParserKt.parseGrades(json: body)
+
+        // 平时成绩明细（N305007）——对齐安卓 JwApi 的双接口口径。
+        // 明细是「附加」不是「替代」：失败只少分项，绝不能拖垮主表总评。
+        let detailForm = [
+            "xnm": "", "xqm": "", "page": "1", "rows": "1000",
+            "limit": "1000", "queryModel.showCount": "1000",
+            "queryModel.pageSize": "1000", "sidx": "", "sord": "asc",
+        ]
+        var detail = ""
+        if let (dc, db) = try? await sendWithFallback(
+            "POST", "/cjcx/cjcx_cxXsKccjList.html?gnmkdm=N305007", detailForm),
+           dc == 200, !db.isEmpty {
+            detail = db
+        }
+
+        let r = GradeParserKt.parseGradesWithDetail(json: body, detailJson: detail)
         if !r.ok { message = r.message }
         return r
     }
